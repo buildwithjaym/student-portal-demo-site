@@ -2,15 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Pencil, Trash2, School } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, School, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { formatFullName } from '@/lib/name'
+
+type Semester = '1st Semester' | '2nd Semester'
+type GradeLevel = 'Grade 11' | 'Grade 12'
 
 type SubjectOption = {
   id: string
   subject_code: string
   subject_name: string
+  grade_level: GradeLevel
+  semester: Semester
   is_active: boolean
 }
 
@@ -24,20 +29,36 @@ type TeacherOption = {
   is_active: boolean
 }
 
+type SectionOption = {
+  id: string
+  section_name: string
+  grade_level: GradeLevel
+  strand: string | null
+  is_active: boolean
+}
+
+type AcademicYearRow = {
+  id: string
+  school_year: string
+  is_active: boolean
+}
+
 type ClassRow = {
   id: string
   subject_id: string
   teacher_id: string | null
-  grade_level: string
+  grade_level: GradeLevel
   section: string
   school_year: string
-  semester: string | null
+  semester: Semester
   is_active: boolean
   created_at: string
   subjects: {
     id: string
     subject_code: string
     subject_name: string
+    grade_level: GradeLevel
+    semester: Semester
   } | null
   teachers:
     | {
@@ -51,20 +72,26 @@ type ClassRow = {
     | null
 }
 
+type DuplicateAssignment = {
+  classId: string
+  teacherName: string
+  subjectLabel: string
+}
+
 type ClassForm = {
   subject_id: string
   teacher_id: string
-  grade_level: string
+  grade_level: GradeLevel | ''
   section: string
   school_year: string
-  semester: string
+  semester: Semester | ''
   is_active: boolean
 }
 
 const initialForm: ClassForm = {
   subject_id: '',
   teacher_id: '',
-  grade_level: 'Grade 11',
+  grade_level: '',
   section: '',
   school_year: '',
   semester: '',
@@ -75,6 +102,8 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [teachers, setTeachers] = useState<TeacherOption[]>([])
+  const [sections, setSections] = useState<SectionOption[]>([])
+  const [activeSchoolYear, setActiveSchoolYear] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -82,14 +111,71 @@ export default function ClassesPage() {
   const [editingClass, setEditingClass] = useState<ClassRow | null>(null)
   const [form, setForm] = useState<ClassForm>(initialForm)
   const [currentPage, setCurrentPage] = useState(1)
+  const [duplicateAssignment, setDuplicateAssignment] = useState<DuplicateAssignment | null>(null)
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false)
 
   const pageSize = 8
 
+  const selectedSubject = useMemo(() => {
+    return subjects.find((subject) => subject.id === form.subject_id) ?? null
+  }, [subjects, form.subject_id])
+
+  const filteredSections = useMemo(() => {
+    if (!form.grade_level) return []
+    return sections.filter((section) => section.grade_level === form.grade_level)
+  }, [sections, form.grade_level])
+
+  const filteredClasses = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+
+    if (!keyword) return classes
+
+    return classes.filter((item) => {
+      const subjectLabel =
+        `${item.subjects?.subject_code ?? ''} ${item.subjects?.subject_name ?? ''}`.toLowerCase()
+      const teacherLabel = item.teachers ? formatFullName(item.teachers).toLowerCase() : ''
+
+      return (
+        subjectLabel.includes(keyword) ||
+        teacherLabel.includes(keyword) ||
+        item.grade_level.toLowerCase().includes(keyword) ||
+        item.section.toLowerCase().includes(keyword) ||
+        item.school_year.toLowerCase().includes(keyword) ||
+        item.semester.toLowerCase().includes(keyword)
+      )
+    })
+  }, [classes, search])
+
+  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize))
+
+  const paginatedClasses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredClasses.slice(start, start + pageSize)
+  }, [filteredClasses, currentPage])
+
+  const fetchActiveSchoolYear = async () => {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('id, school_year, is_active')
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (error) {
+      toast.error(error.message)
+      setActiveSchoolYear('')
+      return
+    }
+
+    const row = data as AcademicYearRow | null
+    const schoolYear = row?.school_year ?? ''
+    setActiveSchoolYear(schoolYear)
+  }
+
   const fetchLookupData = async () => {
-    const [subjectsResult, teachersResult] = await Promise.all([
+    const [subjectsResult, teachersResult, sectionsResult] = await Promise.all([
       supabase
         .from('subjects')
-        .select('id, subject_code, subject_name, is_active')
+        .select('id, subject_code, subject_name, grade_level, semester, is_active')
         .eq('is_active', true)
         .order('subject_name', { ascending: true }),
       supabase
@@ -97,18 +183,29 @@ export default function ClassesPage() {
         .select('id, teacher_no, first_name, middle_name, last_name, suffix, is_active')
         .eq('is_active', true)
         .order('last_name', { ascending: true }),
+      supabase
+        .from('sections')
+        .select('id, section_name, grade_level, strand, is_active')
+        .eq('is_active', true)
+        .order('section_name', { ascending: true }),
     ])
 
     if (subjectsResult.error) {
       toast.error(subjectsResult.error.message)
     } else {
-      setSubjects(subjectsResult.data ?? [])
+      setSubjects((subjectsResult.data as SubjectOption[]) ?? [])
     }
 
     if (teachersResult.error) {
       toast.error(teachersResult.error.message)
     } else {
-      setTeachers(teachersResult.data ?? [])
+      setTeachers((teachersResult.data as TeacherOption[]) ?? [])
+    }
+
+    if (sectionsResult.error) {
+      toast.error(sectionsResult.error.message)
+    } else {
+      setSections((sectionsResult.data as SectionOption[]) ?? [])
     }
   }
 
@@ -130,7 +227,9 @@ export default function ClassesPage() {
         subjects:subject_id (
           id,
           subject_code,
-          subject_name
+          subject_name,
+          grade_level,
+          semester
         ),
         teachers:teacher_id (
           id,
@@ -154,35 +253,10 @@ export default function ClassesPage() {
   }
 
   useEffect(() => {
+    fetchActiveSchoolYear()
     fetchLookupData()
     fetchClasses()
   }, [])
-
-  const filteredClasses = useMemo(() => {
-    const keyword = search.trim().toLowerCase()
-
-    if (!keyword) return classes
-
-    return classes.filter((item) => {
-      const subjectLabel = `${item.subjects?.subject_code ?? ''} ${item.subjects?.subject_name ?? ''}`.toLowerCase()
-      const teacherLabel = item.teachers ? formatFullName(item.teachers).toLowerCase() : ''
-      return (
-        subjectLabel.includes(keyword) ||
-        teacherLabel.includes(keyword) ||
-        item.grade_level.toLowerCase().includes(keyword) ||
-        item.section.toLowerCase().includes(keyword) ||
-        item.school_year.toLowerCase().includes(keyword) ||
-        (item.semester ?? '').toLowerCase().includes(keyword)
-      )
-    })
-  }, [classes, search])
-
-  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize))
-
-  const paginatedClasses = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredClasses.slice(start, start + pageSize)
-  }, [filteredClasses, currentPage])
 
   useEffect(() => {
     setCurrentPage(1)
@@ -194,9 +268,43 @@ export default function ClassesPage() {
     }
   }, [currentPage, totalPages])
 
+  useEffect(() => {
+    if (!selectedSubject) {
+      setForm((prev) => ({
+        ...prev,
+        grade_level: '',
+        semester: '',
+        section: '',
+      }))
+      return
+    }
+
+    setForm((prev) => {
+      const nextGradeLevel = selectedSubject.grade_level
+      const nextSemester = selectedSubject.semester
+
+      const sectionStillValid = sections.some(
+        (section) =>
+          section.section_name === prev.section &&
+          section.grade_level === nextGradeLevel
+      )
+
+      return {
+        ...prev,
+        grade_level: nextGradeLevel,
+        semester: nextSemester,
+        section: sectionStillValid ? prev.section : '',
+      }
+    })
+  }, [selectedSubject, sections])
+
   const resetForm = () => {
-    setForm(initialForm)
+    setForm({
+      ...initialForm,
+      school_year: activeSchoolYear,
+    })
     setEditingClass(null)
+    setDuplicateAssignment(null)
   }
 
   const openAddModal = () => {
@@ -212,9 +320,10 @@ export default function ClassesPage() {
       grade_level: item.grade_level,
       section: item.section,
       school_year: item.school_year,
-      semester: item.semester ?? '',
+      semester: item.semester,
       is_active: item.is_active,
     })
+    setDuplicateAssignment(null)
     setShowModal(true)
   }
 
@@ -222,6 +331,117 @@ export default function ClassesPage() {
     setShowModal(false)
     resetForm()
   }
+
+  useEffect(() => {
+    if (!showModal) return
+
+    setForm((prev) => ({
+      ...prev,
+      school_year: activeSchoolYear,
+    }))
+  }, [showModal, activeSchoolYear])
+
+  useEffect(() => {
+    const checkDuplicate = async () => {
+      if (
+        !showModal ||
+        !form.subject_id ||
+        !form.section ||
+        !form.school_year ||
+        !form.semester
+      ) {
+        setDuplicateAssignment(null)
+        return
+      }
+
+      setCheckingDuplicate(true)
+
+      let query = supabase
+        .from('classes')
+        .select(`
+          id,
+          subject_id,
+          teacher_id,
+          section,
+          school_year,
+          semester,
+          subjects:subject_id (
+            id,
+            subject_code,
+            subject_name
+          ),
+          teachers:teacher_id (
+            id,
+            first_name,
+            middle_name,
+            last_name,
+            suffix
+          )
+        `)
+        .eq('subject_id', form.subject_id)
+        .eq('section', form.section)
+        .eq('school_year', form.school_year)
+        .eq('semester', form.semester)
+        .eq('is_active', true)
+        .limit(1)
+
+      if (editingClass) {
+        query = query.neq('id', editingClass.id)
+      }
+
+      const { data, error } = await query.maybeSingle()
+
+      if (error) {
+        setDuplicateAssignment(null)
+        setCheckingDuplicate(false)
+        return
+      }
+
+      const row = data as
+        | {
+            id: string
+            subjects: {
+              id: string
+              subject_code: string
+              subject_name: string
+            } | null
+            teachers:
+              | {
+                  id: string
+                  first_name: string
+                  middle_name: string | null
+                  last_name: string
+                  suffix: string | null
+                }
+              | null
+          }
+        | null
+
+      if (!row) {
+        setDuplicateAssignment(null)
+        setCheckingDuplicate(false)
+        return
+      }
+
+      const teacherName = row.teachers
+        ? formatFullName(row.teachers)
+        : 'Unassigned Teacher'
+
+      const subjectLabel = row.subjects
+        ? `${row.subjects.subject_code} - ${row.subjects.subject_name}`
+        : 'Selected Subject'
+
+      setDuplicateAssignment({
+        classId: row.id,
+        teacherName,
+        subjectLabel,
+      })
+
+      setCheckingDuplicate(false)
+    }
+
+    checkDuplicate()
+  }, [showModal, form.subject_id, form.section, form.school_year, form.semester, editingClass])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -236,23 +456,41 @@ export default function ClassesPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true)
+
+    if (!activeSchoolYear) {
+      toast.error('No active school year found.')
+      return
+    }
+
+    if (duplicateAssignment) {
+      toast.error(
+        `This subject is already assigned to ${duplicateAssignment.teacherName} for section ${form.section}.`
+      )
+      return
+    }
 
     const payload = {
       subject_id: form.subject_id,
       teacher_id: form.teacher_id || null,
       grade_level: form.grade_level,
       section: form.section.trim(),
-      school_year: form.school_year.trim(),
-      semester: form.semester.trim() || null,
+      school_year: activeSchoolYear,
+      semester: form.semester,
       is_active: form.is_active,
     }
 
-    if (!payload.subject_id || !payload.grade_level || !payload.section || !payload.school_year) {
+    if (
+      !payload.subject_id ||
+      !payload.grade_level ||
+      !payload.section ||
+      !payload.school_year ||
+      !payload.semester
+    ) {
       toast.error('Please complete the required fields.')
-      setSaving(false)
       return
     }
+
+    setSaving(true)
 
     if (editingClass) {
       const { error } = await supabase
@@ -261,7 +499,13 @@ export default function ClassesPage() {
         .eq('id', editingClass.id)
 
       if (error) {
-        toast.error(error.message)
+        if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+          toast.error(
+            'This subject is already assigned for the selected section, school year, and semester.'
+          )
+        } else {
+          toast.error(error.message)
+        }
       } else {
         toast.success('Class updated successfully.')
         closeModal()
@@ -271,7 +515,13 @@ export default function ClassesPage() {
       const { error } = await supabase.from('classes').insert(payload)
 
       if (error) {
-        toast.error(error.message)
+        if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+          toast.error(
+            'This subject is already assigned for the selected section, school year, and semester.'
+          )
+        } else {
+          toast.error(error.message)
+        }
       } else {
         toast.success('Class added successfully.')
         closeModal()
@@ -328,7 +578,7 @@ export default function ClassesPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Classes</h1>
           <p className="mt-1 text-gray-600">
-            Manage class offerings by subject, teacher, section, and school year.
+            Manage class offerings by subject, teacher, section, school year, and semester.
           </p>
         </div>
 
@@ -352,16 +602,22 @@ export default function ClassesPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by subject, teacher, grade level, section, or school year"
+              placeholder="Search by subject, teacher, grade level, section, school year, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
             />
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
-            <School className="h-4 w-4" />
-            {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+              Active SY: {activeSchoolYear || 'Not Set'}
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
+              <School className="h-4 w-4" />
+              {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -440,7 +696,7 @@ export default function ClassesPage() {
                     <td className="px-4 py-4 text-sm text-gray-700">{item.grade_level}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">{item.section}</td>
                     <td className="px-4 py-4 text-sm text-gray-700">{item.school_year}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.semester || '—'}</td>
+                    <td className="px-4 py-4 text-sm text-gray-700">{item.semester}</td>
 
                     <td className="px-4 py-4">
                       {item.is_active ? (
@@ -548,6 +804,29 @@ export default function ClassesPage() {
                 </button>
               </div>
 
+              {!activeSchoolYear && (
+                <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  No active school year found. Please activate one school year first.
+                </div>
+              )}
+
+              {duplicateAssignment && (
+                <div className="mb-5 flex items-start gap-3 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div>
+                    <p className="font-semibold">Duplicate class assignment</p>
+                    <p>
+                      {duplicateAssignment.subjectLabel} is already assigned to{' '}
+                      <span className="font-bold uppercase">
+                        {duplicateAssignment.teacherName}
+                      </span>{' '}
+                      for section <span className="font-bold">{form.section}</span>,{' '}
+                      {form.school_year} - {form.semester}.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleSave} className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
@@ -568,6 +847,9 @@ export default function ClassesPage() {
                         </option>
                       ))}
                     </select>
+                    {checkingDuplicate && (
+                      <p className="mt-2 text-xs text-gray-500">Checking assignment...</p>
+                    )}
                   </div>
 
                   <div>
@@ -593,28 +875,36 @@ export default function ClassesPage() {
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Grade Level *
                     </label>
-                    <select
-                      name="grade_level"
+                    <input
                       value={form.grade_level}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                    >
-                      <option value="Grade 11">Grade 11</option>
-                      <option value="Grade 12">Grade 12</option>
-                    </select>
+                      readOnly
+                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+                      placeholder="Auto-filled from subject"
+                    />
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Section *
                     </label>
-                    <input
+                    <select
                       name="section"
                       value={form.section}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
-                    />
+                      disabled={!form.grade_level}
+                    >
+                      <option value="">
+                        {form.grade_level ? 'Select section' : 'Select subject first'}
+                      </option>
+                      {filteredSections.map((section) => (
+                        <option key={section.id} value={section.section_name}>
+                          {section.section_name}
+                          {section.strand ? ` - ${section.strand}` : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -622,25 +912,21 @@ export default function ClassesPage() {
                       School Year *
                     </label>
                     <input
-                      name="school_year"
-                      value={form.school_year}
-                      onChange={handleChange}
-                      placeholder="e.g. 2025-2026"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                      required
+                      value={activeSchoolYear}
+                      readOnly
+                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
                     />
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Semester
+                      Semester *
                     </label>
                     <input
-                      name="semester"
                       value={form.semester}
-                      onChange={handleChange}
-                      placeholder="e.g. 1st Semester"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      readOnly
+                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+                      placeholder="Auto-filled from subject"
                     />
                   </div>
 
@@ -671,7 +957,7 @@ export default function ClassesPage() {
 
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={saving || !activeSchoolYear || !!duplicateAssignment}
                     className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving

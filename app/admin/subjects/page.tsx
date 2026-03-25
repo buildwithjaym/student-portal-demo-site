@@ -6,12 +6,16 @@ import { Search, Plus, Pencil, Trash2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
+type GradeLevel = 'Grade 11' | 'Grade 12'
+type Semester = '1st Semester' | '2nd Semester'
+
 type Subject = {
   id: string
   subject_code: string
   subject_name: string
   description: string | null
-  grade_level: 'Grade 11' | 'Grade 12'
+  grade_level: GradeLevel
+  semester: Semester
   is_active: boolean
   created_at: string
 }
@@ -20,7 +24,8 @@ type SubjectForm = {
   subject_code: string
   subject_name: string
   description: string
-  grade_level: 'Grade 11' | 'Grade 12'
+  grade_level: GradeLevel
+  semester: Semester
   is_active: boolean
 }
 
@@ -29,6 +34,7 @@ const initialForm: SubjectForm = {
   subject_name: '',
   description: '',
   grade_level: 'Grade 11',
+  semester: '1st Semester',
   is_active: true,
 }
 
@@ -49,7 +55,16 @@ export default function SubjectsPage() {
 
     const { data, error } = await supabase
       .from('subjects')
-      .select('*')
+      .select(`
+        id,
+        subject_code,
+        subject_name,
+        description,
+        grade_level,
+        semester,
+        is_active,
+        created_at
+      `)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -76,7 +91,8 @@ export default function SubjectsPage() {
         subject.subject_code.toLowerCase().includes(keyword) ||
         subject.subject_name.toLowerCase().includes(keyword) ||
         (subject.description ?? '').toLowerCase().includes(keyword) ||
-        subject.grade_level.toLowerCase().includes(keyword)
+        subject.grade_level.toLowerCase().includes(keyword) ||
+        subject.semester.toLowerCase().includes(keyword)
       )
     })
   }, [subjects, search])
@@ -115,6 +131,7 @@ export default function SubjectsPage() {
       subject_name: subject.subject_name,
       description: subject.description ?? '',
       grade_level: subject.grade_level,
+      semester: subject.semester,
       is_active: subject.is_active,
     })
     setShowModal(true)
@@ -132,30 +149,33 @@ export default function SubjectsPage() {
 
     setForm((prev) => ({
       ...prev,
-      [name]:
-        name === 'is_active'
-          ? value === 'true'
-          : value,
+      [name]: name === 'is_active' ? value === 'true' : value,
     }))
   }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true)
 
     const payload = {
-      subject_code: form.subject_code.trim(),
+      subject_code: form.subject_code.trim().toUpperCase(),
       subject_name: form.subject_name.trim(),
       description: form.description.trim() || null,
       grade_level: form.grade_level,
+      semester: form.semester,
       is_active: form.is_active,
     }
 
-    if (!payload.subject_code || !payload.subject_name || !payload.grade_level) {
+    if (
+      !payload.subject_code ||
+      !payload.subject_name ||
+      !payload.grade_level ||
+      !payload.semester
+    ) {
       toast.error('Please complete the required fields.')
-      setSaving(false)
       return
     }
+
+    setSaving(true)
 
     if (editingSubject) {
       const { error } = await supabase
@@ -164,7 +184,11 @@ export default function SubjectsPage() {
         .eq('id', editingSubject.id)
 
       if (error) {
-        toast.error(error.message)
+        if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+          toast.error('Subject code already exists.')
+        } else {
+          toast.error(error.message)
+        }
       } else {
         toast.success('Subject updated successfully.')
         closeModal()
@@ -174,7 +198,11 @@ export default function SubjectsPage() {
       const { error } = await supabase.from('subjects').insert(payload)
 
       if (error) {
-        toast.error(error.message)
+        if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+          toast.error('Subject code already exists.')
+        } else {
+          toast.error(error.message)
+        }
       } else {
         toast.success('Subject added successfully.')
         closeModal()
@@ -231,7 +259,7 @@ export default function SubjectsPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Subjects</h1>
           <p className="mt-1 text-gray-600">
-            Manage subject records, grade level assignment, descriptions, and active status.
+            Manage subject records, grade level, semester assignment, descriptions, and active status.
           </p>
         </div>
 
@@ -255,7 +283,7 @@ export default function SubjectsPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by subject code, name, description, or grade level"
+              placeholder="Search by code, name, description, grade level, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -289,6 +317,9 @@ export default function SubjectsPage() {
                   Grade Level
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  Semester
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
                   Description
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
@@ -303,13 +334,13 @@ export default function SubjectsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
                     Loading subjects...
                   </td>
                 </tr>
               ) : paginatedSubjects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
                     No subjects found.
                   </td>
                 </tr>
@@ -325,17 +356,25 @@ export default function SubjectsPage() {
                     <td className="px-4 py-4 text-sm font-medium text-gray-700">
                       {subject.subject_code}
                     </td>
+
                     <td className="px-4 py-4">
                       <div className="font-semibold text-green-950">
                         {subject.subject_name}
                       </div>
                     </td>
+
                     <td className="px-4 py-4 text-sm text-gray-700">
                       {subject.grade_level}
                     </td>
+
+                    <td className="px-4 py-4 text-sm text-gray-700">
+                      {subject.semester}
+                    </td>
+
                     <td className="px-4 py-4 text-sm text-gray-600">
                       {subject.description || '—'}
                     </td>
+
                     <td className="px-4 py-4">
                       {subject.is_active ? (
                         <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
@@ -347,6 +386,7 @@ export default function SubjectsPage() {
                         </span>
                       )}
                     </td>
+
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -451,7 +491,7 @@ export default function SubjectsPage() {
                       name="subject_code"
                       value={form.subject_code}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 uppercase outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
                     />
                   </div>
@@ -481,6 +521,21 @@ export default function SubjectsPage() {
                     >
                       <option value="Grade 11">Grade 11</option>
                       <option value="Grade 12">Grade 12</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Semester *
+                    </label>
+                    <select
+                      name="semester"
+                      value={form.semester}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                    >
+                      <option value="1st Semester">1st Semester</option>
+                      <option value="2nd Semester">2nd Semester</option>
                     </select>
                   </div>
 

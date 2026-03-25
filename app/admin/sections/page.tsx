@@ -6,19 +6,24 @@ import { Search, Plus, Pencil, Trash2, FolderTree } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
+type GradeLevel = 'Grade 11' | 'Grade 12'
+type Semester = '1st Semester' | '2nd Semester'
+
 type Section = {
   id: string
   section_name: string
-  grade_level: 'Grade 11' | 'Grade 12'
+  grade_level: GradeLevel
   strand: string | null
+  semester: Semester
   is_active: boolean
   created_at: string
 }
 
 type SectionForm = {
   section_name: string
-  grade_level: 'Grade 11' | 'Grade 12'
+  grade_level: GradeLevel
   strand: string
+  semester: Semester
   is_active: boolean
 }
 
@@ -26,6 +31,7 @@ const initialForm: SectionForm = {
   section_name: '',
   grade_level: 'Grade 11',
   strand: '',
+  semester: '1st Semester',
   is_active: true,
 }
 
@@ -46,7 +52,15 @@ export default function SectionsPage() {
 
     const { data, error } = await supabase
       .from('sections')
-      .select('*')
+      .select(`
+        id,
+        section_name,
+        grade_level,
+        strand,
+        semester,
+        is_active,
+        created_at
+      `)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -72,7 +86,8 @@ export default function SectionsPage() {
       return (
         section.section_name.toLowerCase().includes(keyword) ||
         section.grade_level.toLowerCase().includes(keyword) ||
-        (section.strand ?? '').toLowerCase().includes(keyword)
+        (section.strand ?? '').toLowerCase().includes(keyword) ||
+        section.semester.toLowerCase().includes(keyword)
       )
     })
   }, [sections, search])
@@ -110,6 +125,7 @@ export default function SectionsPage() {
       section_name: section.section_name,
       grade_level: section.grade_level,
       strand: section.strand ?? '',
+      semester: section.semester,
       is_active: section.is_active,
     })
     setShowModal(true)
@@ -133,20 +149,21 @@ export default function SectionsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSaving(true)
 
     const payload = {
       section_name: form.section_name.trim(),
       grade_level: form.grade_level,
       strand: form.strand.trim() || null,
+      semester: form.semester,
       is_active: form.is_active,
     }
 
-    if (!payload.section_name || !payload.grade_level) {
+    if (!payload.section_name || !payload.grade_level || !payload.semester) {
       toast.error('Please complete the required fields.')
-      setSaving(false)
       return
     }
+
+    setSaving(true)
 
     if (editingSection) {
       const { error } = await supabase
@@ -155,7 +172,11 @@ export default function SectionsPage() {
         .eq('id', editingSection.id)
 
       if (error) {
-        toast.error(error.message)
+        if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+          toast.error('Section name already exists.')
+        } else {
+          toast.error(error.message)
+        }
       } else {
         toast.success('Section updated successfully.')
         closeModal()
@@ -165,7 +186,11 @@ export default function SectionsPage() {
       const { error } = await supabase.from('sections').insert(payload)
 
       if (error) {
-        toast.error(error.message)
+        if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+          toast.error('Section name already exists.')
+        } else {
+          toast.error(error.message)
+        }
       } else {
         toast.success('Section added successfully.')
         closeModal()
@@ -222,7 +247,7 @@ export default function SectionsPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Sections</h1>
           <p className="mt-1 text-gray-600">
-            Manage sections by grade level, strand, and active status.
+            Manage sections by grade level, strand, semester, and active status.
           </p>
         </div>
 
@@ -246,7 +271,7 @@ export default function SectionsPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by section, grade level, or strand"
+              placeholder="Search by section, grade level, strand, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -280,6 +305,9 @@ export default function SectionsPage() {
                   Strand
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  Semester
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
                   Status
                 </th>
                 <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
@@ -291,13 +319,13 @@ export default function SectionsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     Loading sections...
                   </td>
                 </tr>
               ) : paginatedSections.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     No sections found.
                   </td>
                 </tr>
@@ -308,30 +336,46 @@ export default function SectionsPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.03 }}
-                    className="border-t border-gray-100"
+                    className={`border-t ${
+                      section.is_active
+                        ? 'border-gray-100 bg-white'
+                        : 'border-red-100 bg-red-50/60'
+                    }`}
                   >
                     <td className="px-4 py-4">
-                      <div className="font-semibold text-green-950">
+                      <div
+                        className={`font-semibold ${
+                          section.is_active ? 'text-green-950' : 'text-red-900'
+                        }`}
+                      >
                         {section.section_name}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-700">
+
+                    <td className={`px-4 py-4 text-sm ${section.is_active ? 'text-gray-700' : 'text-red-800'}`}>
                       {section.grade_level}
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-600">
+
+                    <td className={`px-4 py-4 text-sm ${section.is_active ? 'text-gray-600' : 'text-red-700'}`}>
                       {section.strand || '—'}
                     </td>
+
+                    <td className={`px-4 py-4 text-sm ${section.is_active ? 'text-gray-700' : 'text-red-800'}`}>
+                      {section.semester}
+                    </td>
+
                     <td className="px-4 py-4">
                       {section.is_active ? (
                         <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
                           Active
                         </span>
                       ) : (
-                        <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700">
+                        <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
                           Inactive
                         </span>
                       )}
                     </td>
+
                     <td className="px-4 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -468,6 +512,21 @@ export default function SectionsPage() {
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       placeholder="e.g. STEM, HUMSS, ABM"
                     />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Semester *
+                    </label>
+                    <select
+                      name="semester"
+                      value={form.semester}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                    >
+                      <option value="1st Semester">1st Semester</option>
+                      <option value="2nd Semester">2nd Semester</option>
+                    </select>
                   </div>
 
                   <div>

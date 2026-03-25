@@ -21,11 +21,11 @@ import { supabase } from '@/lib/supabase'
 const navItems = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Enroll Students', href: '/admin/enroll', icon: UserPlus },
-  { label: 'Students', href: '/admin/students', icon: Users },
-  { label: 'Teachers', href: '/admin/teachers', icon: GraduationCap },
-  { label: 'Subjects', href: '/admin/subjects', icon: BookOpen },
-  { label: 'Classes', href: '/admin/classes', icon: School },
-  { label: 'Sections', href: '/admin/sections', icon: FolderTree },
+  { label: 'Manage Students', href: '/admin/students', icon: Users },
+  { label: 'Manage Teachers', href: '/admin/teachers', icon: GraduationCap },
+  { label: 'Manage Subjects', href: '/admin/subjects', icon: BookOpen },
+  { label: 'Manage Classes', href: '/admin/classes', icon: School },
+  { label: 'Manage Sections', href: '/admin/sections', icon: FolderTree },
   { label: 'School Years', href: '/admin/school-years', icon: CalendarRange },
   { label: 'Grading Control', href: '/admin/grading-control', icon: ShieldCheck },
   { label: 'Grades', href: '/admin/grades', icon: FileSpreadsheet },
@@ -129,7 +129,7 @@ export default function AdminSidebar({
           onClick={handleLogout}
           className="flex w-full items-center gap-3 border-l-4 border-transparent px-5 py-3 text-left text-white transition hover:border-yellow-400 hover:bg-green-900/60 hover:text-yellow-300"
         >
-          <LogOut className="h-[18px] w-[18px] shrink-0 text-yellow-300" />
+          <LogOut className="h-[26px] w-[18px] shrink-0 text-yellow-300" />
           <span className="text-[15px] font-medium">Logout</span>
         </button>
       </div>
