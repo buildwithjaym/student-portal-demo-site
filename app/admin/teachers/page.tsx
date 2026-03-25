@@ -9,6 +9,7 @@ import { formatFullName } from '@/lib/name'
 
 type Teacher = {
   id: string
+  profile_id?: string | null
   teacher_no: string
   first_name: string
   middle_name: string | null
@@ -63,7 +64,7 @@ export default function TeachersPage() {
       toast.error(error.message)
       setTeachers([])
     } else {
-      setTeachers(data ?? [])
+      setTeachers((data ?? []) as Teacher[])
     }
 
     setLoading(false)
@@ -156,12 +157,18 @@ export default function TeachersPage() {
       middle_name: form.middle_name.trim() || null,
       last_name: form.last_name.trim(),
       suffix: form.suffix.trim() || null,
-      email: form.email.trim() || null,
+      email: form.email.trim().toLowerCase() || null,
       is_active: form.is_active,
     }
 
     if (!payload.teacher_no || !payload.first_name || !payload.last_name) {
       toast.error('Please complete the required fields.')
+      setSaving(false)
+      return
+    }
+
+    if (!editingTeacher && !payload.email) {
+      toast.error('Email is required when creating a teacher login account.')
       setSaving(false)
       return
     }
@@ -180,12 +187,22 @@ export default function TeachersPage() {
         fetchTeachers()
       }
     } else {
-      const { error } = await supabase.from('teachers').insert(payload)
+      const response = await fetch('/api/admin/teachers/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
 
-      if (error) {
-        toast.error(error.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast.error(result.error || 'Failed to create teacher.')
       } else {
-        toast.success('Teacher added successfully.')
+        toast.success(
+          `Teacher added successfully. Temporary password is: ${result.temporary_password}`
+        )
         closeModal()
         fetchTeachers()
       }
@@ -240,7 +257,7 @@ export default function TeachersPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Teachers</h1>
           <p className="mt-1 text-gray-600">
-            Manage teacher records and active status.
+            Manage teacher records and create teacher login accounts.
           </p>
         </div>
 
@@ -456,12 +473,13 @@ export default function TeachersPage() {
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
+                      disabled={saving}
                     />
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Email
+                      Email {!editingTeacher ? '*' : ''}
                     </label>
                     <input
                       name="email"
@@ -469,6 +487,8 @@ export default function TeachersPage() {
                       value={form.email}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      required={!editingTeacher}
+                      disabled={saving}
                     />
                   </div>
 
@@ -482,6 +502,7 @@ export default function TeachersPage() {
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
+                      disabled={saving}
                     />
                   </div>
 
@@ -494,6 +515,7 @@ export default function TeachersPage() {
                       value={form.middle_name}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     />
                   </div>
 
@@ -507,6 +529,7 @@ export default function TeachersPage() {
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
+                      disabled={saving}
                     />
                   </div>
 
@@ -519,6 +542,7 @@ export default function TeachersPage() {
                       value={form.suffix}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     />
                   </div>
 
@@ -531,6 +555,7 @@ export default function TeachersPage() {
                       value={String(form.is_active)}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
@@ -538,11 +563,19 @@ export default function TeachersPage() {
                   </div>
                 </div>
 
+                {!editingTeacher && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    A login account will be created automatically. The teacher&apos;s temporary
+                    password will be their teacher number.
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
                     onClick={closeModal}
                     className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+                    disabled={saving}
                   >
                     Cancel
                   </button>
@@ -557,8 +590,8 @@ export default function TeachersPage() {
                         ? 'Updating...'
                         : 'Saving...'
                       : editingTeacher
-                      ? 'Update Teacher'
-                      : 'Save Teacher'}
+                        ? 'Update Teacher'
+                        : 'Save Teacher'}
                   </button>
                 </div>
               </form>

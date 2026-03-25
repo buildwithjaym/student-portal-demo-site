@@ -7,12 +7,19 @@ import { supabase } from '@/lib/supabase'
 
 type UserRole = 'admin' | 'teacher' | 'student' | null
 
+type ProfileRow = {
+  role: UserRole
+  is_active: boolean
+  must_change_password: boolean
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const timeoutHandledRef = useRef(false)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [error, setError] = useState('')
@@ -29,7 +36,7 @@ export default function LoginPage() {
       setCheckingSession(false)
     }
 
-    const getRoleFromSession = async (): Promise<UserRole> => {
+    const getProfileFromSession = async (): Promise<ProfileRow | null> => {
       log('Starting session check')
 
       const {
@@ -51,7 +58,7 @@ export default function LoginPage() {
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, is_active, must_change_password')
         .eq('id', user.id)
         .single()
 
@@ -65,19 +72,58 @@ export default function LoginPage() {
         return null
       }
 
-      log('Resolved role:', profile.role)
-      return profile.role as UserRole
+      log('Resolved profile:', profile)
+      return profile as ProfileRow
+    }
+
+    const redirectByProfile = async (profile: ProfileRow) => {
+      if (!profile.is_active) {
+        log('Profile is inactive, signing out')
+        await supabase.auth.signOut()
+        setError('Your account is inactive. Please contact the administrator.')
+        finishChecking()
+        return
+      }
+
+      if (profile.must_change_password) {
+        log('Redirecting to /change-password')
+        router.replace('/change-password')
+        return
+      }
+
+      if (profile.role === 'admin') {
+        log('Redirecting to /admin')
+        router.replace('/admin')
+        return
+      }
+
+      if (profile.role === 'teacher') {
+        log('Redirecting to /teacher')
+        router.replace('/teacher')
+        return
+      }
+
+      if (profile.role === 'student') {
+        log('Redirecting to /student')
+        router.replace('/student')
+        return
+      }
+
+      log('Unknown role, staying on login page')
+      finishChecking()
     }
 
     const checkSession = async () => {
+      timeoutHandledRef.current = false
+
       const timeoutId = window.setTimeout(() => {
         timeoutHandledRef.current = true
-        log('Session check timed out after 1 second, showing login form')
+        log('Session check timed out, showing login form')
         finishChecking()
-      }, 500)
+      }, 1000)
 
       try {
-        const role = await getRoleFromSession()
+        const profile = await getProfileFromSession()
 
         window.clearTimeout(timeoutId)
 
@@ -86,32 +132,13 @@ export default function LoginPage() {
           return
         }
 
-        if (!role) {
-          log('No valid session role, staying on login page')
+        if (!profile) {
+          log('No valid session profile, staying on login page')
           finishChecking()
           return
         }
 
-        if (role === 'admin') {
-          log('Redirecting to /admin')
-          router.replace('/admin')
-          return
-        }
-
-        if (role === 'teacher') {
-          log('Redirecting to /teacher')
-          router.replace('/teacher')
-          return
-        }
-
-        if (role === 'student') {
-          log('Redirecting to /student')
-          router.replace('/student')
-          return
-        }
-
-        log('Unknown role, staying on login page')
-        finishChecking()
+        await redirectByProfile(profile)
       } catch (err) {
         window.clearTimeout(timeoutId)
         console.error('[LoginPage] Session check failed:', err)
@@ -140,7 +167,7 @@ export default function LoginPage() {
     console.log('[LoginPage] Attempting login for:', email)
 
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim().toLowerCase(),
       password,
     })
 
@@ -164,7 +191,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, is_active, must_change_password')
       .eq('id', user.id)
       .single()
 
@@ -175,11 +202,30 @@ export default function LoginPage() {
       return
     }
 
-    console.log('[LoginPage] Profile role after login:', profile.role)
+    console.log('[LoginPage] Profile after login:', profile)
 
-    if (profile.role === 'admin') router.replace('/admin')
-    else if (profile.role === 'teacher') router.replace('/teacher')
-    else router.replace('/student')
+    if (!profile.is_active) {
+      await supabase.auth.signOut()
+      setError('Your account is inactive. Please contact the administrator.')
+      setLoading(false)
+      return
+    }
+
+    if (profile.must_change_password) {
+      router.replace('/change-password')
+      setLoading(false)
+      return
+    }
+
+    if (profile.role === 'admin') {
+      router.replace('/admin')
+    } else if (profile.role === 'teacher') {
+      router.replace('/teacher')
+    } else if (profile.role === 'student') {
+      router.replace('/student')
+    } else {
+      setError('Invalid account role.')
+    }
 
     setLoading(false)
   }
@@ -217,7 +263,11 @@ export default function LoginPage() {
             Online Grade Management System
           </p>
         </div>
-
+         {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -230,6 +280,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email"
               required
+              disabled={loading}
             />
           </div>
 
@@ -237,21 +288,31 @@ export default function LoginPage() {
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
               Password
             </label>
-            <input
-              type="password"
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-            />
-          </div>
 
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-20 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                disabled={loading}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                disabled={loading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-sm font-medium text-green-800 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
             </div>
-          )}
+          </div>
+   
+  
+         
 
           <button
             type="submit"
