@@ -35,12 +35,12 @@ const GRADING_PERIODS_BY_SEMESTER: Record<Semester, GradingPeriod[]> = {
 }
 
 export default function GradingControlPage() {
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
   const [schoolYear, setSchoolYear] = useState('')
   const [semester, setSemester] = useState<Semester>('1st Semester')
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [windows, setWindows] = useState<GradingWindow[]>([])
-  const [hasActiveSchoolYear, setHasActiveSchoolYear] = useState(true)
 
   const visiblePeriods = GRADING_PERIODS_BY_SEMESTER[semester]
 
@@ -61,33 +61,33 @@ export default function GradingControlPage() {
     return user?.id ?? null
   }
 
-  const loadActiveSchoolYear = async () => {
+  const loadAcademicYears = async () => {
     const { data, error } = await supabase
       .from('academic_years')
       .select('id, school_year, is_active')
-      .eq('is_active', true)
-      .maybeSingle()
+      .order('school_year', { ascending: false })
 
     if (error) {
       toast.error(error.message)
-      setHasActiveSchoolYear(false)
+      setAcademicYears([])
       setSchoolYear('')
-      return null
+      return
     }
 
-    if (!data) {
-      setHasActiveSchoolYear(false)
+    const rows = (data ?? []) as AcademicYear[]
+    setAcademicYears(rows)
+
+    if (rows.length === 0) {
       setSchoolYear('')
-      return null
+      return
     }
 
-    setHasActiveSchoolYear(true)
-    setSchoolYear((data as AcademicYear).school_year)
-    return data as AcademicYear
+    const activeYear = rows.find((row) => row.is_active)
+    setSchoolYear((prev) => prev || activeYear?.school_year || rows[0].school_year)
   }
 
-  const loadWindows = async (activeSchoolYear?: string) => {
-    const sy = activeSchoolYear ?? schoolYear
+  const loadWindows = async (selectedSchoolYear?: string) => {
+    const sy = selectedSchoolYear ?? schoolYear
 
     if (!sy) {
       setWindows([])
@@ -113,24 +113,27 @@ export default function GradingControlPage() {
 
   const initialize = async () => {
     setLoading(true)
-    const activeYear = await loadActiveSchoolYear()
-
-    if (activeYear?.school_year) {
-      await loadWindows(activeYear.school_year)
-    } else {
-      setWindows([])
-    }
-
+    await loadAcademicYears()
     setLoading(false)
   }
 
   useEffect(() => {
     initialize()
-  }, [semester])
+  }, [])
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true)
+      await loadWindows()
+      setLoading(false)
+    }
+
+    run()
+  }, [schoolYear, semester])
 
   const handleToggleOpen = async (gradingPeriod: GradingPeriod) => {
     if (!schoolYear) {
-      toast.error('No active school year found.')
+      toast.error('Please select a school year first.')
       return
     }
 
@@ -190,7 +193,7 @@ export default function GradingControlPage() {
 
   const handleToggleLock = async (gradingPeriod: GradingPeriod) => {
     if (!schoolYear) {
-      toast.error('No active school year found.')
+      toast.error('Please select a school year first.')
       return
     }
 
@@ -254,7 +257,7 @@ export default function GradingControlPage() {
         <p className="text-sm font-medium text-yellow-600">Administration</p>
         <h1 className="text-3xl font-bold text-green-900">Grading Control</h1>
         <p className="text-gray-600">
-          Open, close, and lock grading per grading period for the active school year.
+          Open, close, and lock grading per grading period for the selected school year.
         </p>
       </motion.div>
 
@@ -266,13 +269,20 @@ export default function GradingControlPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Active School Year
+              Academic Year
             </label>
-            <input
-              value={schoolYear || 'No active school year'}
-              readOnly
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
-            />
+            <select
+              value={schoolYear}
+              onChange={(e) => setSchoolYear(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+            >
+              <option value="">Select academic year</option>
+              {academicYears.map((year) => (
+                <option key={year.id} value={year.school_year}>
+                  {year.school_year}{year.is_active ? ' (Active)' : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -290,9 +300,9 @@ export default function GradingControlPage() {
           </div>
         </div>
 
-        {!hasActiveSchoolYear ? (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-            No active school year found. Please set one active school year first.
+        {!schoolYear ? (
+          <div className="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
+            No academic year available. Please create an academic year first.
           </div>
         ) : loading ? (
           <div className="mt-6 rounded-xl bg-green-50 p-5 text-gray-500">
@@ -366,8 +376,8 @@ export default function GradingControlPage() {
                         {openSaving
                           ? 'Saving...'
                           : isOpen
-                          ? 'Close Grading'
-                          : 'Open Grading'}
+                            ? 'Close Grading'
+                            : 'Open Grading'}
                       </button>
 
                       <button

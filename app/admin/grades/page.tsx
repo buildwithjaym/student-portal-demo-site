@@ -125,10 +125,10 @@ function StatusBadge({
     status === 'Completed'
       ? 'bg-green-100 text-green-800'
       : status === 'In Progress'
-      ? 'bg-yellow-100 text-yellow-800'
-      : status === 'No Students'
-      ? 'bg-gray-200 text-gray-700'
-      : 'bg-red-100 text-red-700'
+        ? 'bg-yellow-100 text-yellow-800'
+        : status === 'No Students'
+          ? 'bg-gray-200 text-gray-700'
+          : 'bg-red-100 text-red-700'
 
   return (
     <span className={`rounded-full px-3 py-1 text-xs font-semibold ${className}`}>
@@ -138,11 +138,11 @@ function StatusBadge({
 }
 
 export default function AdminGradesPage() {
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
   const [schoolYear, setSchoolYear] = useState('')
   const [semester, setSemester] = useState<Semester>('1st Semester')
   const [gradingPeriod, setGradingPeriod] = useState<GradingPeriod>('1st')
   const [loading, setLoading] = useState(true)
-  const [hasActiveSchoolYear, setHasActiveSchoolYear] = useState(true)
   const [subjectRows, setSubjectRows] = useState<SubjectProgress[]>([])
   const [teacherRows, setTeacherRows] = useState<TeacherProgress[]>([])
 
@@ -175,30 +175,43 @@ export default function AdminGradesPage() {
     }
   }, [subjectRows])
 
+  const loadAcademicYears = async () => {
+    const { data, error } = await supabase
+      .from('academic_years')
+      .select('id, school_year, is_active')
+      .order('school_year', { ascending: false })
+
+    if (error) {
+      toast.error(error.message)
+      setAcademicYears([])
+      setSchoolYear('')
+      return
+    }
+
+    const rows = (data ?? []) as AcademicYear[]
+
+    setAcademicYears(rows)
+
+    if (rows.length === 0) {
+      setSchoolYear('')
+      return
+    }
+
+    const activeYear = rows.find((row) => row.is_active)
+    setSchoolYear((prev) => prev || activeYear?.school_year || rows[0].school_year)
+  }
+
   const loadPageData = async () => {
+    if (!schoolYear) {
+      setLoading(false)
+      setSubjectRows([])
+      setTeacherRows([])
+      return
+    }
+
     setLoading(true)
 
     try {
-      const { data: activeYear, error: activeYearError } = await supabase
-        .from('academic_years')
-        .select('id, school_year, is_active')
-        .eq('is_active', true)
-        .maybeSingle()
-
-      if (activeYearError) throw activeYearError
-
-      if (!activeYear) {
-        setHasActiveSchoolYear(false)
-        setSchoolYear('')
-        setSubjectRows([])
-        setTeacherRows([])
-        return
-      }
-
-      const currentSchoolYear = (activeYear as AcademicYear).school_year
-      setHasActiveSchoolYear(true)
-      setSchoolYear(currentSchoolYear)
-
       const { data: classesData, error: classesError } = await supabase
         .from('classes')
         .select(`
@@ -228,7 +241,7 @@ export default function AdminGradesPage() {
             is_active
           )
         `)
-        .eq('school_year', currentSchoolYear)
+        .eq('school_year', schoolYear)
         .eq('semester', semester)
         .eq('is_active', true)
 
@@ -247,6 +260,8 @@ export default function AdminGradesPage() {
       const { data: enrollmentsData, error: enrollmentsError } = await supabase
         .from('enrollments')
         .select('class_id, student_id')
+        .eq('school_year', schoolYear)
+        .eq('semester', semester)
         .in('class_id', classIds)
 
       if (enrollmentsError) throw enrollmentsError
@@ -254,7 +269,7 @@ export default function AdminGradesPage() {
       const { data: gradesData, error: gradesError } = await supabase
         .from('grades')
         .select('class_id, student_id')
-        .eq('school_year', currentSchoolYear)
+        .eq('school_year', schoolYear)
         .eq('semester', semester)
         .eq('grading_period', gradingPeriod)
         .in('class_id', classIds)
@@ -365,8 +380,12 @@ export default function AdminGradesPage() {
   }
 
   useEffect(() => {
+    loadAcademicYears()
+  }, [])
+
+  useEffect(() => {
     loadPageData()
-  }, [semester, gradingPeriod])
+  }, [schoolYear, semester, gradingPeriod])
 
   return (
     <div className="space-y-6">
@@ -390,13 +409,20 @@ export default function AdminGradesPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Active School Year
+              Academic Year
             </label>
-            <input
-              value={schoolYear || 'No active school year'}
-              readOnly
-              className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
-            />
+            <select
+              value={schoolYear}
+              onChange={(e) => setSchoolYear(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+            >
+              <option value="">Select academic year</option>
+              {academicYears.map((year) => (
+                <option key={year.id} value={year.school_year}>
+                  {year.school_year}{year.is_active ? ' (Active)' : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -431,9 +457,9 @@ export default function AdminGradesPage() {
           </div>
         </div>
 
-        {!hasActiveSchoolYear ? (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
-            No active school year found. Please set one active school year first.
+        {!schoolYear ? (
+          <div className="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
+            No academic year available. Please create an academic year first.
           </div>
         ) : loading ? (
           <div className="mt-6 rounded-xl bg-green-50 p-5 text-gray-500">
@@ -524,7 +550,7 @@ export default function AdminGradesPage() {
 
               {subjectRows.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
-                  No classes found for this semester.
+                  No classes found for this selection.
                 </div>
               ) : (
                 subjectRows.map((row) => (

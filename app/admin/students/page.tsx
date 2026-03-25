@@ -9,6 +9,7 @@ import { formatFullName } from '@/lib/name'
 
 type Student = {
   id: string
+  profile_id?: string | null
   student_no: string
   first_name: string
   middle_name: string | null
@@ -33,6 +34,13 @@ type StudentForm = {
   is_active: boolean
 }
 
+type SectionOption = {
+  grade_level: string
+  section_name: string
+  semester: '1st Semester' | '2nd Semester'
+  strand?: string | null
+}
+
 const initialForm: StudentForm = {
   student_no: '',
   first_name: '',
@@ -47,6 +55,7 @@ const initialForm: StudentForm = {
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([])
+  const [sections, setSections] = useState<SectionOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -69,15 +78,38 @@ export default function StudentsPage() {
       toast.error(error.message)
       setStudents([])
     } else {
-      setStudents(data ?? [])
+      setStudents((data ?? []) as Student[])
     }
 
     setLoading(false)
   }
 
+  const fetchSections = async () => {
+    const { data, error } = await supabase
+      .from('sections')
+      .select('grade_level, section_name, semester, strand')
+      .eq('is_active', true)
+
+    if (error) {
+      toast.error(`Failed to load sections: ${error.message}`)
+      setSections([])
+      return
+    }
+
+    setSections((data ?? []) as SectionOption[])
+  }
+
   useEffect(() => {
     fetchStudents()
+    fetchSections()
   }, [])
+
+  const availableSections = useMemo(() => {
+    return sections
+      .filter((item) => item.grade_level === form.grade_level)
+      .map((item) => item.section_name)
+      .sort((a, b) => a.localeCompare(b))
+  }, [sections, form.grade_level])
 
   const filteredStudents = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -113,6 +145,16 @@ export default function StudentsPage() {
       setCurrentPage(totalPages)
     }
   }, [currentPage, totalPages])
+
+  useEffect(() => {
+    if (!form.section) return
+    if (availableSections.includes(form.section)) return
+
+    setForm((prev) => ({
+      ...prev,
+      section: '',
+    }))
+  }, [form.grade_level, availableSections, form.section])
 
   const resetForm = () => {
     setForm(initialForm)
@@ -150,6 +192,15 @@ export default function StudentsPage() {
   ) => {
     const { name, value } = e.target
 
+    if (name === 'grade_level') {
+      setForm((prev) => ({
+        ...prev,
+        grade_level: value,
+        section: '',
+      }))
+      return
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: name === 'is_active' ? value === 'true' : value,
@@ -166,7 +217,7 @@ export default function StudentsPage() {
       middle_name: form.middle_name.trim() || null,
       last_name: form.last_name.trim(),
       suffix: form.suffix.trim() || null,
-      email: form.email.trim() || null,
+      email: form.email.trim().toLowerCase() || null,
       grade_level: form.grade_level,
       section: form.section.trim(),
       is_active: form.is_active,
@@ -180,6 +231,18 @@ export default function StudentsPage() {
       !payload.section
     ) {
       toast.error('Please complete the required fields.')
+      setSaving(false)
+      return
+    }
+
+    if (!availableSections.includes(payload.section)) {
+      toast.error('Please select a valid section for the chosen grade level.')
+      setSaving(false)
+      return
+    }
+
+    if (!editingStudent && !payload.email) {
+      toast.error('Email is required when creating a student login account.')
       setSaving(false)
       return
     }
@@ -198,12 +261,22 @@ export default function StudentsPage() {
         fetchStudents()
       }
     } else {
-      const { error } = await supabase.from('students').insert(payload)
+      const response = await fetch('/api/admin/students/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
 
-      if (error) {
-        toast.error(error.message)
+      const result = await response.json()
+
+      if (!response.ok) {
+        toast.error(result.error || 'Failed to create student.')
       } else {
-        toast.success('Student added successfully.')
+        toast.success(
+          `Student added successfully. Temporary password is: ${result.temporary_password}`
+        )
         closeModal()
         fetchStudents()
       }
@@ -212,36 +285,22 @@ export default function StudentsPage() {
     setSaving(false)
   }
 
-  const handleDeactivate = async (student: Student) => {
+  const handleDelete = async (student: Student) => {
     const confirmed = window.confirm(
-      `Set ${formatFullName(student)} as inactive?`
+      `Delete ${formatFullName(student)} permanently? This cannot be undone.`
     )
 
     if (!confirmed) return
 
     const { error } = await supabase
       .from('students')
-      .update({ is_active: false })
+      .delete()
       .eq('id', student.id)
 
     if (error) {
       toast.error(error.message)
     } else {
-      toast.success('Student set to inactive.')
-      fetchStudents()
-    }
-  }
-
-  const handleReactivate = async (student: Student) => {
-    const { error } = await supabase
-      .from('students')
-      .update({ is_active: true })
-      .eq('id', student.id)
-
-    if (error) {
-      toast.error(error.message)
-    } else {
-      toast.success('Student reactivated.')
+      toast.success('Student deleted successfully.')
       fetchStudents()
     }
   }
@@ -258,7 +317,7 @@ export default function StudentsPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Students</h1>
           <p className="mt-1 text-gray-600">
-            Manage student records, sections, and active status.
+            Manage student records and create student login accounts.
           </p>
         </div>
 
@@ -390,23 +449,13 @@ export default function StudentsPage() {
                           <Pencil className="h-4 w-4" />
                         </button>
 
-                        {student.is_active ? (
-                          <button
-                            onClick={() => handleDeactivate(student)}
-                            className="rounded-xl bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
-                            title="Deactivate student"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleReactivate(student)}
-                            className="rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
-                            title="Reactivate student"
-                          >
-                            Restore
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDelete(student)}
+                          className="rounded-xl bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
+                          title="Delete student"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
                     </td>
                   </motion.tr>
@@ -486,12 +535,13 @@ export default function StudentsPage() {
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
+                      disabled={saving}
                     />
                   </div>
 
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Email
+                      Email {!editingStudent ? '*' : ''}
                     </label>
                     <input
                       name="email"
@@ -499,6 +549,8 @@ export default function StudentsPage() {
                       value={form.email}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      required={!editingStudent}
+                      disabled={saving}
                     />
                   </div>
 
@@ -512,6 +564,7 @@ export default function StudentsPage() {
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
+                      disabled={saving}
                     />
                   </div>
 
@@ -524,6 +577,7 @@ export default function StudentsPage() {
                       value={form.middle_name}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     />
                   </div>
 
@@ -537,6 +591,7 @@ export default function StudentsPage() {
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
+                      disabled={saving}
                     />
                   </div>
 
@@ -549,6 +604,7 @@ export default function StudentsPage() {
                       value={form.suffix}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     />
                   </div>
 
@@ -561,6 +617,7 @@ export default function StudentsPage() {
                       value={form.grade_level}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     >
                       <option value="Grade 11">Grade 11</option>
                       <option value="Grade 12">Grade 12</option>
@@ -571,13 +628,25 @@ export default function StudentsPage() {
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Section *
                     </label>
-                    <input
+                    <select
                       name="section"
                       value={form.section}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       required
-                    />
+                      disabled={saving}
+                    >
+                      <option value="">
+                        {availableSections.length > 0
+                          ? 'Select section'
+                          : 'No available sections'}
+                      </option>
+                      {availableSections.map((section) => (
+                        <option key={section} value={section}>
+                          {section}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -589,6 +658,7 @@ export default function StudentsPage() {
                       value={String(form.is_active)}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
@@ -596,18 +666,32 @@ export default function StudentsPage() {
                   </div>
                 </div>
 
+                {!editingStudent && (
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                    A login account will be created automatically. The student&apos;s temporary
+                    password will be their student number.
+                  </div>
+                )}
+
+                {availableSections.length === 0 && (
+                  <div className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                    No available sections found for {form.grade_level}. Add an active section first.
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     type="button"
                     onClick={closeModal}
                     className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+                    disabled={saving}
                   >
                     Cancel
                   </button>
 
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={saving || availableSections.length === 0}
                     className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving
@@ -615,8 +699,8 @@ export default function StudentsPage() {
                         ? 'Updating...'
                         : 'Saving...'
                       : editingStudent
-                      ? 'Update Student'
-                      : 'Save Student'}
+                        ? 'Update Student'
+                        : 'Save Student'}
                   </button>
                 </div>
               </form>

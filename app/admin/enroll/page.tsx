@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Trash2, Users, UserPlus, BookOpen } from 'lucide-react'
+import { Search, Plus, Trash2, Users, UserPlus, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { formatFullName } from '@/lib/name'
@@ -26,6 +26,15 @@ type StudentRow = {
   section?: string | null
 }
 
+type SectionRow = {
+  id: string
+  section_name: string
+  grade_level: string
+  strand?: string | null
+  is_active: boolean
+  semester: Semester
+}
+
 type TeacherRow = {
   id: string
   first_name: string
@@ -38,6 +47,9 @@ type SubjectRow = {
   id: string
   subject_code: string
   subject_name: string
+  description?: string | null
+  grade_level: string
+  semester: Semester
 }
 
 type ClassRow = {
@@ -61,14 +73,12 @@ type EnrollmentRow = {
 
 type EnrollmentForm = {
   student_id: string
-  class_id: string
   school_year: string
   semester: Semester
 }
 
 const initialForm: EnrollmentForm = {
   student_id: '',
-  class_id: '',
   school_year: '',
   semester: '1st Semester',
 }
@@ -76,6 +86,7 @@ const initialForm: EnrollmentForm = {
 export default function EnrollPage() {
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([])
   const [students, setStudents] = useState<StudentRow[]>([])
+  const [sections, setSections] = useState<SectionRow[]>([])
   const [classes, setClasses] = useState<ClassRow[]>([])
   const [activeSchoolYear, setActiveSchoolYear] = useState('')
 
@@ -88,7 +99,6 @@ export default function EnrollPage() {
   const [schoolYearFilter, setSchoolYearFilter] = useState('')
 
   const [studentDropdownSearch, setStudentDropdownSearch] = useState('')
-  const [classDropdownSearch, setClassDropdownSearch] = useState('')
   const [form, setForm] = useState<EnrollmentForm>(initialForm)
   const [currentPage, setCurrentPage] = useState(1)
 
@@ -119,7 +129,7 @@ export default function EnrollPage() {
   }
 
   const fetchLookupData = async () => {
-    const [studentsResult, classesResult] = await Promise.all([
+    const [studentsResult, sectionsResult, classesResult] = await Promise.all([
       supabase
         .from('students')
         .select(`
@@ -135,6 +145,19 @@ export default function EnrollPage() {
         .order('last_name', { ascending: true }),
 
       supabase
+        .from('sections')
+        .select(`
+          id,
+          section_name,
+          grade_level,
+          strand,
+          is_active,
+          semester
+        `)
+        .eq('is_active', true)
+        .order('section_name', { ascending: true }),
+
+      supabase
         .from('classes')
         .select(`
           id,
@@ -145,7 +168,10 @@ export default function EnrollPage() {
           subjects:subject_id (
             id,
             subject_code,
-            subject_name
+            subject_name,
+            description,
+            grade_level,
+            semester
           ),
           teachers:teacher_id (
             id,
@@ -163,6 +189,12 @@ export default function EnrollPage() {
       toast.error(studentsResult.error.message)
     } else {
       setStudents((studentsResult.data ?? []) as StudentRow[])
+    }
+
+    if (sectionsResult.error) {
+      toast.error(sectionsResult.error.message)
+    } else {
+      setSections((sectionsResult.data ?? []) as SectionRow[])
     }
 
     if (classesResult.error) {
@@ -201,7 +233,10 @@ export default function EnrollPage() {
           subjects:subject_id (
             id,
             subject_code,
-            subject_name
+            subject_name,
+            description,
+            grade_level,
+            semester
           ),
           teachers:teacher_id (
             id,
@@ -235,10 +270,19 @@ export default function EnrollPage() {
     [students, form.student_id]
   )
 
-  const selectedClass = useMemo(
-    () => classes.find((item) => item.id === form.class_id) ?? null,
-    [classes, form.class_id]
-  )
+  const selectedSectionInfo = useMemo(() => {
+    if (!selectedStudent?.section || !selectedStudent?.grade_level) return null
+
+    return (
+      sections.find(
+        (section) =>
+          section.section_name === selectedStudent.section &&
+          section.grade_level === selectedStudent.grade_level &&
+          section.semester === form.semester &&
+          section.is_active
+      ) ?? null
+    )
+  }, [sections, selectedStudent, form.semester])
 
   const availableSchoolYears = useMemo(() => {
     const values = new Set<string>()
@@ -270,46 +314,46 @@ export default function EnrollPage() {
     })
   }, [students, studentDropdownSearch])
 
-  const classOptions = useMemo(() => {
-    const keyword = classDropdownSearch.trim().toLowerCase()
+  const matchedClasses = useMemo(() => {
+    if (!selectedStudent?.grade_level || !selectedStudent?.section) return []
 
     return classes
-      .filter((item) => !form.school_year || item.school_year === form.school_year)
+      .filter((item) => item.school_year === form.school_year)
       .filter((item) => item.semester === form.semester)
-      .filter((item) => {
-        if (selectedStudent?.grade_level && item.grade_level !== selectedStudent.grade_level) {
-          return false
-        }
-
-        if (selectedStudent?.section && item.section !== selectedStudent.section) {
-          return false
-        }
-
-        return true
+      .filter((item) => item.grade_level === selectedStudent.grade_level)
+      .filter((item) => item.section === selectedStudent.section)
+      .sort((a, b) => {
+        const codeA = a.subjects?.subject_code ?? ''
+        const codeB = b.subjects?.subject_code ?? ''
+        return codeA.localeCompare(codeB)
       })
-      .filter((item) => {
-        if (!keyword) return true
+  }, [classes, form.school_year, form.semester, selectedStudent])
 
-        const subjectLabel =
-          `${item.subjects?.subject_code ?? ''} ${item.subjects?.subject_name ?? ''}`.toLowerCase()
-        const teacherLabel = item.teachers ? formatFullName(item.teachers).toLowerCase() : ''
+  const existingEnrollmentClassIds = useMemo(() => {
+    if (!form.student_id || !form.school_year || !form.semester) {
+      return new Set<string>()
+    }
 
-        return (
-          subjectLabel.includes(keyword) ||
-          teacherLabel.includes(keyword) ||
-          item.grade_level.toLowerCase().includes(keyword) ||
-          item.section.toLowerCase().includes(keyword) ||
-          item.semester.toLowerCase().includes(keyword)
+    return new Set(
+      enrollments
+        .filter(
+          (item) =>
+            item.students?.id === form.student_id &&
+            item.school_year === form.school_year &&
+            item.semester === form.semester
         )
-      })
-  }, [
-    classes,
-    classDropdownSearch,
-    form.school_year,
-    form.semester,
-    selectedStudent?.grade_level,
-    selectedStudent?.section,
-  ])
+        .map((item) => item.classes?.id)
+        .filter(Boolean) as string[]
+    )
+  }, [enrollments, form.student_id, form.school_year, form.semester])
+
+  const classesToEnroll = useMemo(() => {
+    return matchedClasses.filter((item) => !existingEnrollmentClassIds.has(item.id))
+  }, [matchedClasses, existingEnrollmentClassIds])
+
+  const alreadyEnrolledClasses = useMemo(() => {
+    return matchedClasses.filter((item) => existingEnrollmentClassIds.has(item.id))
+  }, [matchedClasses, existingEnrollmentClassIds])
 
   const filteredEnrollments = useMemo(() => {
     const keyword = search.trim().toLowerCase()
@@ -356,27 +400,12 @@ export default function EnrollPage() {
     }
   }, [currentPage, totalPages])
 
-  const isDuplicateEnrollment = useMemo(() => {
-    if (!form.student_id || !form.class_id || !form.school_year || !form.semester) {
-      return false
-    }
-
-    return enrollments.some(
-      (item) =>
-        item.students?.id === form.student_id &&
-        item.classes?.id === form.class_id &&
-        item.school_year === form.school_year &&
-        item.semester === form.semester
-    )
-  }, [enrollments, form])
-
   const resetForm = () => {
     setForm({
       ...initialForm,
       school_year: activeSchoolYear,
     })
     setStudentDropdownSearch('')
-    setClassDropdownSearch('')
   }
 
   const openAddModal = () => {
@@ -394,15 +423,6 @@ export default function EnrollPage() {
   ) => {
     const { name, value } = e.target
 
-    if (name === 'semester') {
-      setForm((prev) => ({
-        ...prev,
-        semester: value as Semester,
-        class_id: '',
-      }))
-      return
-    }
-
     setForm((prev) => ({
       ...prev,
       [name]: value,
@@ -412,74 +432,63 @@ export default function EnrollPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const payload = {
-      student_id: form.student_id,
-      class_id: form.class_id,
-      school_year: form.school_year.trim(),
-      semester: form.semester,
-    }
-
-    if (
-      !payload.student_id ||
-      !payload.class_id ||
-      !payload.school_year ||
-      !payload.semester
-    ) {
+    if (!form.student_id || !form.school_year || !form.semester) {
       toast.error('Please complete the required fields.')
       return
     }
 
-    const matchedClass = classes.find((item) => item.id === payload.class_id)
-
-    if (!matchedClass) {
-      toast.error('Selected class was not found.')
+    if (!selectedStudent) {
+      toast.error('Selected student was not found.')
       return
     }
 
-    if (matchedClass.school_year !== payload.school_year) {
-      toast.error('Selected class does not match the active school year.')
+    if (!selectedStudent.grade_level || !selectedStudent.section) {
+      toast.error('Selected student does not have complete grade level or section information.')
       return
     }
 
-    if (matchedClass.semester !== payload.semester) {
-      toast.error('Selected class does not match the selected semester.')
-      return
-    }
-
-    if (
-      selectedStudent?.grade_level &&
-      matchedClass.grade_level !== selectedStudent.grade_level
-    ) {
-      toast.error('Selected class does not match the student grade level.')
-      return
-    }
-
-    if (selectedStudent?.section && matchedClass.section !== selectedStudent.section) {
-      toast.error('Selected class does not match the student section.')
-      return
-    }
-
-    if (isDuplicateEnrollment) {
+    if (!selectedSectionInfo) {
       toast.error(
-        'This student is already enrolled in the selected class for this school year and semester.'
+        'The student section is not active or not available for the selected semester in the sections table.'
+      )
+      return
+    }
+
+    if (matchedClasses.length === 0) {
+      toast.error(
+        'No matching classes found for this student based on school year, semester, grade level, and section.'
+      )
+      return
+    }
+
+    if (classesToEnroll.length === 0) {
+      toast.error(
+        'This student is already enrolled in all matching subjects for the selected semester.'
       )
       return
     }
 
     setSaving(true)
 
+    const payload = classesToEnroll.map((item) => ({
+      student_id: form.student_id,
+      class_id: item.id,
+      school_year: form.school_year.trim(),
+      semester: form.semester,
+    }))
+
     const { error } = await supabase.from('enrollments').insert(payload)
 
     if (error) {
       if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
-        toast.error(
-          'This student is already enrolled in the selected class for this school year and semester.'
-        )
+        toast.error('Some subjects are already enrolled for this student.')
       } else {
         toast.error(error.message)
       }
     } else {
-      toast.success('Enrollment added successfully.')
+      toast.success(
+        `${classesToEnroll.length} subject${classesToEnroll.length !== 1 ? 's' : ''} enrolled successfully.`
+      )
       closeModal()
       fetchEnrollments()
     }
@@ -515,7 +524,7 @@ export default function EnrollPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Enrollments</h1>
           <p className="mt-1 text-gray-600">
-            Review and manage student enrollments quickly and clearly.
+            Automatically enroll a student into all matching classes with only a few clicks.
           </p>
         </div>
 
@@ -524,7 +533,7 @@ export default function EnrollPage() {
           className="inline-flex items-center gap-2 rounded-2xl bg-green-800 px-4 py-3 font-semibold text-white transition hover:bg-green-900"
         >
           <Plus className="h-5 w-5" />
-          Add Enrollment
+          Auto Enroll Student
         </button>
       </motion.div>
 
@@ -538,7 +547,7 @@ export default function EnrollPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search student, class, teacher, school year, or semester"
+              placeholder="Search student, subject, teacher, school year, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -570,8 +579,7 @@ export default function EnrollPage() {
 
           <div className="inline-flex items-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
             <Users className="h-4 w-4" />
-            {filteredEnrollments.length} enrollment
-            {filteredEnrollments.length !== 1 ? 's' : ''}
+            {filteredEnrollments.length} enrollment{filteredEnrollments.length !== 1 ? 's' : ''}
           </div>
         </div>
       </motion.div>
@@ -589,7 +597,7 @@ export default function EnrollPage() {
                   Student
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  Class
+                  Subject
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
                   Teacher
@@ -649,15 +657,12 @@ export default function EnrollPage() {
                           : '—'}
                       </div>
                       <div className="text-sm text-gray-600">
-                        {item.classes?.grade_level} • {item.classes?.section} •{' '}
-                        {item.classes?.semester}
+                        {item.classes?.grade_level} • {item.classes?.section} • {item.classes?.semester}
                       </div>
                     </td>
 
                     <td className="px-4 py-4 text-sm text-gray-700">
-                      {item.classes?.teachers
-                        ? formatFullName(item.classes.teachers)
-                        : 'Unassigned'}
+                      {item.classes?.teachers ? formatFullName(item.classes.teachers) : 'Unassigned'}
                     </td>
 
                     <td className="px-4 py-4 text-sm text-gray-700">{item.school_year}</td>
@@ -722,11 +727,11 @@ export default function EnrollPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="mx-auto w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
+              className="mx-auto w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
             >
               <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
                 <div>
-                  <p className="text-sm font-medium text-yellow-600">New Enrollment</p>
+                  <p className="text-sm font-medium text-yellow-600">Automatic Enrollment</p>
                   <h2 className="text-2xl font-bold text-green-900">Enroll Student</h2>
                 </div>
 
@@ -740,7 +745,7 @@ export default function EnrollPage() {
 
               <form onSubmit={handleSave} className="flex max-h-[calc(100vh-9rem)] flex-col">
                 <div className="overflow-y-auto px-6 py-5">
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -749,7 +754,6 @@ export default function EnrollPage() {
                         <input
                           name="school_year"
                           value={form.school_year}
-                          onChange={handleChange}
                           readOnly
                           className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
                         />
@@ -780,7 +784,7 @@ export default function EnrollPage() {
                       <div className="mb-3">
                         <input
                           type="text"
-                          placeholder="Search student before selecting"
+                          placeholder="Search and select student"
                           value={studentDropdownSearch}
                           onChange={(e) => setStudentDropdownSearch(e.target.value)}
                           className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -793,7 +797,6 @@ export default function EnrollPage() {
                           setForm((prev) => ({
                             ...prev,
                             student_id: e.target.value,
-                            class_id: '',
                           }))
                         }
                         className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -816,83 +819,114 @@ export default function EnrollPage() {
                           </p>
                           <p className="text-sm text-gray-600">
                             {selectedStudent.student_no || 'No Student No.'}
-                            {selectedStudent.grade_level
-                              ? ` • ${selectedStudent.grade_level}`
-                              : ''}
+                            {selectedStudent.grade_level ? ` • ${selectedStudent.grade_level}` : ''}
                             {selectedStudent.section ? ` • ${selectedStudent.section}` : ''}
                           </p>
+                          {selectedSectionInfo && (
+                            <p className="mt-1 text-sm text-gray-600">
+                              Section Info: {selectedSectionInfo.section_name}
+                              {selectedSectionInfo.strand ? ` • ${selectedSectionInfo.strand}` : ''}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
 
                     <div className="rounded-2xl border border-gray-200 p-4">
                       <div className="mb-3 flex items-center gap-2">
-                        <BookOpen className="h-4 w-4 text-green-800" />
-                        <h3 className="font-semibold text-green-900">Class</h3>
+                        <Sparkles className="h-4 w-4 text-green-800" />
+                        <h3 className="font-semibold text-green-900">Automatic Subject Matching</h3>
                       </div>
 
-                      <div className="mb-3">
-                        <input
-                          type="text"
-                          placeholder="Search class before selecting"
-                          value={classDropdownSearch}
-                          onChange={(e) => setClassDropdownSearch(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                        />
-                      </div>
-
-                      <select
-                        value={form.class_id}
-                        onChange={(e) =>
-                          setForm((prev) => ({ ...prev, class_id: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                      >
-                        <option value="">Select class</option>
-                        {classOptions.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.subjects
-                              ? `${item.subjects.subject_code} - ${item.subjects.subject_name}`
-                              : 'Unnamed Class'}
-                            {` • ${item.grade_level} • ${item.section} • ${item.semester}`}
-                          </option>
-                        ))}
-                      </select>
-
-                      {selectedStudent && classOptions.length === 0 && (
-                        <div className="mt-3 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-                          No classes available for this student&apos;s grade level, section,
-                          school year, and semester.
+                      {!selectedStudent ? (
+                        <div className="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500">
+                          Select a student and semester to automatically load matching classes.
                         </div>
-                      )}
+                      ) : matchedClasses.length === 0 ? (
+                        <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                          No matching classes found for this student based on school year, semester, grade level, and section.
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <div className="rounded-2xl bg-green-50 p-4">
+                              <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                                Matching Classes
+                              </p>
+                              <p className="mt-1 text-2xl font-bold text-green-900">
+                                {matchedClasses.length}
+                              </p>
+                            </div>
 
-                      {selectedClass && (
-                        <div className="mt-3 rounded-xl bg-green-50 p-3">
-                          <p className="text-sm font-semibold text-green-900">
-                            {selectedClass.subjects
-                              ? `${selectedClass.subjects.subject_code} - ${selectedClass.subjects.subject_name}`
-                              : 'Unnamed Class'}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {selectedClass.grade_level} • {selectedClass.section} •{' '}
-                            {selectedClass.semester}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Teacher:{' '}
-                            {selectedClass.teachers
-                              ? formatFullName(selectedClass.teachers)
-                              : 'Unassigned'}
-                          </p>
+                            <div className="rounded-2xl bg-blue-50 p-4">
+                              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                                Ready to Enroll
+                              </p>
+                              <p className="mt-1 text-2xl font-bold text-blue-900">
+                                {classesToEnroll.length}
+                              </p>
+                            </div>
+
+                            <div className="rounded-2xl bg-gray-100 p-4">
+                              <p className="text-xs font-medium uppercase tracking-wide text-gray-700">
+                                Already Enrolled
+                              </p>
+                              <p className="mt-1 text-2xl font-bold text-gray-900">
+                                {alreadyEnrolledClasses.length}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-gray-200">
+                            <div className="border-b border-gray-100 px-4 py-3">
+                              <p className="font-semibold text-green-900">
+                                Classes that will be processed
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                The system automatically matches classes using the student’s grade level and section.
+                              </p>
+                            </div>
+
+                            <div className="max-h-72 overflow-y-auto">
+                              {matchedClasses.map((item) => {
+                                const isAlreadyEnrolled = existingEnrollmentClassIds.has(item.id)
+
+                                return (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-start justify-between gap-4 border-t border-gray-100 px-4 py-3 first:border-t-0"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-gray-900">
+                                        {item.subjects
+                                          ? `${item.subjects.subject_code} - ${item.subjects.subject_name}`
+                                          : 'Unnamed Subject'}
+                                      </p>
+                                      <p className="text-sm text-gray-500">
+                                        {item.grade_level} • {item.section} • {item.semester}
+                                      </p>
+                                      <p className="text-sm text-gray-500">
+                                        Teacher: {item.teachers ? formatFullName(item.teachers) : 'Unassigned'}
+                                      </p>
+                                    </div>
+
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                        isAlreadyEnrolled
+                                          ? 'bg-gray-200 text-gray-700'
+                                          : 'bg-green-100 text-green-800'
+                                      }`}
+                                    >
+                                      {isAlreadyEnrolled ? 'Already Enrolled' : 'Will Enroll'}
+                                    </span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {isDuplicateEnrollment && (
-                      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-                        This student is already enrolled in the selected class for this school
-                        year and semester.
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -907,10 +941,12 @@ export default function EnrollPage() {
 
                   <button
                     type="submit"
-                    disabled={saving || isDuplicateEnrollment}
+                    disabled={saving || !selectedStudent || classesToEnroll.length === 0}
                     className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:opacity-60"
                   >
-                    {saving ? 'Saving...' : 'Save Enrollment'}
+                    {saving
+                      ? 'Enrolling...'
+                      : `Enroll ${classesToEnroll.length > 0 ? classesToEnroll.length : ''} Subject${classesToEnroll.length === 1 ? '' : 's'}`}
                   </button>
                 </div>
               </form>
