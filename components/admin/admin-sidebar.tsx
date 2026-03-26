@@ -33,7 +33,7 @@ const navItems = [
   { label: 'School Years', href: '/admin/school-years', icon: CalendarRange },
   { label: 'Grading Control', href: '/admin/grading-control', icon: ShieldCheck },
   { label: 'Grades', href: '/admin/grades', icon: FileSpreadsheet },
-  { label: 'Reports', href: '/admin/reports', icon: BarChart3 }
+  { label: 'Reports', href: '/admin/reports', icon: BarChart3 },
 ]
 
 type AdminSidebarProps = {
@@ -72,13 +72,13 @@ export default function AdminSidebar({
   return (
     <>
       {/* Mobile / Tablet Header */}
-      <div className="flex h-16 items-center justify-between border-b border-yellow-400/10 bg-green-950 px-4 text-white lg:hidden">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
+      <div className="flex h-14 items-center justify-between border-b border-yellow-400/10 bg-green-950 px-3 text-white lg:hidden">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
             <Image
               src="/logo.jpg"
-              width={32}
-              height={32}
+              width={28}
+              height={28}
               alt="Qorban Portal Logo"
               className="object-contain"
               priority
@@ -86,7 +86,7 @@ export default function AdminSidebar({
           </div>
 
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold tracking-wide">
+            <p className="truncate text-xs font-bold tracking-wide sm:text-sm">
               QORBAN PORTAL
             </p>
             <p className="text-[10px] text-yellow-300">Admin Panel</p>
@@ -96,7 +96,7 @@ export default function AdminSidebar({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5" />
@@ -112,15 +112,15 @@ export default function AdminSidebar({
       />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden h-screen w-[280px] shrink-0 border-r border-yellow-400/10 bg-green-950 text-white lg:sticky lg:top-0 lg:flex lg:flex-col">
-        <div className="flex h-full flex-col">
-          <div className="border-b border-yellow-400/10 px-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
+      <aside className="hidden h-screen w-[240px] shrink-0 border-r border-yellow-400/10 bg-green-950 text-white xl:w-[252px] lg:sticky lg:top-0 lg:flex lg:flex-col">
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b border-yellow-400/10 px-3 py-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
                 <Image
                   src="/logo.jpg"
-                  width={36}
-                  height={36}
+                  width={32}
+                  height={32}
                   alt="Qorban Portal Logo"
                   className="object-contain"
                   priority
@@ -128,19 +128,19 @@ export default function AdminSidebar({
               </div>
 
               <div className="min-w-0">
-                <p className="truncate text-base font-bold tracking-wide">
+                <p className="truncate text-sm font-bold tracking-wide xl:text-base">
                   QORBAN PORTAL
                 </p>
-                <p className="text-xs text-yellow-300">Admin Panel</p>
+                <p className="text-[11px] text-yellow-300">Admin Panel</p>
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl bg-green-900/60 p-3">
+            <div className="mt-3 rounded-xl bg-green-900/60 p-2.5">
               <p className="text-[10px] uppercase tracking-wide text-yellow-300">
                 Account
               </p>
               <p className="truncate text-sm font-semibold">{fullName}</p>
-              <p className="truncate text-xs text-green-200">{email}</p>
+              <p className="truncate text-[11px] text-green-200">{email}</p>
 
               <span className="mt-2 inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold uppercase text-green-950">
                 {role}
@@ -148,13 +148,13 @@ export default function AdminSidebar({
             </div>
           </div>
 
-          <div className="border-b border-yellow-400/10 px-4 py-3">
+          <div className="border-b border-yellow-400/10 px-3 py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
               Navigation
             </p>
           </div>
 
-          <nav className="flex-1 px-2 py-3 space-y-1">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2">
             {navItems.map((item) => {
               const Icon = item.icon
               const active =
@@ -164,14 +164,16 @@ export default function AdminSidebar({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${
+                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 transition ${
                     active
                       ? 'bg-green-900 text-yellow-300'
                       : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate text-sm font-medium">{item.label}</span>
+                  <span className="truncate text-[13px] font-medium xl:text-sm">
+                    {item.label}
+                  </span>
                 </Link>
               )
             })}
@@ -180,10 +182,12 @@ export default function AdminSidebar({
           <div className="border-t border-yellow-400/10 p-2">
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
             >
               <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
-              <span className="text-sm font-medium">Logout</span>
+              <span className="truncate text-[13px] font-medium xl:text-sm">
+                Logout
+              </span>
             </button>
           </div>
         </div>
@@ -191,19 +195,19 @@ export default function AdminSidebar({
 
       {/* Mobile / Tablet Right Drawer */}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-screen w-[280px] max-w-[86vw] flex-col border-l border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+        className={`fixed right-0 top-0 z-50 flex h-screen w-[78vw] max-w-[250px] min-w-[220px] flex-col border-l border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out sm:w-[260px] lg:hidden ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex h-full flex-col">
-          <div className="border-b border-yellow-400/10 px-4 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
+        <div className="flex h-full flex-col overflow-hidden">
+          <div className="border-b border-yellow-400/10 px-3 py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
                   <Image
                     src="/logo.jpg"
-                    width={32}
-                    height={32}
+                    width={28}
+                    height={28}
                     alt="Qorban Portal Logo"
                     className="object-contain"
                     priority
@@ -211,7 +215,7 @@ export default function AdminSidebar({
                 </div>
 
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold tracking-wide">
+                  <p className="truncate text-xs font-bold tracking-wide sm:text-sm">
                     QORBAN PORTAL
                   </p>
                   <p className="text-[10px] text-yellow-300">Admin Panel</p>
@@ -221,19 +225,19 @@ export default function AdminSidebar({
               <button
                 type="button"
                 onClick={closeMenu}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-3 rounded-xl bg-green-900/60 p-3">
+            <div className="mt-3 rounded-xl bg-green-900/60 p-2.5">
               <p className="text-[10px] uppercase tracking-wide text-yellow-300">
                 Account
               </p>
               <p className="truncate text-sm font-semibold">{fullName}</p>
-              <p className="truncate text-xs text-green-200">{email}</p>
+              <p className="truncate text-[11px] text-green-200">{email}</p>
 
               <span className="mt-2 inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold uppercase text-green-950">
                 {role}
@@ -241,13 +245,13 @@ export default function AdminSidebar({
             </div>
           </div>
 
-          <div className="border-b border-yellow-400/10 px-4 py-3">
+          <div className="border-b border-yellow-400/10 px-3 py-2.5">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
               Navigation
             </p>
           </div>
 
-          <nav className="flex-1 px-2 py-3 space-y-1">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2">
             {navItems.map((item) => {
               const Icon = item.icon
               const active =
@@ -258,14 +262,16 @@ export default function AdminSidebar({
                   key={item.href}
                   href={item.href}
                   onClick={closeMenu}
-                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${
+                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 transition ${
                     active
                       ? 'bg-green-900 text-yellow-300'
                       : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
                   }`}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate text-sm font-medium">{item.label}</span>
+                  <span className="truncate text-[13px] font-medium sm:text-sm">
+                    {item.label}
+                  </span>
                 </Link>
               )
             })}
@@ -274,10 +280,12 @@ export default function AdminSidebar({
           <div className="border-t border-yellow-400/10 p-2">
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
             >
               <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
-              <span className="text-sm font-medium">Logout</span>
+              <span className="truncate text-[13px] font-medium sm:text-sm">
+                Logout
+              </span>
             </button>
           </div>
         </div>
