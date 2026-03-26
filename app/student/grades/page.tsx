@@ -7,9 +7,9 @@ import { supabaseStudent } from '@/lib/supabase-student'
 type GradeRow = {
   id: string
   class_id: string
-  grading_period: '1st' | '2nd' | '3rd' | '4th'
-  semester: '1st Semester' | '2nd Semester'
   school_year: string
+  semester: string
+  grading_period: '1st' | '2nd' | '3rd' | '4th'
   grade: number
   remarks: string | null
   classes: {
@@ -27,34 +27,33 @@ type GradeRow = {
 type SubmissionRow = {
   class_id: string
   school_year: string
-  term: '1st Semester' | '2nd Semester'
+  term: string
   grading_period: '1st' | '2nd' | '3rd' | '4th'
   is_submitted: boolean
 }
 
-type ReportRow = {
+type TableRow = {
   key: string
   classId: string
   schoolYear: string
-  semester: '1st Semester' | '2nd Semester'
+  semester: string
   subjectCode: string
   subjectName: string
   year: string
   section: string
-  p1: number | null
-  p2: number | null
-  p3: number | null
-  p4: number | null
-  latestVisibleGrade: number | null
+  grade: number | null
   remarks: string
+  teacherRemark: string | null
 }
+
+const PERIODS: Array<'1st' | '2nd' | '3rd' | '4th'> = ['1st', '2nd', '3rd', '4th']
 
 function formatGrade(value: number | null) {
   if (value === null) return '—'
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
-function getRemarks(grade: number | null) {
+function getComputedRemarks(grade: number | null) {
   if (grade === null) return 'Pending'
   if (grade >= 98) return 'With Highest Honors'
   if (grade >= 95) return 'With High Honors'
@@ -64,7 +63,11 @@ function getRemarks(grade: number | null) {
 }
 
 function getRemarksClass(remarks: string) {
-  if (remarks === 'With Highest Honors' || remarks === 'With High Honors' || remarks === 'With Honors') {
+  if (
+    remarks === 'With Highest Honors' ||
+    remarks === 'With High Honors' ||
+    remarks === 'With Honors'
+  ) {
     return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
   }
 
@@ -79,30 +82,18 @@ function getRemarksClass(remarks: string) {
   return 'bg-red-100 text-red-700 ring-1 ring-red-200'
 }
 
-function getLatestVisibleGrade(periods: {
-  p1: number | null
-  p2: number | null
-  p3: number | null
-  p4: number | null
-}) {
-  if (periods.p4 !== null) return periods.p4
-  if (periods.p3 !== null) return periods.p3
-  if (periods.p2 !== null) return periods.p2
-  if (periods.p1 !== null) return periods.p1
-  return null
-}
-
 export default function StudentGradesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [grades, setGrades] = useState<GradeRow[]>([])
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
-  const [selectedTerm, setSelectedTerm] = useState('All')
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState('All')
+  const [selectedPeriod, setSelectedPeriod] = useState<'1st' | '2nd' | '3rd' | '4th'>('1st')
 
   useEffect(() => {
     let mounted = true
 
-    const loadGrades = async () => {
+    const loadData = async () => {
       try {
         setLoading(true)
         setError('')
@@ -128,9 +119,9 @@ export default function StudentGradesPage() {
           .select(`
             id,
             class_id,
-            grading_period,
-            semester,
             school_year,
+            semester,
+            grading_period,
             grade,
             remarks,
             classes (
@@ -152,7 +143,6 @@ export default function StudentGradesPage() {
         if (gradesError) throw gradesError
 
         const safeGrades = (gradesData as GradeRow[]) || []
-
         const classIds = [...new Set(safeGrades.map((item) => item.class_id))]
 
         let safeSubmissions: SubmissionRow[] = []
@@ -178,6 +168,11 @@ export default function StudentGradesPage() {
 
         setGrades(safeGrades)
         setSubmissions(safeSubmissions)
+
+        const years = [...new Set(safeGrades.map((item) => item.school_year))]
+        if (years.length > 0) {
+          setSelectedSchoolYear(years[0])
+        }
       } catch (err: any) {
         if (mounted) {
           setError(err.message || 'Failed to load grades.')
@@ -189,41 +184,36 @@ export default function StudentGradesPage() {
       }
     }
 
-    loadGrades()
+    loadData()
 
     return () => {
       mounted = false
     }
   }, [])
 
-  const availableTerms = useMemo(() => {
-    const terms = Array.from(
-      new Set(grades.map((item) => `${item.school_year} | ${item.semester}`))
-    )
-    return ['All', ...terms]
+  const schoolYears = useMemo(() => {
+    return ['All', ...new Set(grades.map((item) => item.school_year))]
   }, [grades])
 
-  const reportRows = useMemo(() => {
+  const tableRows = useMemo(() => {
     const submittedSet = new Set(
       submissions.map(
         (item) => `${item.class_id}|${item.school_year}|${item.term}|${item.grading_period}`
       )
     )
 
-    const filtered =
-      selectedTerm === 'All'
+    const filteredGrades =
+      selectedSchoolYear === 'All'
         ? grades
-        : grades.filter(
-            (item) => `${item.school_year} | ${item.semester}` === selectedTerm
-          )
+        : grades.filter((item) => item.school_year === selectedSchoolYear)
 
-    const grouped = new Map<string, ReportRow>()
+    const map = new Map<string, TableRow>()
 
-    for (const item of filtered) {
+    for (const item of filteredGrades) {
       const key = `${item.class_id}|${item.school_year}|${item.semester}`
 
-      if (!grouped.has(key)) {
-        grouped.set(key, {
+      if (!map.has(key)) {
+        map.set(key, {
           key,
           classId: item.class_id,
           schoolYear: item.school_year,
@@ -232,54 +222,41 @@ export default function StudentGradesPage() {
           subjectName: item.classes?.subjects?.subject_name || 'Unnamed Subject',
           year: item.classes?.grade_level || '—',
           section: item.classes?.section || '—',
-          p1: null,
-          p2: null,
-          p3: null,
-          p4: null,
-          latestVisibleGrade: null,
+          grade: null,
           remarks: 'Pending',
+          teacherRemark: null,
         })
       }
 
-      const row = grouped.get(key)!
-      const submittedKey = `${item.class_id}|${item.school_year}|${item.semester}|${item.grading_period}`
-      const isVisible = submittedSet.has(submittedKey)
+      if (item.grading_period !== selectedPeriod) continue
 
-      if (!isVisible) continue
+      const submissionKey = `${item.class_id}|${item.school_year}|${item.semester}|${item.grading_period}`
+      const isSubmitted = submittedSet.has(submissionKey)
 
-      if (item.grading_period === '1st') row.p1 = item.grade
-      if (item.grading_period === '2nd') row.p2 = item.grade
-      if (item.grading_period === '3rd') row.p3 = item.grade
-      if (item.grading_period === '4th') row.p4 = item.grade
+      if (!isSubmitted) continue
+
+      const row = map.get(key)!
+      row.grade = item.grade
+      row.teacherRemark = item.remarks
+      row.remarks = getComputedRemarks(item.grade)
     }
 
-    return Array.from(grouped.values())
-      .map((row) => {
-        const latestVisibleGrade = getLatestVisibleGrade({
-          p1: row.p1,
-          p2: row.p2,
-          p3: row.p3,
-          p4: row.p4,
-        })
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.schoolYear !== b.schoolYear) {
+        return b.schoolYear.localeCompare(a.schoolYear)
+      }
 
-        return {
-          ...row,
-          latestVisibleGrade,
-          remarks: getRemarks(latestVisibleGrade),
-        }
-      })
-      .sort((a, b) => {
-        if (a.schoolYear !== b.schoolYear) {
-          return b.schoolYear.localeCompare(a.schoolYear)
-        }
+      if (a.year !== b.year) {
+        return a.year.localeCompare(b.year)
+      }
 
-        if (a.semester !== b.semester) {
-          return a.semester.localeCompare(b.semester)
-        }
+      if (a.section !== b.section) {
+        return a.section.localeCompare(b.section)
+      }
 
-        return a.subjectName.localeCompare(b.subjectName)
-      })
-  }, [grades, submissions, selectedTerm])
+      return a.subjectName.localeCompare(b.subjectName)
+    })
+  }, [grades, submissions, selectedSchoolYear, selectedPeriod])
 
   if (loading) {
     return (
@@ -308,19 +285,31 @@ export default function StudentGradesPage() {
               Report of Grades
             </h1>
             <p className="mt-2 text-sm text-slate-500">
-              View your released grades per grading period.
+              View your released grades by school year and grading period.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <select
-              value={selectedTerm}
-              onChange={(e) => setSelectedTerm(e.target.value)}
+              value={selectedSchoolYear}
+              onChange={(e) => setSelectedSchoolYear(e.target.value)}
               className="h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500"
             >
-              {availableTerms.map((term) => (
-                <option key={term} value={term}>
-                  {term === 'All' ? 'All School Terms' : term.replace('|', ' • ')}
+              {schoolYears.map((year) => (
+                <option key={year} value={year}>
+                  {year === 'All' ? 'All School Years' : year}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value as '1st' | '2nd' | '3rd' | '4th')}
+              className="h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500"
+            >
+              {PERIODS.map((period) => (
+                <option key={period} value={period}>
+                  {period} Period
                 </option>
               ))}
             </select>
@@ -344,8 +333,7 @@ export default function StudentGradesPage() {
           <div>
             <h2 className="font-bold text-rose-800">Warning</h2>
             <p className="mt-1 text-sm leading-6 text-rose-700">
-              This report only shows grading periods already submitted by your teacher.
-              Unsubmitted periods will remain hidden.
+              Only grades from submitted grading periods are shown in this report.
             </p>
           </div>
         </div>
@@ -359,7 +347,7 @@ export default function StudentGradesPage() {
           <div>
             <h2 className="font-bold text-violet-800">Note</h2>
             <p className="mt-1 text-sm leading-6 text-violet-700">
-              Remarks are based on the latest grading period currently released for each subject.
+              Remarks are computed from the selected grading period only.
             </p>
           </div>
         </div>
@@ -367,17 +355,19 @@ export default function StudentGradesPage() {
 
       <section className="overflow-hidden rounded-[30px] border border-emerald-100 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-5">
-          <h2 className="text-xl font-bold text-slate-900">Grade Report</h2>
+          <h2 className="text-xl font-bold text-slate-900">
+            {selectedPeriod} Period Grade Report
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Per-period grades based on submitted records in the database.
+            School-year based table from your submitted grade records.
           </p>
         </div>
 
-        {reportRows.length === 0 ? (
-          <div className="px-6 py-10 text-sm text-slate-500">No released grades found.</div>
+        {tableRows.length === 0 ? (
+          <div className="px-6 py-10 text-sm text-slate-500">No grades found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-[1200px] w-full text-sm">
+            <table className="min-w-[1100px] w-full text-sm">
               <thead className="bg-slate-50 text-slate-700">
                 <tr className="border-b border-slate-200">
                   <th className="px-4 py-4 text-left font-bold">#</th>
@@ -385,16 +375,13 @@ export default function StudentGradesPage() {
                   <th className="px-4 py-4 text-left font-bold">Descriptive</th>
                   <th className="px-4 py-4 text-center font-bold">Year</th>
                   <th className="px-4 py-4 text-center font-bold">Section</th>
-                  <th className="px-4 py-4 text-center font-bold">1st</th>
-                  <th className="px-4 py-4 text-center font-bold">2nd</th>
-                  <th className="px-4 py-4 text-center font-bold">3rd</th>
-                  <th className="px-4 py-4 text-center font-bold">4th</th>
+                  <th className="px-4 py-4 text-center font-bold">{selectedPeriod}</th>
                   <th className="px-4 py-4 text-center font-bold">Remarks</th>
                 </tr>
               </thead>
 
               <tbody>
-                {reportRows.map((row, index) => (
+                {tableRows.map((row, index) => (
                   <tr
                     key={row.key}
                     className="border-b border-slate-100 transition hover:bg-emerald-50/40"
@@ -410,6 +397,11 @@ export default function StudentGradesPage() {
                       <div className="mt-1 text-xs text-slate-500">
                         {row.schoolYear} • {row.semester}
                       </div>
+                      {row.teacherRemark ? (
+                        <div className="mt-1 text-xs text-slate-500">
+                          Teacher note: {row.teacherRemark}
+                        </div>
+                      ) : null}
                     </td>
 
                     <td className="px-4 py-4 text-center font-medium text-slate-700">
@@ -420,20 +412,8 @@ export default function StudentGradesPage() {
                       {row.section}
                     </td>
 
-                    <td className="px-4 py-4 text-center font-medium text-slate-700">
-                      {formatGrade(row.p1)}
-                    </td>
-
-                    <td className="px-4 py-4 text-center font-medium text-slate-700">
-                      {formatGrade(row.p2)}
-                    </td>
-
-                    <td className="px-4 py-4 text-center font-medium text-slate-700">
-                      {formatGrade(row.p3)}
-                    </td>
-
-                    <td className="px-4 py-4 text-center font-medium text-slate-700">
-                      {formatGrade(row.p4)}
+                    <td className="px-4 py-4 text-center font-extrabold text-emerald-700">
+                      {formatGrade(row.grade)}
                     </td>
 
                     <td className="px-4 py-4 text-center">

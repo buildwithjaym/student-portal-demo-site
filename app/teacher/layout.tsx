@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -14,50 +14,27 @@ import {
   UserCircle2,
   X,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
-import { formatFullName } from '@/lib/name'
 
-type ProfileRow = {
-  id: string
-  role: 'admin' | 'teacher' | 'student'
-  is_active: boolean
-  must_change_password: boolean
-}
-
-type TeacherRow = {
-  id: string
-  profile_id: string | null
-  teacher_no: string
-  email: string | null
-  first_name: string
-  middle_name?: string | null
-  last_name: string
-  suffix?: string | null
-  is_active: boolean
-}
-
-type TeacherLike = {
-  first_name: string
-  middle_name?: string | null
-  last_name: string
-  suffix?: string | null
+type TeacherInfo = {
+  fullName?: string
+  teacherNo?: string
 }
 
 function TeacherShell({
   children,
-  teacher,
   pathname,
   mobileOpen,
   setMobileOpen,
   onLogout,
+  teacher,
 }: {
   children: ReactNode
-  teacher: TeacherRow | null
   pathname: string
   mobileOpen: boolean
   setMobileOpen: (value: boolean) => void
   onLogout: () => Promise<void>
+  teacher?: TeacherInfo | null
 }) {
   const navItems = useMemo(
     () => [
@@ -75,6 +52,19 @@ function TeacherShell({
     return pathname.startsWith(href)
   }
 
+  const pageTitle =
+    pathname === '/teacher'
+      ? 'Dashboard'
+      : pathname.startsWith('/teacher/classes')
+        ? 'My Classes'
+        : pathname.startsWith('/teacher/grades')
+          ? 'Grade Encoding'
+          : pathname.startsWith('/teacher/reports')
+            ? 'Reports'
+            : pathname.startsWith('/teacher/profile')
+              ? 'Profile'
+              : 'Teacher Portal'
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col bg-gradient-to-b from-green-950 via-green-900 to-green-800 text-white">
       <div className="border-b border-white/10 px-5 py-5">
@@ -91,11 +81,9 @@ function TeacherShell({
         <p className="text-xs font-medium uppercase tracking-wide text-green-100/70">
           Signed in as
         </p>
-        <p className="mt-1 font-semibold">
-          {teacher ? formatFullName(teacher as TeacherLike) : 'Teacher'}
-        </p>
+        <p className="mt-1 font-semibold">{teacher?.fullName ?? 'Teacher'}</p>
         <p className="text-sm text-green-100/80">
-          {teacher?.teacher_no ? `Teacher No: ${teacher.teacher_no}` : 'Loading teacher info'}
+          {teacher?.teacherNo ? `Teacher No: ${teacher.teacherNo}` : 'Teacher account'}
         </p>
       </div>
 
@@ -135,19 +123,6 @@ function TeacherShell({
     </div>
   )
 
-  const pageTitle =
-    pathname === '/teacher'
-      ? 'Dashboard'
-      : pathname.startsWith('/teacher/classes')
-        ? 'My Classes'
-        : pathname.startsWith('/teacher/grades')
-          ? 'Grade Encoding'
-          : pathname.startsWith('/teacher/reports')
-            ? 'Reports'
-            : pathname.startsWith('/teacher/profile')
-              ? 'Profile'
-              : 'Teacher Portal'
-
   return (
     <div className="min-h-screen bg-green-50">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 overflow-hidden shadow-xl lg:block">
@@ -174,10 +149,10 @@ function TeacherShell({
 
             <div className="text-right">
               <p className="text-sm font-medium text-green-950">
-                {teacher ? formatFullName(teacher as TeacherLike) : 'Teacher'}
+                {teacher?.fullName ?? 'Teacher'}
               </p>
               <p className="text-xs text-gray-500">
-                {teacher?.teacher_no ? `#${teacher.teacher_no}` : 'Loading...'}
+                {teacher?.teacherNo ? `#${teacher.teacherNo}` : ''}
               </p>
             </div>
           </div>
@@ -231,105 +206,22 @@ function TeacherShell({
 }
 
 export default function TeacherLayout({ children }: { children: ReactNode }) {
-  const router = useRouter()
   const pathname = usePathname()
-
-  const [loading, setLoading] = useState(true)
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [teacher, setTeacher] = useState<TeacherRow | null>(null)
-
-  useEffect(() => {
-    const guard = async () => {
-      setLoading(true)
-
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-
-      if (userError || !user) {
-        router.replace('/login')
-        return
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, role, is_active, must_change_password')
-        .eq('id', user.id)
-        .maybeSingle()
-
-      if (profileError || !profile) {
-        toast.error('Failed to load account profile.')
-        router.replace('/login')
-        return
-      }
-
-      if (!profile.is_active) {
-        toast.error('Your account is inactive.')
-        await supabase.auth.signOut()
-        router.replace('/login')
-        return
-      }
-
-      if (profile.must_change_password) {
-        router.replace('/change-password')
-        return
-      }
-
-      if (profile.role !== 'teacher') {
-        router.replace('/login')
-        return
-      }
-
-      const { data: teacherData, error: teacherError } = await supabase
-        .from('teachers')
-        .select(
-          'id, profile_id, teacher_no, email, first_name, middle_name, last_name, suffix, is_active'
-        )
-        .eq('profile_id', user.id)
-        .maybeSingle()
-
-      if (teacherError || !teacherData) {
-        toast.error('Teacher record not found.')
-        router.replace('/login')
-        return
-      }
-
-      if (!teacherData.is_active) {
-        toast.error('Your teacher account is inactive.')
-        router.replace('/login')
-        return
-      }
-
-      setTeacher(teacherData as TeacherRow)
-      setLoading(false)
-    }
-
-    guard()
-  }, [router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.replace('/login')
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-green-50 px-4">
-        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
-          <p className="text-sm text-gray-500">Loading teacher portal...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <TeacherShell
-      teacher={teacher}
       pathname={pathname}
       mobileOpen={mobileOpen}
       setMobileOpen={setMobileOpen}
       onLogout={handleLogout}
+      teacher={null}
     >
       {children}
     </TeacherShell>
