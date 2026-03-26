@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -274,7 +274,7 @@ function getInputToneClasses(hasError: boolean) {
   return 'border-gray-300 focus:border-green-700 focus:ring-green-200'
 }
 
-export default function TeacherGradesPage() {
+function TeacherGradesContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -1918,5 +1918,23 @@ export default function TeacherGradesPage() {
         )}
       </AnimatePresence>
     </>
+  )
+}
+
+function TeacherGradesPageFallback() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
+        <p className="text-sm text-gray-500">Loading grade encoding...</p>
+      </div>
+    </div>
+  )
+}
+
+export default function TeacherGradesPage() {
+  return (
+    <Suspense fallback={<TeacherGradesPageFallback />}>
+      <TeacherGradesContent />
+    </Suspense>
   )
 }
