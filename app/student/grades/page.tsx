@@ -1,17 +1,21 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { AlertTriangle, Bell, RefreshCw } from 'lucide-react'
 import { supabaseStudent } from '@/lib/supabase-student'
 
 type GradeRow = {
   id: string
-  grading_period: string
-  semester: string
+  class_id: string
+  grading_period: '1st' | '2nd' | '3rd' | '4th'
+  semester: '1st Semester' | '2nd Semester'
   school_year: string
   grade: number
   remarks: string | null
   classes: {
     id: string
+    section?: string | null
+    grade_level?: string | null
     subjects: {
       id: string
       subject_code: string
@@ -20,99 +24,80 @@ type GradeRow = {
   } | null
 }
 
-type GroupedSubject = {
-  subjectId: string
-  subjectName: string
-  subjectCode: string
+type SubmissionRow = {
+  class_id: string
+  school_year: string
+  term: '1st Semester' | '2nd Semester'
+  grading_period: '1st' | '2nd' | '3rd' | '4th'
+  is_submitted: boolean
+}
+
+type ReportRow = {
+  key: string
+  classId: string
   schoolYear: string
-  semester: string
-  periods: Record<string, GradeRow>
-  average: number
+  semester: '1st Semester' | '2nd Semester'
+  subjectCode: string
+  subjectName: string
+  year: string
+  section: string
+  p1: number | null
+  p2: number | null
+  p3: number | null
+  p4: number | null
+  latestVisibleGrade: number | null
+  remarks: string
 }
 
-const PERIOD_ORDER = ['1st', '2nd', '3rd', '4th', 'First', 'Second', 'Third', 'Fourth']
-
-function normalizePeriod(period: string) {
-  const value = period.toLowerCase()
-
-  if (value.includes('1')) return '1st Period'
-  if (value.includes('2')) return '2nd Period'
-  if (value.includes('3')) return '3rd Period'
-  if (value.includes('4')) return '4th Period'
-
-  if (value.includes('first')) return '1st Period'
-  if (value.includes('second')) return '2nd Period'
-  if (value.includes('third')) return '3rd Period'
-  if (value.includes('fourth')) return '4th Period'
-
-  return period
-}
-
-function getAcademicRemark(grade: number) {
-  if (grade >= 98) {
-    return {
-      label: 'With Highest Honors',
-      status: 'passed',
-      badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    }
-  }
-
-  if (grade >= 95) {
-    return {
-      label: 'With High Honors',
-      status: 'passed',
-      badge: 'bg-green-100 text-green-700 border-green-200',
-    }
-  }
-
-  if (grade >= 90) {
-    return {
-      label: 'With Honors',
-      status: 'passed',
-      badge: 'bg-lime-100 text-lime-700 border-lime-200',
-    }
-  }
-
-  if (grade >= 85) {
-    return {
-      label: 'Passed',
-      status: 'passed',
-      badge: 'bg-blue-100 text-blue-700 border-blue-200',
-    }
-  }
-
-  if (grade >= 80) {
-    return {
-      label: 'Fairly Satisfactory',
-      status: 'passed',
-      badge: 'bg-amber-100 text-amber-700 border-amber-200',
-    }
-  }
-
-  if (grade >= 75) {
-    return {
-      label: 'Did Not Meet Expectations',
-      status: 'conditional',
-      badge: 'bg-orange-100 text-orange-700 border-orange-200',
-    }
-  }
-
-  return {
-    label: 'Failed',
-    status: 'failed',
-    badge: 'bg-red-100 text-red-700 border-red-200',
-  }
-}
-
-function formatNumber(value: number) {
+function formatGrade(value: number | null) {
+  if (value === null) return '—'
   return Number.isInteger(value) ? String(value) : value.toFixed(2)
+}
+
+function getRemarks(grade: number | null) {
+  if (grade === null) return 'Pending'
+  if (grade >= 98) return 'With Highest Honors'
+  if (grade >= 95) return 'With High Honors'
+  if (grade >= 90) return 'With Honors'
+  if (grade >= 75) return 'Passed'
+  return 'Failed'
+}
+
+function getRemarksClass(remarks: string) {
+  if (remarks === 'With Highest Honors' || remarks === 'With High Honors' || remarks === 'With Honors') {
+    return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+  }
+
+  if (remarks === 'Passed') {
+    return 'bg-green-100 text-green-700 ring-1 ring-green-200'
+  }
+
+  if (remarks === 'Pending') {
+    return 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
+  }
+
+  return 'bg-red-100 text-red-700 ring-1 ring-red-200'
+}
+
+function getLatestVisibleGrade(periods: {
+  p1: number | null
+  p2: number | null
+  p3: number | null
+  p4: number | null
+}) {
+  if (periods.p4 !== null) return periods.p4
+  if (periods.p3 !== null) return periods.p3
+  if (periods.p2 !== null) return periods.p2
+  if (periods.p1 !== null) return periods.p1
+  return null
 }
 
 export default function StudentGradesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [grades, setGrades] = useState<GradeRow[]>([])
-  const [semesterFilter, setSemesterFilter] = useState('All')
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+  const [selectedTerm, setSelectedTerm] = useState('All')
 
   useEffect(() => {
     let mounted = true
@@ -138,11 +123,11 @@ export default function StudentGradesPage() {
           throw new Error('Student record not found.')
         }
 
-        const { data, error } = await supabaseStudent
+        const { data: gradesData, error: gradesError } = await supabaseStudent
           .from('grades')
-          .select(
-            `
+          .select(`
             id,
+            class_id,
             grading_period,
             semester,
             school_year,
@@ -150,25 +135,57 @@ export default function StudentGradesPage() {
             remarks,
             classes (
               id,
+              section,
+              grade_level,
               subjects (
                 id,
                 subject_code,
                 subject_name
               )
             )
-          `
-          )
+          `)
           .eq('student_id', studentData.id)
           .order('school_year', { ascending: false })
           .order('semester', { ascending: true })
           .order('grading_period', { ascending: true })
 
-        if (error) throw error
-        if (mounted) setGrades((data as GradeRow[]) || [])
+        if (gradesError) throw gradesError
+
+        const safeGrades = (gradesData as GradeRow[]) || []
+
+        const classIds = [...new Set(safeGrades.map((item) => item.class_id))]
+
+        let safeSubmissions: SubmissionRow[] = []
+
+        if (classIds.length > 0) {
+          const { data: submissionData, error: submissionError } = await supabaseStudent
+            .from('grade_submissions')
+            .select(`
+              class_id,
+              school_year,
+              term,
+              grading_period,
+              is_submitted
+            `)
+            .in('class_id', classIds)
+            .eq('is_submitted', true)
+
+          if (submissionError) throw submissionError
+          safeSubmissions = (submissionData as SubmissionRow[]) || []
+        }
+
+        if (!mounted) return
+
+        setGrades(safeGrades)
+        setSubmissions(safeSubmissions)
       } catch (err: any) {
-        if (mounted) setError(err.message || 'Failed to load grades.')
+        if (mounted) {
+          setError(err.message || 'Failed to load grades.')
+        }
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
@@ -179,219 +196,262 @@ export default function StudentGradesPage() {
     }
   }, [])
 
-  const filteredGrades = useMemo(() => {
-    if (semesterFilter === 'All') return grades
-    return grades.filter((item) => item.semester === semesterFilter)
-  }, [grades, semesterFilter])
+  const availableTerms = useMemo(() => {
+    const terms = Array.from(
+      new Set(grades.map((item) => `${item.school_year} | ${item.semester}`))
+    )
+    return ['All', ...terms]
+  }, [grades])
 
-  const groupedSubjects = useMemo(() => {
-    const map = new Map<string, GroupedSubject>()
+  const reportRows = useMemo(() => {
+    const submittedSet = new Set(
+      submissions.map(
+        (item) => `${item.class_id}|${item.school_year}|${item.term}|${item.grading_period}`
+      )
+    )
 
-    for (const item of filteredGrades) {
-      const subjectId = item.classes?.subjects?.id || item.classes?.id || item.id
-      const subjectName = item.classes?.subjects?.subject_name || 'Unknown Subject'
-      const subjectCode = item.classes?.subjects?.subject_code || '—'
-      const periodKey = normalizePeriod(item.grading_period)
-      const key = `${item.school_year}__${item.semester}__${subjectId}`
+    const filtered =
+      selectedTerm === 'All'
+        ? grades
+        : grades.filter(
+            (item) => `${item.school_year} | ${item.semester}` === selectedTerm
+          )
 
-      if (!map.has(key)) {
-        map.set(key, {
-          subjectId,
-          subjectName,
-          subjectCode,
+    const grouped = new Map<string, ReportRow>()
+
+    for (const item of filtered) {
+      const key = `${item.class_id}|${item.school_year}|${item.semester}`
+
+      if (!grouped.has(key)) {
+        grouped.set(key, {
+          key,
+          classId: item.class_id,
           schoolYear: item.school_year,
           semester: item.semester,
-          periods: {},
-          average: 0,
+          subjectCode: item.classes?.subjects?.subject_code || '—',
+          subjectName: item.classes?.subjects?.subject_name || 'Unnamed Subject',
+          year: item.classes?.grade_level || '—',
+          section: item.classes?.section || '—',
+          p1: null,
+          p2: null,
+          p3: null,
+          p4: null,
+          latestVisibleGrade: null,
+          remarks: 'Pending',
         })
       }
 
-      map.get(key)!.periods[periodKey] = item
+      const row = grouped.get(key)!
+      const submittedKey = `${item.class_id}|${item.school_year}|${item.semester}|${item.grading_period}`
+      const isVisible = submittedSet.has(submittedKey)
+
+      if (!isVisible) continue
+
+      if (item.grading_period === '1st') row.p1 = item.grade
+      if (item.grading_period === '2nd') row.p2 = item.grade
+      if (item.grading_period === '3rd') row.p3 = item.grade
+      if (item.grading_period === '4th') row.p4 = item.grade
     }
 
-    const results = Array.from(map.values()).map((subject) => {
-      const values = Object.values(subject.periods).map((entry) => entry.grade)
-      const average =
-        values.length > 0
-          ? values.reduce((sum, value) => sum + value, 0) / values.length
-          : 0
+    return Array.from(grouped.values())
+      .map((row) => {
+        const latestVisibleGrade = getLatestVisibleGrade({
+          p1: row.p1,
+          p2: row.p2,
+          p3: row.p3,
+          p4: row.p4,
+        })
 
-      return {
-        ...subject,
-        average,
-      }
-    })
+        return {
+          ...row,
+          latestVisibleGrade,
+          remarks: getRemarks(latestVisibleGrade),
+        }
+      })
+      .sort((a, b) => {
+        if (a.schoolYear !== b.schoolYear) {
+          return b.schoolYear.localeCompare(a.schoolYear)
+        }
 
-    return results.sort((a, b) => {
-      if (a.schoolYear !== b.schoolYear) return b.schoolYear.localeCompare(a.schoolYear)
-      if (a.semester !== b.semester) return a.semester.localeCompare(b.semester)
-      return a.subjectName.localeCompare(b.subjectName)
-    })
-  }, [filteredGrades])
+        if (a.semester !== b.semester) {
+          return a.semester.localeCompare(b.semester)
+        }
 
-  const summary = useMemo(() => {
-    const averages = groupedSubjects.map((item) => item.average)
-    const overallAverage =
-      averages.length > 0
-        ? averages.reduce((sum, value) => sum + value, 0) / averages.length
-        : 0
-
-    const passedCount = groupedSubjects.filter((item) => item.average >= 75).length
-    const failedCount = groupedSubjects.filter((item) => item.average < 75).length
-
-    return {
-      overallAverage,
-      passedCount,
-      failedCount,
-      totalSubjects: groupedSubjects.length,
-    }
-  }, [groupedSubjects])
+        return a.subjectName.localeCompare(b.subjectName)
+      })
+  }, [grades, submissions, selectedTerm])
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <p className="font-medium text-green-900">Loading grades...</p>
+      <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold text-emerald-900">Loading grades...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
         <p className="font-semibold text-red-700">Error</p>
-        <p className="mt-2 text-red-600">{error}</p>
+        <p className="mt-2 text-sm text-red-600">{error}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 px-6 py-7 text-white shadow-lg">
-        <h1 className="text-2xl font-extrabold md:text-3xl">My Grades</h1>
-        <p className="mt-2 text-sm text-green-100 md:text-base">
-          View your grades per subject, grading period, and semester.
-        </p>
+      <section className="rounded-[28px] border border-emerald-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-emerald-700">Qorban Portal</p>
+            <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">
+              Report of Grades
+            </h1>
+            <p className="mt-2 text-sm text-slate-500">
+              View your released grades per grading period.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedTerm}
+              onChange={(e) => setSelectedTerm(e.target.value)}
+              className="h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500"
+            >
+              {availableTerms.map((term) => (
+                <option key={term} value={term}>
+                  {term === 'All' ? 'All School Terms' : term.replace('|', ' • ')}
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Overall Average</p>
-          <p className="mt-2 text-3xl font-extrabold text-green-900">
-            {summary.totalSubjects ? formatNumber(summary.overallAverage) : '—'}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Subjects</p>
-          <p className="mt-2 text-3xl font-extrabold text-green-900">
-            {summary.totalSubjects}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Passed</p>
-          <p className="mt-2 text-3xl font-extrabold text-emerald-700">
-            {summary.passedCount}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-          <p className="text-sm text-gray-500">Failed</p>
-          <p className="mt-2 text-3xl font-extrabold text-red-700">
-            {summary.failedCount}
-          </p>
+      <section className="rounded-[28px] border border-rose-200 bg-rose-50 p-5">
+        <div className="flex gap-3">
+          <div className="mt-0.5 rounded-xl bg-rose-100 p-2 text-rose-600">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-bold text-rose-800">Warning</h2>
+            <p className="mt-1 text-sm leading-6 text-rose-700">
+              This report only shows grading periods already submitted by your teacher.
+              Unsubmitted periods will remain hidden.
+            </p>
+          </div>
         </div>
       </section>
 
-      <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-lg font-bold text-green-900">Grade Records</h2>
+      <section className="rounded-[28px] border-2 border-dashed border-violet-300 bg-violet-50 p-5">
+        <div className="flex gap-3">
+          <div className="mt-0.5 rounded-xl bg-violet-100 p-2 text-violet-700">
+            <Bell className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-bold text-violet-800">Note</h2>
+            <p className="mt-1 text-sm leading-6 text-violet-700">
+              Remarks are based on the latest grading period currently released for each subject.
+            </p>
+          </div>
+        </div>
+      </section>
 
-          <select
-            value={semesterFilter}
-            onChange={(e) => setSemesterFilter(e.target.value)}
-            className="rounded-xl border border-green-200 bg-white px-4 py-3 text-sm font-medium text-green-900 outline-none focus:border-green-500"
-          >
-            <option value="All">All Semesters</option>
-            <option value="1st Semester">1st Semester</option>
-            <option value="2nd Semester">2nd Semester</option>
-          </select>
+      <section className="overflow-hidden rounded-[30px] border border-emerald-100 bg-white shadow-sm">
+        <div className="border-b border-slate-200 px-6 py-5">
+          <h2 className="text-xl font-bold text-slate-900">Grade Report</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Per-period grades based on submitted records in the database.
+          </p>
         </div>
 
-        {groupedSubjects.length === 0 ? (
-          <p className="text-sm text-gray-500">No grades found.</p>
+        {reportRows.length === 0 ? (
+          <div className="px-6 py-10 text-sm text-slate-500">No released grades found.</div>
         ) : (
-          <div className="space-y-4">
-            {groupedSubjects.map((subject) => {
-              const averageInfo = getAcademicRemark(subject.average)
+          <div className="overflow-x-auto">
+            <table className="min-w-[1200px] w-full text-sm">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr className="border-b border-slate-200">
+                  <th className="px-4 py-4 text-left font-bold">#</th>
+                  <th className="px-4 py-4 text-left font-bold">Code</th>
+                  <th className="px-4 py-4 text-left font-bold">Descriptive</th>
+                  <th className="px-4 py-4 text-center font-bold">Year</th>
+                  <th className="px-4 py-4 text-center font-bold">Section</th>
+                  <th className="px-4 py-4 text-center font-bold">1st</th>
+                  <th className="px-4 py-4 text-center font-bold">2nd</th>
+                  <th className="px-4 py-4 text-center font-bold">3rd</th>
+                  <th className="px-4 py-4 text-center font-bold">4th</th>
+                  <th className="px-4 py-4 text-center font-bold">Remarks</th>
+                </tr>
+              </thead>
 
-              return (
-                <div
-                  key={`${subject.schoolYear}-${subject.semester}-${subject.subjectId}`}
-                  className="rounded-2xl border border-green-100 bg-gradient-to-br from-white to-green-50 p-5"
-                >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div>
-                      <h3 className="text-xl font-extrabold text-green-900">
-                        {subject.subjectName}
-                      </h3>
-                      <p className="mt-1 text-sm font-medium text-gray-600">
-                        {subject.subjectCode}
-                      </p>
-                      <p className="mt-2 text-sm text-gray-500">
-                        {subject.schoolYear} • {subject.semester}
-                      </p>
-                    </div>
+              <tbody>
+                {reportRows.map((row, index) => (
+                  <tr
+                    key={row.key}
+                    className="border-b border-slate-100 transition hover:bg-emerald-50/40"
+                  >
+                    <td className="px-4 py-4 align-top text-slate-500">{index + 1}.</td>
 
-                    <div className="flex flex-col items-start gap-2 lg:items-end">
-                      <div className="text-3xl font-extrabold text-yellow-700">
-                        {formatNumber(subject.average)}
+                    <td className="px-4 py-4 align-top font-semibold text-slate-700">
+                      {row.subjectCode}
+                    </td>
+
+                    <td className="px-4 py-4 align-top">
+                      <div className="font-semibold text-slate-900">{row.subjectName}</div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {row.schoolYear} • {row.semester}
                       </div>
+                    </td>
+
+                    <td className="px-4 py-4 text-center font-medium text-slate-700">
+                      {row.year}
+                    </td>
+
+                    <td className="px-4 py-4 text-center font-medium text-slate-700">
+                      {row.section}
+                    </td>
+
+                    <td className="px-4 py-4 text-center font-medium text-slate-700">
+                      {formatGrade(row.p1)}
+                    </td>
+
+                    <td className="px-4 py-4 text-center font-medium text-slate-700">
+                      {formatGrade(row.p2)}
+                    </td>
+
+                    <td className="px-4 py-4 text-center font-medium text-slate-700">
+                      {formatGrade(row.p3)}
+                    </td>
+
+                    <td className="px-4 py-4 text-center font-medium text-slate-700">
+                      {formatGrade(row.p4)}
+                    </td>
+
+                    <td className="px-4 py-4 text-center">
                       <span
-                        className={`rounded-full border px-3 py-1 text-xs font-bold ${averageInfo.badge}`}
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${getRemarksClass(
+                          row.remarks
+                        )}`}
                       >
-                        {averageInfo.label}
+                        {row.remarks}
                       </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 grid gap-3 md:grid-cols-4">
-                    {['1st Period', '2nd Period', '3rd Period', '4th Period'].map((label) => {
-                      const entry = subject.periods[label]
-                      const info = entry ? getAcademicRemark(entry.grade) : null
-
-                      return (
-                        <div
-                          key={label}
-                          className="rounded-xl border border-green-100 bg-white p-4"
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            {label}
-                          </p>
-
-                          <p className="mt-3 text-2xl font-extrabold text-green-900">
-                            {entry ? entry.grade : '—'}
-                          </p>
-
-                          <p className="mt-1 text-sm text-gray-600">
-                            {info ? info.label : 'No grade yet'}
-                          </p>
-
-                          {entry?.remarks ? (
-                            <p className="mt-2 text-xs text-gray-500">
-                              Teacher remark: {entry.remarks}
-                            </p>
-                          ) : null}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )
-            })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }
