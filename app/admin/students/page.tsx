@@ -21,6 +21,7 @@ type Student = {
   section: string
   is_active: boolean
   created_at: string
+  updated_at?: string
 }
 
 type StudentForm = {
@@ -54,6 +55,31 @@ const initialForm: StudentForm = {
   grade_level: 'Grade 11',
   section: '',
   is_active: true,
+}
+
+const getCurrentStudentYear = () => {
+  return new Date().getFullYear()
+}
+
+const generateNextStudentNo = (students: Student[]) => {
+  const currentYear = getCurrentStudentYear()
+  const prefix = `${currentYear}-Q`
+
+  const maxNumberForYear = students.reduce((max, student) => {
+    const match = student.student_no.match(/^(\d{4})-Q(\d{6})$/i)
+    if (!match) return max
+
+    const year = Number.parseInt(match[1], 10)
+    const sequence = Number.parseInt(match[2], 10)
+
+    if (Number.isNaN(year) || Number.isNaN(sequence)) return max
+    if (year !== currentYear) return max
+
+    return Math.max(max, sequence)
+  }, 0)
+
+  const nextSequence = String(maxNumberForYear + 1).padStart(6, '0')
+  return `${prefix}${nextSequence}`
 }
 
 export default function StudentsPage() {
@@ -166,7 +192,14 @@ export default function StudentsPage() {
   }
 
   const openAddModal = () => {
-    resetForm()
+    const nextStudentNo = generateNextStudentNo(students)
+
+    setForm({
+      ...initialForm,
+      student_no: nextStudentNo,
+    })
+
+    setEditingStudent(null)
     setShowModal(true)
   }
 
@@ -212,23 +245,18 @@ export default function StudentsPage() {
     }))
   }
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-
-    const payload = {
-      student_no: form.student_no.trim(),
-      first_name: form.first_name.trim(),
-      middle_name: form.middle_name.trim() || null,
-      last_name: form.last_name.trim(),
-      suffix: form.suffix.trim() || null,
-      email: form.email.trim().toLowerCase() || null,
-      gender: form.gender.trim() || null,
-      grade_level: form.grade_level,
-      section: form.section.trim(),
-      is_active: form.is_active,
-    }
-
+  const validatePayload = (payload: {
+    student_no: string
+    first_name: string
+    middle_name: string | null
+    last_name: string
+    suffix: string | null
+    email: string | null
+    gender: string | null
+    grade_level: string
+    section: string
+    is_active: boolean
+  }) => {
     if (
       !payload.student_no ||
       !payload.first_name ||
@@ -238,36 +266,71 @@ export default function StudentsPage() {
       !payload.section
     ) {
       toast.error('Please complete the required fields.')
-      setSaving(false)
-      return
+      return false
     }
 
     if (!availableSections.includes(payload.section)) {
       toast.error('Please select a valid section for the chosen grade level.')
-      setSaving(false)
-      return
+      return false
     }
 
-    if (!editingStudent && !payload.email) {
-      toast.error('Email is required when creating a student login account.')
-      setSaving(false)
-      return
-    }
+    return true
+  }
 
-    if (editingStudent) {
-      const { error } = await supabase
-        .from('students')
-        .update(payload)
-        .eq('id', editingStudent.id)
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
 
-      if (error) {
-        toast.error(error.message)
-      } else {
+    try {
+      const payload = {
+        student_no: editingStudent
+          ? form.student_no.trim()
+          : generateNextStudentNo(students),
+        first_name: form.first_name.trim(),
+        middle_name: form.middle_name.trim() || null,
+        last_name: form.last_name.trim(),
+        suffix: form.suffix.trim() || null,
+        email: form.email.trim().toLowerCase() || null,
+        gender: form.gender.trim() || null,
+        grade_level: form.grade_level,
+        section: form.section.trim(),
+        is_active: form.is_active,
+      }
+
+      if (!validatePayload(payload)) return
+
+      if (editingStudent) {
+        const { error } = await supabase
+          .from('students')
+          .update({
+            first_name: payload.first_name,
+            middle_name: payload.middle_name,
+            last_name: payload.last_name,
+            suffix: payload.suffix,
+            email: payload.email,
+            gender: payload.gender,
+            grade_level: payload.grade_level,
+            section: payload.section,
+            is_active: payload.is_active,
+          })
+          .eq('id', editingStudent.id)
+
+        if (error) {
+          toast.error(error.message)
+          return
+        }
+
         toast.success('Student updated successfully.')
         closeModal()
-        fetchStudents()
+        await fetchStudents()
+        return
       }
-    } else {
+
+      if (!payload.email) {
+        toast.error('Email is required when creating a student login account.')
+        return
+      }
+
       const response = await fetch('/api/admin/students/create', {
         method: 'POST',
         headers: {
@@ -280,16 +343,21 @@ export default function StudentsPage() {
 
       if (!response.ok) {
         toast.error(result.error || 'Failed to create student.')
-      } else {
-        toast.success(
-          `Student added successfully. Temporary password is: ${result.temporary_password}`
-        )
-        closeModal()
-        fetchStudents()
+        return
       }
-    }
 
-    setSaving(false)
+      toast.success(
+        `Student added successfully. Temporary password is: ${result.temporary_password}`
+      )
+      closeModal()
+      await fetchStudents()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Something went wrong.'
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = async (student: Student) => {
@@ -306,10 +374,11 @@ export default function StudentsPage() {
 
     if (error) {
       toast.error(error.message)
-    } else {
-      toast.success('Student deleted successfully.')
-      fetchStudents()
+      return
     }
+
+    toast.success('Student deleted successfully.')
+    await fetchStudents()
   }
 
   return (
@@ -324,7 +393,7 @@ export default function StudentsPage() {
           <p className="text-sm font-medium text-yellow-600">Administration</p>
           <h1 className="text-3xl font-bold text-green-900">Students</h1>
           <p className="mt-1 text-gray-600">
-            Manage student records and create student login accounts.
+            Manage student records with create, update, and delete actions.
           </p>
         </div>
 
@@ -545,10 +614,9 @@ export default function StudentsPage() {
                     <input
                       name="student_no"
                       value={form.student_no}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      readOnly
+                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 outline-none"
                       required
-                      disabled={saving}
                     />
                   </div>
 
@@ -699,14 +767,15 @@ export default function StudentsPage() {
 
                 {!editingStudent && (
                   <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    A login account will be created automatically. The student&apos;s temporary
-                    password will be their student number.
+                    A login account will be created automatically. The student&apos;s
+                    temporary password will be their student number.
                   </div>
                 )}
 
                 {availableSections.length === 0 && (
                   <div className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-                    No available sections found for {form.grade_level}. Add an active section first.
+                    No available sections found for {form.grade_level}. Add an active
+                    section first.
                   </div>
                 )}
 
