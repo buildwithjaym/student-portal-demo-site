@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
+import { LockOpen, RefreshCw, Search, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
 type Semester = '1st Semester' | '2nd Semester'
 type GradingPeriod = '1st' | '2nd' | '3rd' | '4th'
 
-type AcademicYear = {
+type AcademicYearRow = {
   id: string
   school_year: string
   is_active: boolean
@@ -18,19 +19,15 @@ type SubjectRow = {
   id: string
   subject_code: string
   subject_name: string
-  description: string | null
-  grade_level: 'Grade 11' | 'Grade 12'
 }
 
 type TeacherRow = {
   id: string
   teacher_no: string
-  email: string | null
   first_name: string
   middle_name: string | null
   last_name: string
   suffix: string | null
-  is_active: boolean
 }
 
 type ClassRow = {
@@ -54,60 +51,96 @@ type EnrollmentRow = {
 type GradeRow = {
   class_id: string
   student_id: string
+  school_year: string
+  semester: Semester
+  grading_period: GradingPeriod
 }
 
-type SubjectProgress = {
+type GradeSubmissionRow = {
+  id: string
+  class_id: string
+  teacher_id: string
+  school_year: string
+  term: Semester
+  grading_period: GradingPeriod
+  is_submitted: boolean
+  submitted_at: string | null
+}
+
+type GradingWindowRow = {
+  id: string
+  school_year: string
+  semester: Semester
+  grading_period: GradingPeriod
+  is_open: boolean
+  is_locked: boolean
+}
+
+type AdminGradeRow = {
+  rowKey: string
   classId: string
+  submissionId: string | null
   subjectName: string
   subjectCode: string
   gradeLevel: string
   section: string
-  teacherId: string | null
+  semester: Semester
   teacherName: string
+  teacherNo: string
   totalStudents: number
-  submittedGrades: number
-  percentage: number
-  status: 'Completed' | 'In Progress' | 'No Students' | 'No Teacher Assigned'
+  encodedStudents: number
+  progress: number
+  isSubmitted: boolean
+  submittedAt: string | null
 }
 
-type TeacherProgress = {
-  teacherId: string
-  teacherName: string
-  assignedSubjects: number
-  completedSubjects: number
-  inProgressSubjects: number
-  averageProgress: number
-}
-
-const PERIODS_BY_SEMESTER: Record<Semester, GradingPeriod[]> = {
-  '1st Semester': ['1st', '2nd'],
-  '2nd Semester': ['3rd', '4th'],
-}
-
-function getSubjectName(subject: SubjectRow | null) {
-  return subject?.subject_name || 'Unnamed Subject'
-}
-
-function getSubjectCode(subject: SubjectRow | null) {
-  return subject?.subject_code || '—'
-}
+const PERIODS: GradingPeriod[] = ['1st', '2nd', '3rd', '4th']
 
 function getTeacherName(teacher: TeacherRow | null) {
   if (!teacher) return 'Unassigned Teacher'
+  return [teacher.first_name, teacher.middle_name, teacher.last_name, teacher.suffix]
+    .filter(Boolean)
+    .join(' ')
+}
 
-  const parts = [
-    teacher.first_name,
-    teacher.middle_name,
-    teacher.last_name,
-    teacher.suffix,
-  ].filter(Boolean)
+function getCurrentWindow(windows: GradingWindowRow[]) {
+  const order = (w: GradingWindowRow) => {
+    const semesterValue = w.semester === '1st Semester' ? 0 : 10
+    const periodValue = PERIODS.indexOf(w.grading_period) + 1
+    return semesterValue + periodValue
+  }
 
-  return parts.join(' ')
+  return (
+    windows
+      .filter((w) => w.is_open && !w.is_locked)
+      .sort((a, b) => order(a) - order(b))[0] ||
+    windows.filter((w) => w.is_open).sort((a, b) => order(a) - order(b))[0] ||
+    windows.sort((a, b) => order(a) - order(b))[0] ||
+    null
+  )
+}
+
+function SummaryCard({
+  title,
+  value,
+  subtitle,
+}: {
+  title: string
+  value: string | number
+  subtitle: string
+}) {
+  return (
+    <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-gray-500">{title}</p>
+      <p className="mt-2 text-3xl font-bold text-green-950">{value}</p>
+      <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
+    </div>
+  )
 }
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="h-3 w-full overflow-hidden rounded-full bg-gray-200">
+    <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-200">
       <div
         className="h-full rounded-full bg-green-700 transition-all duration-300"
         style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
@@ -116,64 +149,49 @@ function ProgressBar({ value }: { value: number }) {
   )
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: SubjectProgress['status']
-}) {
-  const className =
-    status === 'Completed'
-      ? 'bg-green-100 text-green-800'
-      : status === 'In Progress'
-        ? 'bg-yellow-100 text-yellow-800'
-        : status === 'No Students'
-          ? 'bg-gray-200 text-gray-700'
-          : 'bg-red-100 text-red-700'
-
-  return (
-    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${className}`}>
-      {status}
-    </span>
-  )
-}
-
 export default function AdminGradesPage() {
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
-  const [schoolYear, setSchoolYear] = useState('')
-  const [semester, setSemester] = useState<Semester>('1st Semester')
-  const [gradingPeriod, setGradingPeriod] = useState<GradingPeriod>('1st')
   const [loading, setLoading] = useState(true)
-  const [subjectRows, setSubjectRows] = useState<SubjectProgress[]>([])
-  const [teacherRows, setTeacherRows] = useState<TeacherProgress[]>([])
+  const [refreshing, setRefreshing] = useState(false)
+  const [reopeningId, setReopeningId] = useState<string | null>(null)
 
-  const availablePeriods = useMemo(() => {
-    return PERIODS_BY_SEMESTER[semester]
-  }, [semester])
+  const [academicYears, setAcademicYears] = useState<AcademicYearRow[]>([])
+  const [schoolYear, setSchoolYear] = useState('')
+  const [gradingPeriod, setGradingPeriod] = useState<GradingPeriod>('1st')
+  const [currentSemester, setCurrentSemester] = useState<Semester>('1st Semester')
+  const [search, setSearch] = useState('')
+  const [rows, setRows] = useState<AdminGradeRow[]>([])
 
-  useEffect(() => {
-    if (!availablePeriods.includes(gradingPeriod)) {
-      setGradingPeriod(availablePeriods[0])
-    }
-  }, [availablePeriods, gradingPeriod])
+  const filteredRows = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    if (!keyword) return rows
 
-  const overallSummary = useMemo(() => {
-    const totalSubjects = subjectRows.length
-    const completedSubjects = subjectRows.filter((row) => row.status === 'Completed').length
-    const inProgressSubjects = subjectRows.filter((row) => row.status === 'In Progress').length
+    return rows.filter((row) =>
+      [
+        row.subjectName,
+        row.subjectCode,
+        row.gradeLevel,
+        row.section,
+        row.semester,
+        row.teacherName,
+        row.teacherNo,
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(keyword)
+    )
+  }, [rows, search])
+
+  const summary = useMemo(() => {
+    const totalClasses = filteredRows.length
+    const submitted = filteredRows.filter((row) => row.isSubmitted).length
+    const editable = filteredRows.filter((row) => !row.isSubmitted).length
     const averageProgress =
-      totalSubjects > 0
-        ? Math.round(
-            subjectRows.reduce((sum, row) => sum + row.percentage, 0) / totalSubjects
-          )
+      totalClasses > 0
+        ? Math.round(filteredRows.reduce((sum, row) => sum + row.progress, 0) / totalClasses)
         : 0
 
-    return {
-      totalSubjects,
-      completedSubjects,
-      inProgressSubjects,
-      averageProgress,
-    }
-  }, [subjectRows])
+    return { totalClasses, submitted, editable, averageProgress }
+  }, [filteredRows])
 
   const loadAcademicYears = async () => {
     const { data, error } = await supabase
@@ -183,29 +201,41 @@ export default function AdminGradesPage() {
 
     if (error) {
       toast.error(error.message)
-      setAcademicYears([])
-      setSchoolYear('')
       return
     }
 
-    const rows = (data ?? []) as AcademicYear[]
-
-    setAcademicYears(rows)
-
-    if (rows.length === 0) {
-      setSchoolYear('')
-      return
+    const yearRows = (data ?? []) as AcademicYearRow[]
+    setAcademicYears(yearRows)
+    if (yearRows.length > 0) {
+      const active = yearRows.find((row) => row.is_active)
+      setSchoolYear((prev) => prev || active?.school_year || yearRows[0].school_year)
     }
-
-    const activeYear = rows.find((row) => row.is_active)
-    setSchoolYear((prev) => prev || activeYear?.school_year || rows[0].school_year)
   }
 
-  const loadPageData = async () => {
-    if (!schoolYear) {
+  const loadCurrentPeriod = async (selectedYear: string) => {
+    if (!selectedYear) return
+
+    const { data, error } = await supabase
+      .from('grading_windows')
+      .select('id, school_year, semester, grading_period, is_open, is_locked')
+      .eq('school_year', selectedYear)
+
+    if (error) {
+      toast.error(error.message)
+      return
+    }
+
+    const current = getCurrentWindow((data ?? []) as GradingWindowRow[])
+    if (current) {
+      setGradingPeriod(current.grading_period)
+      setCurrentSemester(current.semester)
+    }
+  }
+
+  const loadRows = async (selectedYear: string, selectedPeriod: GradingPeriod) => {
+    if (!selectedYear) {
+      setRows([])
       setLoading(false)
-      setSubjectRows([])
-      setTeacherRows([])
       return
     }
 
@@ -226,157 +256,154 @@ export default function AdminGradesPage() {
           subjects:subject_id (
             id,
             subject_code,
-            subject_name,
-            description,
-            grade_level
+            subject_name
           ),
           teachers:teacher_id (
             id,
             teacher_no,
-            email,
             first_name,
             middle_name,
             last_name,
-            suffix,
-            is_active
+            suffix
           )
         `)
-        .eq('school_year', schoolYear)
-        .eq('semester', semester)
+        .eq('school_year', selectedYear)
         .eq('is_active', true)
 
       if (classesError) throw classesError
 
-      const classes = (classesData as ClassRow[]) || []
-
+      const classes = (classesData ?? []) as ClassRow[]
       if (classes.length === 0) {
-        setSubjectRows([])
-        setTeacherRows([])
+        setRows([])
         return
       }
 
       const classIds = classes.map((item) => item.id)
 
-      const { data: enrollmentsData, error: enrollmentsError } = await supabase
-        .from('enrollments')
-        .select('class_id, student_id')
-        .eq('school_year', schoolYear)
-        .eq('semester', semester)
-        .in('class_id', classIds)
+      const [enrollmentsResult, gradesResult, submissionsResult] = await Promise.all([
+        supabase
+          .from('enrollments')
+          .select('class_id, student_id')
+          .eq('school_year', selectedYear)
+          .in('class_id', classIds),
+        supabase
+          .from('grades')
+          .select('class_id, student_id, school_year, semester, grading_period')
+          .eq('school_year', selectedYear)
+          .eq('grading_period', selectedPeriod)
+          .in('class_id', classIds),
+        supabase
+          .from('grade_submissions')
+          .select('id, class_id, teacher_id, school_year, term, grading_period, is_submitted, submitted_at')
+          .eq('school_year', selectedYear)
+          .eq('grading_period', selectedPeriod)
+          .in('class_id', classIds),
+      ])
 
-      if (enrollmentsError) throw enrollmentsError
+      if (enrollmentsResult.error) throw enrollmentsResult.error
+      if (gradesResult.error) throw gradesResult.error
+      if (submissionsResult.error) throw submissionsResult.error
 
-      const { data: gradesData, error: gradesError } = await supabase
-        .from('grades')
-        .select('class_id, student_id')
-        .eq('school_year', schoolYear)
-        .eq('semester', semester)
-        .eq('grading_period', gradingPeriod)
-        .in('class_id', classIds)
-
-      if (gradesError) throw gradesError
-
-      const enrollments = (enrollmentsData as EnrollmentRow[]) || []
-      const grades = (gradesData as GradeRow[]) || []
+      const enrollments = (enrollmentsResult.data ?? []) as EnrollmentRow[]
+      const grades = (gradesResult.data ?? []) as GradeRow[]
+      const submissions = (submissionsResult.data ?? []) as GradeSubmissionRow[]
 
       const enrollmentMap = new Map<string, Set<string>>()
-      const submittedMap = new Map<string, Set<string>>()
+      const gradeMap = new Map<string, Set<string>>()
+      const submissionMap = new Map<string, GradeSubmissionRow>()
 
       for (const row of enrollments) {
-        if (!enrollmentMap.has(row.class_id)) {
-          enrollmentMap.set(row.class_id, new Set())
-        }
+        if (!enrollmentMap.has(row.class_id)) enrollmentMap.set(row.class_id, new Set())
         enrollmentMap.get(row.class_id)!.add(row.student_id)
       }
 
       for (const row of grades) {
-        if (!submittedMap.has(row.class_id)) {
-          submittedMap.set(row.class_id, new Set())
-        }
-        submittedMap.get(row.class_id)!.add(row.student_id)
+        const key = `${row.class_id}-${row.semester}`
+        if (!gradeMap.has(key)) gradeMap.set(key, new Set())
+        gradeMap.get(key)!.add(row.student_id)
       }
 
-      const subjectProgress: SubjectProgress[] = classes
-        .map((cls) => {
-          const enrolledStudents = enrollmentMap.get(cls.id) ?? new Set<string>()
-          const submittedStudents = submittedMap.get(cls.id) ?? new Set<string>()
+      for (const row of submissions) {
+        const key = `${row.class_id}-${row.term}`
+        submissionMap.set(key, row)
+      }
 
-          const totalStudents = enrolledStudents.size
-          const submittedGrades = submittedStudents.size
-          const percentage =
-            totalStudents > 0
-              ? Math.round((submittedGrades / totalStudents) * 100)
-              : 0
-
-          let status: SubjectProgress['status'] = 'In Progress'
-
-          if (!cls.teacher_id) {
-            status = 'No Teacher Assigned'
-          } else if (totalStudents === 0) {
-            status = 'No Students'
-          } else if (submittedGrades >= totalStudents) {
-            status = 'Completed'
-          }
+      const nextRows: AdminGradeRow[] = classes
+        .map((cls, index) => {
+          const classSemesterKey = `${cls.id}-${cls.semester}`
+          const totalStudents = (enrollmentMap.get(cls.id) ?? new Set()).size
+          const encodedStudents = (gradeMap.get(classSemesterKey) ?? new Set()).size
+          const progress = totalStudents > 0 ? Math.round((encodedStudents / totalStudents) * 100) : 0
+          const submission = submissionMap.get(classSemesterKey) ?? null
 
           return {
+            rowKey: submission?.id ?? `${cls.id}-${cls.semester}-${selectedPeriod}-${index}`,
             classId: cls.id,
-            subjectName: getSubjectName(cls.subjects),
-            subjectCode: getSubjectCode(cls.subjects),
+            submissionId: submission?.id ?? null,
+            subjectName: cls.subjects?.subject_name ?? 'Unnamed Subject',
+            subjectCode: cls.subjects?.subject_code ?? '—',
             gradeLevel: cls.grade_level,
             section: cls.section,
-            teacherId: cls.teacher_id,
+            semester: cls.semester,
             teacherName: getTeacherName(cls.teachers),
+            teacherNo: cls.teachers?.teacher_no ?? '—',
             totalStudents,
-            submittedGrades,
-            percentage,
-            status,
+            encodedStudents,
+            progress,
+            isSubmitted: submission?.is_submitted ?? false,
+            submittedAt: submission?.submitted_at ?? null,
           }
         })
-        .sort((a, b) => a.subjectName.localeCompare(b.subjectName))
+        .sort((a, b) => {
+          const teacherCompare = a.teacherName.localeCompare(b.teacherName)
+          if (teacherCompare !== 0) return teacherCompare
+          const subjectCompare = a.subjectName.localeCompare(b.subjectName)
+          if (subjectCompare !== 0) return subjectCompare
+          return a.section.localeCompare(b.section)
+        })
 
-      const teacherAggregateMap = new Map<string, TeacherProgress>()
-
-      for (const row of subjectProgress) {
-        if (!row.teacherId) continue
-
-        const existing = teacherAggregateMap.get(row.teacherId)
-
-        if (!existing) {
-          teacherAggregateMap.set(row.teacherId, {
-            teacherId: row.teacherId,
-            teacherName: row.teacherName,
-            assignedSubjects: 1,
-            completedSubjects: row.status === 'Completed' ? 1 : 0,
-            inProgressSubjects: row.status === 'In Progress' ? 1 : 0,
-            averageProgress: row.percentage,
-          })
-        } else {
-          existing.assignedSubjects += 1
-          existing.completedSubjects += row.status === 'Completed' ? 1 : 0
-          existing.inProgressSubjects += row.status === 'In Progress' ? 1 : 0
-          existing.averageProgress += row.percentage
-        }
-      }
-
-      const teacherProgress = Array.from(teacherAggregateMap.values())
-        .map((teacher) => ({
-          ...teacher,
-          averageProgress:
-            teacher.assignedSubjects > 0
-              ? Math.round(teacher.averageProgress / teacher.assignedSubjects)
-              : 0,
-        }))
-        .sort((a, b) => a.teacherName.localeCompare(b.teacherName))
-
-      setSubjectRows(subjectProgress)
-      setTeacherRows(teacherProgress)
+      setRows(nextRows)
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load grades monitoring.')
-      setSubjectRows([])
-      setTeacherRows([])
+      toast.error(error.message || 'Failed to load admin grades.')
+      setRows([])
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
+  }
+
+  const reopenSubmission = async (row: AdminGradeRow) => {
+    if (!row.submissionId) {
+      toast.error('This class has no submitted record yet.')
+      return
+    }
+
+    setReopeningId(row.classId)
+    try {
+      const { error } = await supabase
+        .from('grade_submissions')
+        .update({
+          is_submitted: false,
+          submitted_at: null,
+          submitted_by: null,
+        })
+        .eq('id', row.submissionId)
+
+      if (error) throw error
+
+      toast.success('Access restored. Teacher can edit grades again.')
+      await loadRows(schoolYear, gradingPeriod)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reopen submission.')
+    } finally {
+      setReopeningId(null)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadCurrentPeriod(schoolYear)
+    await loadRows(schoolYear, gradingPeriod)
   }
 
   useEffect(() => {
@@ -384,224 +411,192 @@ export default function AdminGradesPage() {
   }, [])
 
   useEffect(() => {
-    loadPageData()
-  }, [schoolYear, semester, gradingPeriod])
+    if (!schoolYear) return
+    loadCurrentPeriod(schoolYear)
+  }, [schoolYear])
+
+  useEffect(() => {
+    if (!schoolYear) return
+    loadRows(schoolYear, gradingPeriod)
+  }, [schoolYear, gradingPeriod])
 
   return (
     <div className="space-y-6">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-2"
+        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
       >
-        <p className="text-sm font-medium text-yellow-600">Administration</p>
-        <h1 className="text-3xl font-bold text-green-900">Grades Monitoring</h1>
-        <p className="text-gray-600">
-          Monitor grade submission progress by subject and by teacher.
-        </p>
-      </motion.div>
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <h1 className="text-2xl font-bold text-green-950 sm:text-3xl">Admin Grades</h1>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
+              Fetch grade submission data from the database, display it clearly, and let admin reopen submitted classes so teachers can edit grades again.
+            </p>
+          </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
+          <div className="rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+            Current period: {gradingPeriod} · {currentSemester}
+          </div>
+        </div>
+      </motion.section>
+
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
       >
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[220px_220px_1fr_auto]">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Academic Year
-            </label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Academic Year</label>
             <select
               value={schoolYear}
               onChange={(e) => setSchoolYear(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
             >
               <option value="">Select academic year</option>
               {academicYears.map((year) => (
                 <option key={year.id} value={year.school_year}>
-                  {year.school_year}{year.is_active ? ' (Active)' : ''}
+                  {year.school_year}
+                  {year.is_active ? ' (Active)' : ''}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Semester
-            </label>
-            <select
-              value={semester}
-              onChange={(e) => setSemester(e.target.value as Semester)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
-            >
-              <option value="1st Semester">1st Semester</option>
-              <option value="2nd Semester">2nd Semester</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Grading Period
-            </label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Grading Period</label>
             <select
               value={gradingPeriod}
               onChange={(e) => setGradingPeriod(e.target.value as GradingPeriod)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
             >
-              {availablePeriods.map((period) => (
+              {PERIODS.map((period) => (
                 <option key={period} value={period}>
                   {period} Grading Period
                 </option>
               ))}
             </select>
           </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Search</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search teacher, subject, code, section"
+                className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:opacity-60 xl:w-auto"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </motion.section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard title="Classes" value={summary.totalClasses} subtitle="Loaded from the database" />
+        <SummaryCard title="Submitted" value={summary.submitted} subtitle="Teachers who already submitted" />
+        <SummaryCard title="Editable" value={summary.editable} subtitle="Classes still open for editing" />
+        <SummaryCard title="Progress" value={`${summary.averageProgress}%`} subtitle="Average encoding progress" />
+      </section>
+
+      <motion.section
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <Users className="h-5 w-5 text-green-800" />
+          <h2 className="text-xl font-bold text-green-900">Class submissions</h2>
         </div>
 
-        {!schoolYear ? (
-          <div className="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-            No academic year available. Please create an academic year first.
-          </div>
-        ) : loading ? (
-          <div className="mt-6 rounded-xl bg-green-50 p-5 text-gray-500">
-            Loading grades monitoring...
+        {loading ? (
+          <div className="rounded-2xl bg-green-50 p-5 text-gray-500">Loading submissions...</div>
+        ) : filteredRows.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
+            No records found for this school year and grading period.
           </div>
         ) : (
-          <>
-            <div className="mt-6 grid gap-4 md:grid-cols-5">
-              <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
-                <p className="text-sm text-gray-500">Overall Progress</p>
-                <p className="mt-1 text-3xl font-bold text-green-900">
-                  {overallSummary.averageProgress}%
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-green-100 bg-white p-4">
-                <p className="text-sm text-gray-500">Subjects</p>
-                <p className="mt-1 text-3xl font-bold text-green-900">
-                  {overallSummary.totalSubjects}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-green-100 bg-white p-4">
-                <p className="text-sm text-gray-500">Completed</p>
-                <p className="mt-1 text-3xl font-bold text-green-900">
-                  {overallSummary.completedSubjects}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-green-100 bg-white p-4">
-                <p className="text-sm text-gray-500">In Progress</p>
-                <p className="mt-1 text-3xl font-bold text-green-900">
-                  {overallSummary.inProgressSubjects}
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-green-100 bg-white p-4">
-                <p className="text-sm text-gray-500">Teachers</p>
-                <p className="mt-1 text-3xl font-bold text-green-900">
-                  {teacherRows.length}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-4">
-              <h2 className="text-xl font-bold text-green-900">Teacher Progress</h2>
-
-              {teacherRows.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
-                  No teacher progress found for this selection.
-                </div>
-              ) : (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {teacherRows.map((teacher) => (
-                    <div
-                      key={teacher.teacherId}
-                      className="rounded-2xl border border-green-100 bg-green-50 p-5"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg font-bold text-green-900">
-                            {teacher.teacherName}
-                          </h3>
-                          <p className="mt-1 text-sm text-gray-600">
-                            Subjects Assigned: {teacher.assignedSubjects}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            Completed: {teacher.completedSubjects} / {teacher.assignedSubjects}
-                          </p>
-                        </div>
-
-                        <div className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-semibold text-green-800">
-                          {teacher.averageProgress}%
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
-                        <ProgressBar value={teacher.averageProgress} />
-                      </div>
+          <div className="space-y-4">
+            {filteredRows.map((row) => (
+              <div key={row.rowKey} className="rounded-2xl border border-green-100 bg-green-50/70 p-5">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-xl font-bold text-green-950">{row.subjectName}</h3>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">{row.subjectCode}</span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">{row.gradeLevel}</span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">Section {row.section}</span>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">{row.semester}</span>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            <div className="mt-8 space-y-4">
-              <h2 className="text-xl font-bold text-green-900">Subject Progress</h2>
+                    <div className="mt-3 grid gap-2 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
+                      <p>Teacher: <span className="font-medium text-gray-900">{row.teacherName}</span></p>
+                      <p>Teacher No: <span className="font-medium text-gray-900">{row.teacherNo}</span></p>
+                      <p>Students: <span className="font-medium text-gray-900">{row.totalStudents}</span></p>
+                      <p>Encoded: <span className="font-medium text-gray-900">{row.encodedStudents}</span></p>
+                    </div>
 
-              {subjectRows.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-gray-500">
-                  No classes found for this selection.
-                </div>
-              ) : (
-                subjectRows.map((row) => (
-                  <div
-                    key={row.classId}
-                    className="rounded-2xl border border-green-100 bg-green-50 p-5"
-                  >
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-xl font-bold text-green-900">
-                            {row.subjectName}
-                          </h3>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
-                            {row.subjectCode}
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
-                            {row.gradeLevel}
-                          </span>
-                          <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
-                            Section {row.section}
-                          </span>
-                        </div>
+                    <div className="mt-4">
+                      <ProgressBar value={row.progress} />
+                    </div>
 
-                        <p className="mt-2 text-sm text-gray-600">
-                          Teacher: <span className="font-medium">{row.teacherName}</span>
-                        </p>
-
-                        <p className="mt-1 text-sm text-gray-600">
-                          Submitted Grades: {row.submittedGrades} / {row.totalStudents}
-                        </p>
-
-                        <div className="mt-4">
-                          <ProgressBar value={row.percentage} />
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-sm font-medium text-gray-700">
-                            {row.percentage}% complete
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                        <p className="font-medium text-gray-800">{row.progress}% complete</p>
+                        {row.submittedAt && (
+                          <p>
+                            Submitted: <span className="font-medium text-gray-900">{new Date(row.submittedAt).toLocaleString()}</span>
                           </p>
-                          <StatusBadge status={row.status} />
-                        </div>
+                        )}
                       </div>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          row.isSubmitted ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                      >
+                        {row.isSubmitted ? 'Submitted' : 'Not Submitted'}
+                      </span>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </>
+
+                  <div className="w-full xl:w-56">
+                    {row.isSubmitted ? (
+                      <button
+                        type="button"
+                        onClick={() => reopenSubmission(row)}
+                        disabled={reopeningId === row.classId}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+                      >
+                        <LockOpen className="h-4 w-4" />
+                        {reopeningId === row.classId ? 'Reopening...' : 'Give Access Again'}
+                      </button>
+                    ) : (
+                      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                        Teacher can still edit because this class is not submitted yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
-      </motion.div>
+      </motion.section>
     </div>
   )
 }

@@ -3,12 +3,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { BookOpen, FileText, GraduationCap, Search, Users } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarRange,
+  Clock3,
+  Filter,
+  GraduationCap,
+  Layers3,
+  Search,
+  Users,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
-
-type Semester = '1st Semester' | '2nd Semester'
-type GradingPeriod = '1st' | '2nd' | '3rd' | '4th'
+import { formatFullName } from '@/lib/name'
 
 type ProfileRow = {
   id: string
@@ -47,7 +54,7 @@ type ClassRow = {
   grade_level: 'Grade 11' | 'Grade 12'
   section: string
   school_year: string
-  semester: Semester
+  semester: '1st Semester' | '2nd Semester'
   is_active: boolean
   subjects: SubjectRow | null
 }
@@ -57,37 +64,65 @@ type EnrollmentRow = {
   student_id: string
 }
 
-type GradingWindowRow = {
+type SectionRow = {
   id: string
-  school_year: string
-  semester: Semester
-  grading_period: GradingPeriod
-  is_open: boolean
-  is_locked: boolean
+  section_name: string
+  grade_level: 'Grade 11' | 'Grade 12'
+  strand?: string | null
+  semester: '1st Semester' | '2nd Semester'
+  is_active: boolean
 }
 
-type ClassViewRow = {
+type MyClassRow = {
   classId: string
   subjectName: string
   subjectCode: string
   gradeLevel: string
   section: string
+  semester: '1st Semester' | '2nd Semester'
   schoolYear: string
-  semester: Semester
-  totalStudents: number
+  studentCount: number
+  strand: string
+  period: string
 }
 
-const ALL_PERIODS: GradingPeriod[] = ['1st', '2nd', '3rd', '4th']
+const ALL_SEMESTERS = 'All Semesters'
+const ALL_PERIODS = 'All Periods'
 
-function getSemesterFromPeriod(period: GradingPeriod): Semester {
-  return period === '1st' || period === '2nd' ? '1st Semester' : '2nd Semester'
+function SummaryCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+}: {
+  title: string
+  value: string | number
+  subtitle: string
+  icon: React.ComponentType<{ className?: string }>
+}) {
+  return (
+    <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <p className="mt-2 text-3xl font-bold text-green-950">{value}</p>
+          <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
+        </div>
+        <div className="rounded-2xl bg-green-100 p-3 text-green-800">
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
-function getPeriodSortValue(period: GradingPeriod) {
-  if (period === '1st') return 1
-  if (period === '2nd') return 2
-  if (period === '3rd') return 3
-  return 4
+function getPeriodFromSectionName(sectionName: string) {
+  const name = sectionName.toLowerCase()
+  if (name.includes('am')) return 'AM'
+  if (name.includes('pm')) return 'PM'
+  if (name.includes('morning')) return 'AM'
+  if (name.includes('afternoon')) return 'PM'
+  return 'Regular'
 }
 
 export default function TeacherClassesPage() {
@@ -97,38 +132,53 @@ export default function TeacherClassesPage() {
   const [teacher, setTeacher] = useState<TeacherRow | null>(null)
   const [academicYears, setAcademicYears] = useState<AcademicYearRow[]>([])
   const [selectedSchoolYear, setSelectedSchoolYear] = useState('')
-  const [selectedGradingPeriod, setSelectedGradingPeriod] = useState<GradingPeriod>('1st')
-  const [availablePeriods, setAvailablePeriods] = useState<GradingPeriod[]>(ALL_PERIODS)
-  const [gradingWindow, setGradingWindow] = useState<GradingWindowRow | null>(null)
-  const [classes, setClasses] = useState<ClassViewRow[]>([])
+  const [selectedSemester, setSelectedSemester] = useState<string>(ALL_SEMESTERS)
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(ALL_PERIODS)
   const [search, setSearch] = useState('')
+  const [classes, setClasses] = useState<MyClassRow[]>([])
 
-  const selectedSemester = useMemo(
-    () => getSemesterFromPeriod(selectedGradingPeriod),
-    [selectedGradingPeriod]
-  )
-
-  const canEncodeGrades =
-    gradingWindow?.is_open === true && gradingWindow?.is_locked === false
+  const periodOptions = useMemo(() => {
+    const unique = Array.from(new Set(classes.map((item) => item.period))).filter(Boolean)
+    return [ALL_PERIODS, ...unique]
+  }, [classes])
 
   const filteredClasses = useMemo(() => {
     const keyword = search.trim().toLowerCase()
-    if (!keyword) return classes
 
     return classes.filter((item) => {
-      const subjectName = item.subjectName.toLowerCase()
-      const subjectCode = item.subjectCode.toLowerCase()
-      const gradeLevel = item.gradeLevel.toLowerCase()
-      const section = item.section.toLowerCase()
+      const matchesSearch =
+        !keyword ||
+        [
+          item.subjectName,
+          item.subjectCode,
+          item.gradeLevel,
+          item.section,
+          item.semester,
+          item.strand,
+          item.period,
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(keyword)
 
-      return (
-        subjectName.includes(keyword) ||
-        subjectCode.includes(keyword) ||
-        gradeLevel.includes(keyword) ||
-        section.includes(keyword)
-      )
+      const matchesSemester =
+        selectedSemester === ALL_SEMESTERS || item.semester === selectedSemester
+
+      const matchesPeriod =
+        selectedPeriod === ALL_PERIODS || item.period === selectedPeriod
+
+      return matchesSearch && matchesSemester && matchesPeriod
     })
-  }, [classes, search])
+  }, [classes, search, selectedSemester, selectedPeriod])
+
+  const summary = useMemo(() => {
+    return {
+      totalClasses: filteredClasses.length,
+      totalStudents: filteredClasses.reduce((sum, item) => sum + item.studentCount, 0),
+      uniqueSubjects: new Set(filteredClasses.map((item) => item.subjectCode)).size,
+      grade11Classes: filteredClasses.filter((item) => item.gradeLevel === 'Grade 11').length,
+    }
+  }, [filteredClasses])
 
   const loadGuard = async () => {
     const {
@@ -219,90 +269,7 @@ export default function TeacherClassesPage() {
     return rows
   }
 
-  const loadWindowsAndCurrentPeriod = async (schoolYear: string) => {
-    if (!schoolYear) {
-      setAvailablePeriods(ALL_PERIODS)
-      setGradingWindow(null)
-      return
-    }
-
-    const { data, error } = await supabase
-      .from('grading_windows')
-      .select('id, school_year, semester, grading_period, is_open, is_locked')
-      .eq('school_year', schoolYear)
-
-    if (error) {
-      toast.error(error.message)
-      setAvailablePeriods(ALL_PERIODS)
-      setGradingWindow(null)
-      return
-    }
-
-    const rows = (data ?? []) as GradingWindowRow[]
-
-    const uniquePeriods = Array.from(
-      new Set(rows.map((row) => row.grading_period as GradingPeriod))
-    ).sort((a, b) => getPeriodSortValue(a) - getPeriodSortValue(b))
-
-    setAvailablePeriods(uniquePeriods.length > 0 ? uniquePeriods : ALL_PERIODS)
-
-    const openWindow =
-      rows
-        .filter((row) => row.is_open && !row.is_locked)
-        .sort(
-          (a, b) =>
-            getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
-        )[0] ?? null
-
-    const fallbackWindow =
-      rows.sort(
-        (a, b) =>
-          getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
-      )[0] ?? null
-
-    const chosenWindow = openWindow ?? fallbackWindow
-
-    if (chosenWindow) {
-      setSelectedGradingPeriod(chosenWindow.grading_period)
-      setGradingWindow(chosenWindow)
-    } else {
-      setSelectedGradingPeriod('1st')
-      setGradingWindow(null)
-    }
-  }
-
-  const loadSpecificWindow = async (schoolYear: string, gradingPeriod: GradingPeriod) => {
-    if (!schoolYear) {
-      setGradingWindow(null)
-      return
-    }
-
-    const semester = getSemesterFromPeriod(gradingPeriod)
-
-    const { data, error } = await supabase
-      .from('grading_windows')
-      .select('id, school_year, semester, grading_period, is_open, is_locked')
-      .eq('school_year', schoolYear)
-      .eq('semester', semester)
-      .eq('grading_period', gradingPeriod)
-      .maybeSingle()
-
-    if (error) {
-      toast.error(error.message)
-      setGradingWindow(null)
-      return
-    }
-
-    setGradingWindow((data as GradingWindowRow | null) ?? null)
-  }
-
-  const loadClasses = async (
-    teacherId: string,
-    schoolYear: string,
-    gradingPeriod: GradingPeriod
-  ) => {
-    const semester = getSemesterFromPeriod(gradingPeriod)
-
+  const loadClasses = async (teacherId: string, schoolYear: string) => {
     if (!teacherId || !schoolYear) {
       setClasses([])
       return
@@ -327,8 +294,9 @@ export default function TeacherClassesPage() {
       `)
       .eq('teacher_id', teacherId)
       .eq('school_year', schoolYear)
-      .eq('semester', semester)
       .eq('is_active', true)
+      .order('semester', { ascending: true })
+      .order('grade_level', { ascending: true })
       .order('section', { ascending: true })
 
     if (classesError) {
@@ -345,40 +313,67 @@ export default function TeacherClassesPage() {
     }
 
     const classIds = classRows.map((item) => item.id)
+    const sectionNames = Array.from(new Set(classRows.map((item) => item.section)))
 
-    const { data: enrollmentsData, error: enrollmentsError } = await supabase
-      .from('enrollments')
-      .select('class_id, student_id')
-      .eq('school_year', schoolYear)
-      .eq('semester', semester)
-      .in('class_id', classIds)
+    const [enrollmentsResult, sectionsResult] = await Promise.all([
+      supabase
+        .from('enrollments')
+        .select('class_id, student_id')
+        .eq('school_year', schoolYear)
+        .in('class_id', classIds),
+      supabase
+        .from('sections')
+        .select('id, section_name, grade_level, strand, semester, is_active')
+        .in('section_name', sectionNames),
+    ])
 
-    if (enrollmentsError) {
-      toast.error(enrollmentsError.message)
+    if (enrollmentsResult.error) {
+      toast.error(enrollmentsResult.error.message)
       setClasses([])
       return
     }
 
-    const enrollments = (enrollmentsData ?? []) as EnrollmentRow[]
+    if (sectionsResult.error) {
+      toast.error(sectionsResult.error.message)
+      setClasses([])
+      return
+    }
+
+    const enrollments = (enrollmentsResult.data ?? []) as EnrollmentRow[]
+    const sections = (sectionsResult.data ?? []) as SectionRow[]
+
     const enrollmentMap = new Map<string, Set<string>>()
+    const sectionMap = new Map<string, SectionRow>()
 
     for (const row of enrollments) {
       if (!enrollmentMap.has(row.class_id)) enrollmentMap.set(row.class_id, new Set())
       enrollmentMap.get(row.class_id)!.add(row.student_id)
     }
 
-    const rows: ClassViewRow[] = classRows.map((cls) => ({
-      classId: cls.id,
-      subjectName: cls.subjects?.subject_name ?? 'Unnamed Subject',
-      subjectCode: cls.subjects?.subject_code ?? '—',
-      gradeLevel: cls.grade_level,
-      section: cls.section,
-      schoolYear: cls.school_year,
-      semester: cls.semester,
-      totalStudents: (enrollmentMap.get(cls.id) ?? new Set()).size,
-    }))
+    for (const row of sections) {
+      sectionMap.set(`${row.section_name}-${row.grade_level}-${row.semester}`, row)
+    }
+
+    const rows: MyClassRow[] = classRows.map((cls) => {
+      const sectionKey = `${cls.section}-${cls.grade_level}-${cls.semester}`
+      const sectionInfo = sectionMap.get(sectionKey)
+
+      return {
+        classId: cls.id,
+        subjectName: cls.subjects?.subject_name ?? 'Unnamed Subject',
+        subjectCode: cls.subjects?.subject_code ?? '—',
+        gradeLevel: cls.grade_level,
+        section: cls.section,
+        semester: cls.semester,
+        schoolYear: cls.school_year,
+        studentCount: (enrollmentMap.get(cls.id) ?? new Set()).size,
+        strand: sectionInfo?.strand?.trim() || 'No strand set',
+        period: getPeriodFromSectionName(cls.section),
+      }
+    })
 
     setClasses(rows)
+    setSelectedPeriod(ALL_PERIODS)
   }
 
   useEffect(() => {
@@ -387,13 +382,7 @@ export default function TeacherClassesPage() {
       const teacherRow = await loadGuard()
       if (!teacherRow) return
 
-      const years = await loadAcademicYears()
-      const activeYear = years.find((row) => row.is_active)?.school_year || years[0]?.school_year
-
-      if (activeYear) {
-        await loadWindowsAndCurrentPeriod(activeYear)
-      }
-
+      await loadAcademicYears()
       setLoading(false)
     }
 
@@ -401,25 +390,15 @@ export default function TeacherClassesPage() {
   }, [])
 
   useEffect(() => {
-    if (!selectedSchoolYear) return
-    loadWindowsAndCurrentPeriod(selectedSchoolYear)
-  }, [selectedSchoolYear])
-
-  useEffect(() => {
-    if (!selectedSchoolYear) return
-    loadSpecificWindow(selectedSchoolYear, selectedGradingPeriod)
-  }, [selectedSchoolYear, selectedGradingPeriod])
-
-  useEffect(() => {
     if (!teacher?.id || !selectedSchoolYear) return
-    loadClasses(teacher.id, selectedSchoolYear, selectedGradingPeriod)
-  }, [teacher?.id, selectedSchoolYear, selectedGradingPeriod])
+    loadClasses(teacher.id, selectedSchoolYear)
+  }, [teacher?.id, selectedSchoolYear])
 
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
-          <p className="text-sm text-gray-500">Loading classes...</p>
+          <p className="text-sm text-gray-500">Loading my classes...</p>
         </div>
       </div>
     )
@@ -430,14 +409,19 @@ export default function TeacherClassesPage() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 p-5 text-white shadow-xl sm:p-6"
+        className="rounded-[28px] bg-gradient-to-r from-green-950 via-green-900 to-green-800 p-5 text-white shadow-xl sm:p-6"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm font-medium text-yellow-300">Teacher Classes</p>
-            <h1 className="mt-1 text-2xl font-bold sm:text-3xl">My Classes</h1>
-            <p className="mt-2 max-w-2xl text-sm text-green-50/90">
-              Review your assigned classes, student counts, and open grade encoding for the current grading period.
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-green-50 ring-1 ring-white/10">
+              <BookOpen className="h-3.5 w-3.5" />
+              My Classes
+            </div>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+              {teacher ? formatFullName(teacher) : 'Teacher'}'s Classes
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-green-50/90 sm:text-base">
+              A teacher view focused on assigned subjects, student count, semester, section strand, and period grouping.
             </p>
           </div>
 
@@ -448,26 +432,50 @@ export default function TeacherClassesPage() {
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
               {selectedSchoolYear || 'No Academic Year'}
             </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
-              {selectedGradingPeriod} Grading Period
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
-              {selectedSemester}
-            </span>
           </div>
         </div>
       </motion.section>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          title="Classes"
+          value={summary.totalClasses}
+          subtitle="Classes matching current filters"
+          icon={Layers3}
+        />
+        <SummaryCard
+          title="Students"
+          value={summary.totalStudents}
+          subtitle="Combined students across shown classes"
+          icon={Users}
+        />
+        <SummaryCard
+          title="Subjects"
+          value={summary.uniqueSubjects}
+          subtitle="Unique subjects in your load"
+          icon={BookOpen}
+        />
+        <SummaryCard
+          title="Grade 11"
+          value={summary.grade11Classes}
+          subtitle="Grade 11 classes in current view"
+          icon={GraduationCap}
+        />
+      </section>
 
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
       >
-        <div className="grid gap-4 xl:grid-cols-[1fr_220px_1fr]">
+        <div className="mb-4 flex items-center gap-2">
+          <Filter className="h-4 w-4 text-green-800" />
+          <h2 className="text-lg font-bold text-green-900">Filters</h2>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[220px_220px_220px_1fr]">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Academic Year
-            </label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Academic Year</label>
             <select
               value={selectedSchoolYear}
               onChange={(e) => setSelectedSchoolYear(e.target.value)}
@@ -484,58 +492,45 @@ export default function TeacherClassesPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Grading Period
-            </label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Semester</label>
             <select
-              value={selectedGradingPeriod}
-              onChange={(e) => setSelectedGradingPeriod(e.target.value as GradingPeriod)}
+              value={selectedSemester}
+              onChange={(e) => setSelectedSemester(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
             >
-              {availablePeriods.map((period) => (
+              <option value={ALL_SEMESTERS}>{ALL_SEMESTERS}</option>
+              <option value="1st Semester">1st Semester</option>
+              <option value="2nd Semester">2nd Semester</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Period</label>
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+            >
+              {periodOptions.map((period) => (
                 <option key={period} value={period}>
-                  {period} Grading Period
+                  {period}
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Search Classes
-            </label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">Search</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search subject, code, grade, or section"
+                placeholder="Search subject, code, grade, section, strand, or period"
                 className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
               />
             </div>
           </div>
-        </div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              gradingWindow?.is_open
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {gradingWindow?.is_open ? 'Grading Open' : 'Grading Closed'}
-          </span>
-
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              gradingWindow?.is_locked
-                ? 'bg-red-100 text-red-700'
-                : 'bg-blue-100 text-blue-700'
-            }`}
-          >
-            {gradingWindow?.is_locked ? 'Locked' : 'Unlocked'}
-          </span>
         </div>
       </motion.section>
 
@@ -546,12 +541,11 @@ export default function TeacherClassesPage() {
       >
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-green-900">Assigned Class List</h2>
+            <h2 className="text-xl font-bold text-green-900">Assigned Classes</h2>
             <p className="text-sm text-gray-600">
-              Only classes assigned to your account are shown here.
+              Based on the assigned subjects.
             </p>
           </div>
-
           <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
             <Users className="h-4 w-4" />
             {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
@@ -560,106 +554,82 @@ export default function TeacherClassesPage() {
 
         {filteredClasses.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-            No classes found for the selected academic year and grading period.
+            No classes found for the selected filters.
           </div>
         ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredClasses.map((item) => (
               <div
                 key={item.classId}
-                className="rounded-2xl border border-green-100 bg-green-50 p-5"
+                className="rounded-3xl border border-green-100 bg-gradient-to-b from-white to-green-50/40 p-5 shadow-sm"
               >
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-bold text-green-900">{item.subjectName}</h3>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
-                    {item.subjectCode}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold text-green-950">{item.subjectName}</h3>
+                    <p className="mt-1 text-sm font-medium text-gray-500">{item.subjectCode}</p>
+                  </div>
+                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                    {item.gradeLevel}
                   </span>
                 </div>
 
-                <div className="mt-3 grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
-                  <p>
-                    Grade Level: <span className="font-medium">{item.gradeLevel}</span>
-                  </p>
-                  <p>
-                    Section: <span className="font-medium">{item.section}</span>
-                  </p>
-                  <p>
-                    Academic Year: <span className="font-medium">{item.schoolYear}</span>
-                  </p>
-                  <p>
-                    Students: <span className="font-medium">{item.totalStudents}</span>
-                  </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
+                    Section {item.section}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
+                    {item.semester}
+                  </span>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
+                    {item.period}
+                  </span>
                 </div>
 
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        `/teacher/grades?classId=${item.classId}&schoolYear=${encodeURIComponent(
-                          selectedSchoolYear
-                        )}&semester=${encodeURIComponent(
-                          selectedSemester
-                        )}&gradingPeriod=${encodeURIComponent(selectedGradingPeriod)}`
-                      )
-                    }
-                    disabled={!canEncodeGrades}
-                    className="rounded-xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {canEncodeGrades ? 'Open Grade Encoding' : 'Grading Not Available'}
-                  </button>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-green-100 p-2 text-green-800">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
+                        <p className="text-2xl font-bold text-green-950">{item.studentCount}</p>
+                      </div>
+                    </div>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push(
-                        `/teacher/reports?classId=${item.classId}&schoolYear=${encodeURIComponent(
-                          selectedSchoolYear
-                        )}&semester=${encodeURIComponent(selectedSemester)}`
-                      )
-                    }
-                    className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                  >
-                    Open Reports
-                  </button>
+                  <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-2xl bg-green-100 p-2 text-green-800">
+                        <Clock3 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Period</p>
+                        <p className="text-xl font-bold text-green-950">{item.period}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-green-100 bg-white p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <CalendarRange className="h-4 w-4 text-green-800" />
+                    <p className="text-sm font-semibold text-gray-800">Section Details</p>
+                  </div>
+                  <div className="grid gap-2 text-sm text-gray-600">
+                    <p>
+                      Strand: <span className="font-medium text-gray-900">{item.strand}</span>
+                    </p>
+                    <p>
+                      School Year: <span className="font-medium text-gray-900">{item.schoolYear}</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </motion.section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-green-800" />
-            <h3 className="font-bold text-green-900">Class Access</h3>
-          </div>
-          <p className="text-sm text-gray-600">
-            You can only access classes officially assigned to your teacher account.
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-green-800" />
-            <h3 className="font-bold text-green-900">Grade Encoding</h3>
-          </div>
-          <p className="text-sm text-gray-600">
-            Encoding is available only when the selected grading period is open and not locked.
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-green-800" />
-            <h3 className="font-bold text-green-900">Reports</h3>
-          </div>
-          <p className="text-sm text-gray-600">
-            Open reports to export class lists and official grade sheets for your handled subjects.
-          </p>
-        </div>
-      </section>
     </div>
   )
 }

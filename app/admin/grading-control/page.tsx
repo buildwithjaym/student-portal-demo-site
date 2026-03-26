@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -34,6 +34,13 @@ const GRADING_PERIODS_BY_SEMESTER: Record<Semester, GradingPeriod[]> = {
   '2nd Semester': ['3rd', '4th'],
 }
 
+function getPeriodOrder(period: GradingPeriod) {
+  if (period === '1st') return 1
+  if (period === '2nd') return 2
+  if (period === '3rd') return 3
+  return 4
+}
+
 export default function GradingControlPage() {
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
   const [schoolYear, setSchoolYear] = useState('')
@@ -41,6 +48,8 @@ export default function GradingControlPage() {
   const [loading, setLoading] = useState(true)
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [windows, setWindows] = useState<GradingWindow[]>([])
+
+  const didAutoPickSemesterRef = useRef(false)
 
   const visiblePeriods = GRADING_PERIODS_BY_SEMESTER[semester]
 
@@ -71,7 +80,7 @@ export default function GradingControlPage() {
       toast.error(error.message)
       setAcademicYears([])
       setSchoolYear('')
-      return
+      return null
     }
 
     const rows = (data ?? []) as AcademicYear[]
@@ -79,27 +88,65 @@ export default function GradingControlPage() {
 
     if (rows.length === 0) {
       setSchoolYear('')
-      return
+      return null
     }
 
     const activeYear = rows.find((row) => row.is_active)
-    setSchoolYear((prev) => prev || activeYear?.school_year || rows[0].school_year)
+    const selectedYear = activeYear?.school_year || rows[0].school_year
+
+    setSchoolYear((prev) => prev || selectedYear)
+    return selectedYear
   }
 
-  const loadWindows = async (selectedSchoolYear?: string) => {
+  const detectCurrentOpenSemester = async (selectedSchoolYear: string) => {
+    const { data, error } = await supabase
+      .from('grading_windows')
+      .select('semester, grading_period, is_open, is_locked')
+      .eq('school_year', selectedSchoolYear)
+      .eq('is_open', true)
+      .eq('is_locked', false)
+
+    if (error) {
+      toast.error(error.message)
+      return null
+    }
+
+    const openWindows = (data ?? []) as Pick<
+      GradingWindow,
+      'semester' | 'grading_period' | 'is_open' | 'is_locked'
+    >[]
+
+    if (openWindows.length === 0) {
+      return null
+    }
+
+    const prioritized = openWindows.sort(
+      (a, b) => getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period)
+    )[0]
+
+    return prioritized.semester
+  }
+
+  const loadWindows = async (
+    selectedSchoolYear?: string,
+    selectedSemester?: Semester
+  ) => {
     const sy = selectedSchoolYear ?? schoolYear
+    const sem = selectedSemester ?? semester
 
     if (!sy) {
       setWindows([])
       return
     }
 
+    const periods = GRADING_PERIODS_BY_SEMESTER[sem]
+
     const { data, error } = await supabase
       .from('grading_windows')
       .select('*')
       .eq('school_year', sy)
-      .eq('semester', semester)
-      .in('grading_period', visiblePeriods)
+      .eq('semester', sem)
+      .in('grading_period', periods)
       .order('grading_period', { ascending: true })
 
     if (error) {
@@ -113,7 +160,26 @@ export default function GradingControlPage() {
 
   const initialize = async () => {
     setLoading(true)
-    await loadAcademicYears()
+
+    const selectedYear = await loadAcademicYears()
+
+    if (!selectedYear) {
+      setLoading(false)
+      return
+    }
+
+    const autoSemester = await detectCurrentOpenSemester(selectedYear)
+
+    if (autoSemester) {
+      setSemester(autoSemester)
+      didAutoPickSemesterRef.current = true
+      await loadWindows(selectedYear, autoSemester)
+    } else {
+      setSemester('1st Semester')
+      didAutoPickSemesterRef.current = true
+      await loadWindows(selectedYear, '1st Semester')
+    }
+
     setLoading(false)
   }
 
@@ -122,6 +188,8 @@ export default function GradingControlPage() {
   }, [])
 
   useEffect(() => {
+    if (!didAutoPickSemesterRef.current) return
+
     const run = async () => {
       setLoading(true)
       await loadWindows()
@@ -183,7 +251,7 @@ export default function GradingControlPage() {
         toast.success(`${gradingPeriod} grading opened successfully.`)
       }
 
-      await loadWindows(schoolYear)
+      await loadWindows(schoolYear, semester)
     } catch (error: any) {
       toast.error(error.message || 'Failed to update grading status.')
     } finally {
@@ -239,7 +307,7 @@ export default function GradingControlPage() {
         toast.success(`${gradingPeriod} grading locked successfully.`)
       }
 
-      await loadWindows(schoolYear)
+      await loadWindows(schoolYear, semester)
     } catch (error: any) {
       toast.error(error.message || 'Failed to update lock status.')
     } finally {
@@ -279,7 +347,8 @@ export default function GradingControlPage() {
               <option value="">Select academic year</option>
               {academicYears.map((year) => (
                 <option key={year.id} value={year.school_year}>
-                  {year.school_year}{year.is_active ? ' (Active)' : ''}
+                  {year.school_year}
+                  {year.is_active ? ' (Active)' : ''}
                 </option>
               ))}
             </select>
@@ -376,8 +445,8 @@ export default function GradingControlPage() {
                         {openSaving
                           ? 'Saving...'
                           : isOpen
-                            ? 'Close Grading'
-                            : 'Open Grading'}
+                          ? 'Close Grading'
+                          : 'Open Grading'}
                       </button>
 
                       <button

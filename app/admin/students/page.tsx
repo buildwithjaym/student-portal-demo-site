@@ -16,6 +16,7 @@ type Student = {
   last_name: string
   suffix: string | null
   email: string | null
+  gender: 'Male' | 'Female' | null
   grade_level: string
   section: string
   is_active: boolean
@@ -29,6 +30,7 @@ type StudentForm = {
   last_name: string
   suffix: string
   email: string
+  gender: string
   grade_level: string
   section: string
   is_active: boolean
@@ -48,6 +50,7 @@ const initialForm: StudentForm = {
   last_name: '',
   suffix: '',
   email: '',
+  gender: '',
   grade_level: 'Grade 11',
   section: '',
   is_active: true,
@@ -123,6 +126,7 @@ export default function StudentsPage() {
         student.student_no.toLowerCase().includes(keyword) ||
         fullName.includes(keyword) ||
         (student.email ?? '').toLowerCase().includes(keyword) ||
+        (student.gender ?? '').toLowerCase().includes(keyword) ||
         student.grade_level.toLowerCase().includes(keyword) ||
         student.section.toLowerCase().includes(keyword)
       )
@@ -175,6 +179,7 @@ export default function StudentsPage() {
       last_name: student.last_name,
       suffix: student.suffix ?? '',
       email: student.email ?? '',
+      gender: student.gender ?? '',
       grade_level: student.grade_level,
       section: student.section,
       is_active: student.is_active,
@@ -218,6 +223,7 @@ export default function StudentsPage() {
       last_name: form.last_name.trim(),
       suffix: form.suffix.trim() || null,
       email: form.email.trim().toLowerCase() || null,
+      gender: form.gender.trim() || null,
       grade_level: form.grade_level,
       section: form.section.trim(),
       is_active: form.is_active,
@@ -227,6 +233,7 @@ export default function StudentsPage() {
       !payload.student_no ||
       !payload.first_name ||
       !payload.last_name ||
+      !payload.gender ||
       !payload.grade_level ||
       !payload.section
     ) {
@@ -341,7 +348,7 @@ export default function StudentsPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by student no, name, section, or grade level"
+              placeholder="Search by student no, name, gender, section, or grade level"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -372,6 +379,9 @@ export default function StudentsPage() {
                   Name
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  Gender
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
                   Email
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
@@ -392,13 +402,13 @@ export default function StudentsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
                     Loading students...
                   </td>
                 </tr>
               ) : paginatedStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
                     No students found.
                   </td>
                 </tr>
@@ -418,6 +428,9 @@ export default function StudentsPage() {
                       <div className="font-semibold text-green-950">
                         {formatFullName(student)}
                       </div>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-700">
+                      {student.gender || '—'}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-600">
                       {student.email || '—'}
@@ -606,6 +619,24 @@ export default function StudentsPage() {
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                       disabled={saving}
                     />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Gender *
+                    </label>
+                    <select
+                      name="gender"
+                      value={form.gender}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      required
+                      disabled={saving}
+                    >
+                      <option value="">Select gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                    </select>
                   </div>
 
                   <div>
