@@ -52,6 +52,7 @@ export default function AdminSidebar({
   const [open, setOpen] = useState(false)
 
   const closeMenu = () => setOpen(false)
+  const openMenu = () => setOpen(true)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -64,15 +65,25 @@ export default function AdminSidebar({
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeMenu()
+    }
+
+    if (open) {
+      window.addEventListener('keydown', handleKeyDown)
+    }
+
     return () => {
       document.body.style.overflow = ''
+      window.removeEventListener('keydown', handleKeyDown)
     }
   }, [open])
 
   return (
     <>
-      {/* Mobile / Tablet Header */}
-      <div className="flex h-14 items-center justify-between border-b border-yellow-400/10 bg-green-950 px-3 text-white lg:hidden">
+      {/* Mobile Header */}
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-yellow-400/10 bg-green-950 px-3 text-white lg:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
             <Image
@@ -95,24 +106,27 @@ export default function AdminSidebar({
 
         <button
           type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
+          onClick={openMenu}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
           aria-label="Open menu"
+          aria-expanded={open}
+          aria-controls="mobile-admin-sidebar"
         >
           <Menu className="h-5 w-5" />
         </button>
-      </div>
+      </header>
 
       {/* Overlay */}
       <div
         onClick={closeMenu}
+        aria-hidden="true"
         className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden ${
           open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
         }`}
       />
 
       {/* Desktop Sidebar */}
-      <aside className="hidden h-screen w-[240px] shrink-0 border-r border-yellow-400/10 bg-green-950 text-white xl:w-[252px] lg:sticky lg:top-0 lg:flex lg:flex-col">
+      <aside className="hidden h-screen w-[240px] shrink-0 border-r border-yellow-400/10 bg-green-950 text-white lg:sticky lg:top-0 lg:flex lg:flex-col xl:w-[252px]">
         <div className="flex h-full flex-col overflow-hidden">
           <div className="border-b border-yellow-400/10 px-3 py-4">
             <div className="flex items-center gap-2.5">
@@ -164,7 +178,7 @@ export default function AdminSidebar({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 transition ${
+                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2.5 transition ${
                     active
                       ? 'bg-green-900 text-yellow-300'
                       : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
@@ -182,7 +196,7 @@ export default function AdminSidebar({
           <div className="border-t border-yellow-400/10 p-2">
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
             >
               <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
               <span className="truncate text-[13px] font-medium xl:text-sm">
@@ -193,13 +207,16 @@ export default function AdminSidebar({
         </div>
       </aside>
 
-      {/* Mobile / Tablet Right Drawer */}
+      {/* Mobile Sidebar Drawer */}
       <aside
-        className={`fixed right-0 top-0 z-50 flex h-screen w-[78vw] max-w-[250px] min-w-[220px] flex-col border-l border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out sm:w-[260px] lg:hidden ${
-          open ? 'translate-x-0' : 'translate-x-full'
+        id="mobile-admin-sidebar"
+        className={`fixed left-0 top-0 z-50 h-dvh w-[86vw] max-w-[320px] min-w-[260px] border-r border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+          open ? 'translate-x-0' : '-translate-x-full'
         }`}
+        aria-hidden={!open}
       >
-        <div className="flex h-full flex-col overflow-hidden">
+        <div className="grid h-full grid-rows-[auto_1fr_auto] overflow-hidden">
+          {/* Top */}
           <div className="border-b border-yellow-400/10 px-3 py-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -225,14 +242,14 @@ export default function AdminSidebar({
               <button
                 type="button"
                 onClick={closeMenu}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-3 rounded-xl bg-green-900/60 p-2.5">
+            <div className="mt-3 rounded-xl bg-green-900/60 p-3">
               <p className="text-[10px] uppercase tracking-wide text-yellow-300">
                 Account
               </p>
@@ -245,47 +262,43 @@ export default function AdminSidebar({
             </div>
           </div>
 
-          <div className="border-b border-yellow-400/10 px-3 py-2.5">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
-              Navigation
-            </p>
-          </div>
+          {/* Middle scrollable nav */}
+          <nav className="min-h-0 overflow-y-auto px-2 py-2">
+            <div className="space-y-1 pb-2">
+              {navItems.map((item) => {
+                const Icon = item.icon
+                const active =
+                  pathname === item.href || pathname.startsWith(`${item.href}/`)
 
-          <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2">
-            {navItems.map((item) => {
-              const Icon = item.icon
-              const active =
-                pathname === item.href || pathname.startsWith(`${item.href}/`)
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={closeMenu}
-                  className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2 transition ${
-                    active
-                      ? 'bg-green-900 text-yellow-300'
-                      : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="truncate text-[13px] font-medium sm:text-sm">
-                    {item.label}
-                  </span>
-                </Link>
-              )
-            })}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenu}
+                    className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 transition ${
+                      active
+                        ? 'bg-green-900 text-yellow-300'
+                        : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span className="truncate text-sm font-medium">
+                      {item.label}
+                    </span>
+                  </Link>
+                )
+              })}
+            </div>
           </nav>
 
-          <div className="border-t border-yellow-400/10 p-2">
+          {/* Bottom pinned logout */}
+          <div className="border-t border-yellow-400/10 bg-green-950 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
+              className="flex w-full items-center gap-3 rounded-xl bg-green-900/40 px-3 py-3 text-left transition hover:bg-green-900/70 hover:text-yellow-300"
             >
-              <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
-              <span className="truncate text-[13px] font-medium sm:text-sm">
-                Logout
-              </span>
+              <LogOut className="h-5 w-5 shrink-0 text-yellow-300" />
+              <span className="truncate text-sm font-medium">Logout</span>
             </button>
           </div>
         </div>
