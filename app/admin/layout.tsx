@@ -75,14 +75,14 @@ export default function AdminLayout({
 
   return (
     <>
-      <div className="flex min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-100 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
         <AdminSidebar
           fullName={formatFullName(profile)}
           email={profile.email}
           role={profile.role}
         />
 
-        <main className="min-w-0 flex-1 overflow-y-auto bg-gradient-to-br from-yellow-50 via-white to-green-50 p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 bg-gradient-to-br from-yellow-50 via-white to-green-50 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

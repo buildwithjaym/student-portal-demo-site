@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Plus, Trash2, Users, UserPlus, Sparkles } from 'lucide-react'
+import {
+  Search,
+  Plus,
+  Trash2,
+  Users,
+  UserPlus,
+  Sparkles,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { formatFullName } from '@/lib/name'
@@ -443,7 +450,9 @@ export default function EnrollPage() {
     }
 
     if (!selectedStudent.grade_level || !selectedStudent.section) {
-      toast.error('Selected student does not have complete grade level or section information.')
+      toast.error(
+        'Selected student does not have complete grade level or section information.'
+      )
       return
     }
 
@@ -480,7 +489,10 @@ export default function EnrollPage() {
     const { error } = await supabase.from('enrollments').insert(payload)
 
     if (error) {
-      if (error.code === '23505' || error.message.toLowerCase().includes('duplicate')) {
+      if (
+        error.code === '23505' ||
+        error.message.toLowerCase().includes('duplicate')
+      ) {
         toast.error('Some subjects are already enrolled for this student.')
       } else {
         toast.error(error.message)
@@ -497,7 +509,9 @@ export default function EnrollPage() {
   }
 
   const handleDelete = async (item: EnrollmentRow) => {
-    const studentName = item.students ? formatFullName(item.students) : 'this student'
+    const studentName = item.students
+      ? formatFullName(item.students)
+      : 'this student'
     const subjectName = item.classes?.subjects?.subject_name ?? 'this class'
 
     const confirmed = window.confirm(`Remove ${studentName} from ${subjectName}?`)
@@ -514,23 +528,28 @@ export default function EnrollPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="w-full max-w-screen-2xl space-y-4 px-3 pb-4 sm:space-y-5 sm:px-4 lg:space-y-6 lg:px-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
+        className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center xl:justify-between"
       >
-        <div>
-          <p className="text-sm font-medium text-yellow-600">Administration</p>
-          <h1 className="text-3xl font-bold text-green-900">Enrollments</h1>
-          <p className="mt-1 text-gray-600">
-            Automatically enroll a student into all matching classes with only a few clicks.
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-yellow-600 sm:text-sm">
+            Administration
+          </p>
+          <h1 className="text-2xl font-bold text-green-900 sm:text-3xl">
+            Enrollments
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-gray-600 sm:text-base">
+            Automatically enroll a student into all matching classes with only a
+            few clicks.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-2xl bg-green-800 px-4 py-3 font-semibold text-white transition hover:bg-green-900"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 sm:w-auto"
         >
           <Plus className="h-5 w-5" />
           Auto Enroll Student
@@ -540,24 +559,24 @@ export default function EnrollPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm"
+        className="rounded-2xl border border-green-100 bg-white p-3 shadow-sm sm:p-4"
       >
-        <div className="grid gap-4 lg:grid-cols-[1fr_220px_220px_auto] lg:items-center">
-          <div className="relative">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_220px_auto] xl:items-center">
+          <div className="relative md:col-span-2 xl:col-span-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               placeholder="Search student, subject, teacher, school year, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
             />
           </div>
 
           <select
             value={schoolYearFilter}
             onChange={(e) => setSchoolYearFilter(e.target.value)}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
           >
             <option value="">All School Years</option>
             {availableSchoolYears.map((sy) => (
@@ -570,16 +589,17 @@ export default function EnrollPage() {
           <select
             value={semesterFilter}
             onChange={(e) => setSemesterFilter(e.target.value as 'All' | Semester)}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
           >
             <option value="All">All Semesters</option>
             <option value="1st Semester">1st Semester</option>
             <option value="2nd Semester">2nd Semester</option>
           </select>
 
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
+          <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800 xl:justify-start">
             <Users className="h-4 w-4" />
-            {filteredEnrollments.length} enrollment{filteredEnrollments.length !== 1 ? 's' : ''}
+            {filteredEnrollments.length} enrollment
+            {filteredEnrollments.length !== 1 ? 's' : ''}
           </div>
         </div>
       </motion.div>
@@ -589,116 +609,232 @@ export default function EnrollPage() {
         animate={{ opacity: 1, y: 0 }}
         className="overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm"
       >
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-green-50">
-              <tr>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  Student
-                </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  Subject
-                </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  Teacher
-                </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  School Year
-                </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  Semester
-                </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
-                  Enrolled At
-                </th>
-                <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
-                  Actions
-                </th>
-              </tr>
-            </thead>
+        {/* Desktop / large tablet table */}
+        <div className="hidden xl:block">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-green-50">
+                <tr>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    Student
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    Subject
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    Teacher
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    School Year
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    Semester
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    Enrolled At
+                  </th>
+                  <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
-                    Loading enrollments...
-                  </td>
-                </tr>
-              ) : paginatedEnrollments.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
-                    No enrollments found.
-                  </td>
-                </tr>
-              ) : (
-                paginatedEnrollments.map((item, index) => (
-                  <motion.tr
-                    key={item.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2, delay: index * 0.03 }}
-                    className="border-t border-gray-100"
-                  >
-                    <td className="px-4 py-4">
-                      <div className="font-semibold text-green-950">
-                        {item.students ? formatFullName(item.students) : '—'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {item.students?.student_no || 'No Student No.'}
-                        {item.students?.grade_level ? ` • ${item.students.grade_level}` : ''}
-                        {item.students?.section ? ` • ${item.students.section}` : ''}
-                      </div>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                      Loading enrollments...
                     </td>
+                  </tr>
+                ) : paginatedEnrollments.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                      No enrollments found.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedEnrollments.map((item, index) => (
+                    <motion.tr
+                      key={item.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                      className="border-t border-gray-100"
+                    >
+                      <td className="px-4 py-4">
+                        <div className="font-semibold text-green-950">
+                          {item.students ? formatFullName(item.students) : '—'}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {item.students?.student_no || 'No Student No.'}
+                          {item.students?.grade_level
+                            ? ` • ${item.students.grade_level}`
+                            : ''}
+                          {item.students?.section
+                            ? ` • ${item.students.section}`
+                            : ''}
+                        </div>
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-gray-800">
+                      <td className="px-4 py-4">
+                        <div className="font-medium text-gray-800">
+                          {item.classes?.subjects
+                            ? `${item.classes.subjects.subject_code} - ${item.classes.subjects.subject_name}`
+                            : '—'}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {item.classes?.grade_level} • {item.classes?.section} •{' '}
+                          {item.classes?.semester}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {item.classes?.teachers
+                          ? formatFullName(item.classes.teachers)
+                          : 'Unassigned'}
+                      </td>
+
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {item.school_year}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {item.semester}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {new Date(item.enrolled_at).toLocaleString()}
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <div className="flex justify-end">
+                          <button
+                            onClick={() => handleDelete(item)}
+                            className="rounded-xl bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
+                            title="Remove enrollment"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Mobile / tablet cards */}
+        <div className="xl:hidden">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-sm text-gray-500">
+              Loading enrollments...
+            </div>
+          ) : paginatedEnrollments.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-gray-500">
+              No enrollments found.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {paginatedEnrollments.map((item, index) => (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  className="space-y-3 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                        Student
+                      </p>
+                      <p className="truncate font-semibold text-green-950">
+                        {item.students ? formatFullName(item.students) : '—'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {item.students?.student_no || 'No Student No.'}
+                        {item.students?.grade_level
+                          ? ` • ${item.students.grade_level}`
+                          : ''}
+                        {item.students?.section ? ` • ${item.students.section}` : ''}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="shrink-0 rounded-xl bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
+                      title="Remove enrollment"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Subject
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-gray-900">
                         {item.classes?.subjects
                           ? `${item.classes.subjects.subject_code} - ${item.classes.subjects.subject_name}`
                           : '—'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {item.classes?.grade_level} • {item.classes?.section} • {item.classes?.semester}
-                      </div>
-                    </td>
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {item.classes?.grade_level} • {item.classes?.section} •{' '}
+                        {item.classes?.semester}
+                      </p>
+                    </div>
 
-                    <td className="px-4 py-4 text-sm text-gray-700">
-                      {item.classes?.teachers ? formatFullName(item.classes.teachers) : 'Unassigned'}
-                    </td>
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Teacher
+                      </p>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {item.classes?.teachers
+                          ? formatFullName(item.classes.teachers)
+                          : 'Unassigned'}
+                      </p>
+                    </div>
 
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.school_year}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.semester}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        School Year
+                      </p>
+                      <p className="mt-1 text-sm text-gray-900">{item.school_year}</p>
+                    </div>
+
+                    <div className="rounded-xl bg-gray-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Semester
+                      </p>
+                      <p className="mt-1 text-sm text-gray-900">{item.semester}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-gray-50 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Enrolled At
+                    </p>
+                    <p className="mt-1 text-sm text-gray-900">
                       {new Date(item.enrolled_at).toLocaleString()}
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => handleDelete(item)}
-                          className="rounded-xl bg-red-50 p-2 text-red-700 transition hover:bg-red-100"
-                          title="Remove enrollment"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-500">
             Page {currentPage} of {totalPages}
           </p>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:flex-none"
             >
               Previous
             </button>
@@ -706,7 +842,7 @@ export default function EnrollPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+              className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:flex-none"
             >
               Next
             </button>
@@ -717,7 +853,7 @@ export default function EnrollPage() {
       <AnimatePresence>
         {showModal && (
           <motion.div
-            className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-6"
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-3 py-4 sm:px-4 sm:py-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -727,24 +863,31 @@ export default function EnrollPage() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
               transition={{ duration: 0.2 }}
-              className="mx-auto w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl max-h-[calc(100vh-3rem)]"
+              className="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl"
             >
-              <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div>
-                  <p className="text-sm font-medium text-yellow-600">Automatic Enrollment</p>
-                  <h2 className="text-2xl font-bold text-green-900">Enroll Student</h2>
+                  <p className="text-sm font-medium text-yellow-600">
+                    Automatic Enrollment
+                  </p>
+                  <h2 className="text-xl font-bold text-green-900 sm:text-2xl">
+                    Enroll Student
+                  </h2>
                 </div>
 
                 <button
                   onClick={closeModal}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100"
+                  className="rounded-xl px-3 py-2 text-left text-sm font-medium text-gray-500 transition hover:bg-gray-100 sm:text-center"
                 >
                   Close
                 </button>
               </div>
 
-              <form onSubmit={handleSave} className="flex max-h-[calc(100vh-9rem)] flex-col">
-                <div className="overflow-y-auto px-6 py-5">
+              <form
+                onSubmit={handleSave}
+                className="flex max-h-[calc(100vh-2rem)] flex-col sm:max-h-[calc(100vh-3rem)]"
+              >
+                <div className="overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
                   <div className="space-y-5">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
@@ -755,7 +898,7 @@ export default function EnrollPage() {
                           name="school_year"
                           value={form.school_year}
                           readOnly
-                          className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+                          className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none sm:text-base"
                         />
                       </div>
 
@@ -767,7 +910,7 @@ export default function EnrollPage() {
                           name="semester"
                           value={form.semester}
                           onChange={handleChange}
-                          className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
                         >
                           <option value="1st Semester">1st Semester</option>
                           <option value="2nd Semester">2nd Semester</option>
@@ -787,7 +930,7 @@ export default function EnrollPage() {
                           placeholder="Search and select student"
                           value={studentDropdownSearch}
                           onChange={(e) => setStudentDropdownSearch(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
                         />
                       </div>
 
@@ -799,7 +942,7 @@ export default function EnrollPage() {
                             student_id: e.target.value,
                           }))
                         }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
                       >
                         <option value="">Select student</option>
                         {studentOptions.map((student) => (
@@ -819,13 +962,19 @@ export default function EnrollPage() {
                           </p>
                           <p className="text-sm text-gray-600">
                             {selectedStudent.student_no || 'No Student No.'}
-                            {selectedStudent.grade_level ? ` • ${selectedStudent.grade_level}` : ''}
-                            {selectedStudent.section ? ` • ${selectedStudent.section}` : ''}
+                            {selectedStudent.grade_level
+                              ? ` • ${selectedStudent.grade_level}`
+                              : ''}
+                            {selectedStudent.section
+                              ? ` • ${selectedStudent.section}`
+                              : ''}
                           </p>
                           {selectedSectionInfo && (
                             <p className="mt-1 text-sm text-gray-600">
                               Section Info: {selectedSectionInfo.section_name}
-                              {selectedSectionInfo.strand ? ` • ${selectedSectionInfo.strand}` : ''}
+                              {selectedSectionInfo.strand
+                                ? ` • ${selectedSectionInfo.strand}`
+                                : ''}
                             </p>
                           )}
                         </div>
@@ -835,20 +984,24 @@ export default function EnrollPage() {
                     <div className="rounded-2xl border border-gray-200 p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-green-800" />
-                        <h3 className="font-semibold text-green-900">Automatic Subject Matching</h3>
+                        <h3 className="font-semibold text-green-900">
+                          Automatic Subject Matching
+                        </h3>
                       </div>
 
                       {!selectedStudent ? (
                         <div className="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500">
-                          Select a student and semester to automatically load matching classes.
+                          Select a student and semester to automatically load
+                          matching classes.
                         </div>
                       ) : matchedClasses.length === 0 ? (
                         <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-                          No matching classes found for this student based on school year, semester, grade level, and section.
+                          No matching classes found for this student based on
+                          school year, semester, grade level, and section.
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          <div className="grid gap-3 md:grid-cols-3">
+                          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                             <div className="rounded-2xl bg-green-50 p-4">
                               <p className="text-xs font-medium uppercase tracking-wide text-green-700">
                                 Matching Classes
@@ -867,7 +1020,7 @@ export default function EnrollPage() {
                               </p>
                             </div>
 
-                            <div className="rounded-2xl bg-gray-100 p-4">
+                            <div className="rounded-2xl bg-gray-100 p-4 sm:col-span-2 xl:col-span-1">
                               <p className="text-xs font-medium uppercase tracking-wide text-gray-700">
                                 Already Enrolled
                               </p>
@@ -883,41 +1036,49 @@ export default function EnrollPage() {
                                 Classes that will be processed
                               </p>
                               <p className="text-sm text-gray-500">
-                                The system automatically matches classes using the student’s grade level and section.
+                                The system automatically matches classes using
+                                the student’s grade level and section.
                               </p>
                             </div>
 
                             <div className="max-h-72 overflow-y-auto">
                               {matchedClasses.map((item) => {
-                                const isAlreadyEnrolled = existingEnrollmentClassIds.has(item.id)
+                                const isAlreadyEnrolled =
+                                  existingEnrollmentClassIds.has(item.id)
 
                                 return (
                                   <div
                                     key={item.id}
-                                    className="flex items-start justify-between gap-4 border-t border-gray-100 px-4 py-3 first:border-t-0"
+                                    className="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 first:border-t-0 sm:flex-row sm:items-start sm:justify-between"
                                   >
-                                    <div>
+                                    <div className="min-w-0">
                                       <p className="font-medium text-gray-900">
                                         {item.subjects
                                           ? `${item.subjects.subject_code} - ${item.subjects.subject_name}`
                                           : 'Unnamed Subject'}
                                       </p>
                                       <p className="text-sm text-gray-500">
-                                        {item.grade_level} • {item.section} • {item.semester}
+                                        {item.grade_level} • {item.section} •{' '}
+                                        {item.semester}
                                       </p>
                                       <p className="text-sm text-gray-500">
-                                        Teacher: {item.teachers ? formatFullName(item.teachers) : 'Unassigned'}
+                                        Teacher:{' '}
+                                        {item.teachers
+                                          ? formatFullName(item.teachers)
+                                          : 'Unassigned'}
                                       </p>
                                     </div>
 
                                     <span
-                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
                                         isAlreadyEnrolled
                                           ? 'bg-gray-200 text-gray-700'
                                           : 'bg-green-100 text-green-800'
                                       }`}
                                     >
-                                      {isAlreadyEnrolled ? 'Already Enrolled' : 'Will Enroll'}
+                                      {isAlreadyEnrolled
+                                        ? 'Already Enrolled'
+                                        : 'Will Enroll'}
                                     </span>
                                   </div>
                                 )
@@ -930,11 +1091,11 @@ export default function EnrollPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4">
+                <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="w-full rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50 sm:w-auto"
                   >
                     Cancel
                   </button>
@@ -942,7 +1103,7 @@ export default function EnrollPage() {
                   <button
                     type="submit"
                     disabled={saving || !selectedStudent || classesToEnroll.length === 0}
-                    className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:opacity-60"
+                    className="w-full rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:opacity-60 sm:w-auto"
                   >
                     {saving
                       ? 'Enrolling...'

@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -15,6 +16,8 @@ import {
   ShieldCheck,
   FileSpreadsheet,
   LogOut,
+  Menu,
+  X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
@@ -31,108 +34,125 @@ const navItems = [
   { label: 'Grades', href: '/admin/grades', icon: FileSpreadsheet },
 ]
 
-type AdminSidebarProps = {
-  fullName: string
-  email: string
-  role: string
-}
-
-export default function AdminSidebar({
-  fullName,
-  email,
-  role,
-}: AdminSidebarProps) {
+export default function AdminSidebar({ fullName, email, role }: any) {
   const pathname = usePathname()
   const router = useRouter()
+  const [open, setOpen] = useState(false)
+
+  const closeMenu = () => setOpen(false)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.replace('/login')
   }
 
+  useEffect(() => closeMenu(), [pathname])
+
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
   return (
-    <aside className="sticky top-0 flex h-screen w-[265px] shrink-0 flex-col border-r border-yellow-400/15 bg-green-950 text-white">
-      <div className="border-b border-yellow-400/10 px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
-            <Image
-              src="/logo.jpg"
-              alt="Qorban Portal Logo"
-              width={40}
-              height={40}
-              className="object-contain"
-              priority
-            />
-          </div>
+    <>
+      {/* MOBILE HEADER */}
+      <div className="lg:hidden h-16 flex items-center justify-between px-4 bg-green-950 text-white border-b border-yellow-400/10">
+        <span className="font-bold text-sm">QORBAN PORTAL</span>
 
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-bold tracking-wide text-white">
-              QORBAN PORTAL
-            </h1>
-            <p className="text-xs font-medium text-yellow-300">Admin Panel</p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-green-800 bg-green-900/70 p-3 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300">
-            Account
-          </p>
-
-          <div className="mt-2 space-y-0.5">
-            <p className="truncate text-sm font-semibold text-white">{fullName}</p>
-            <p className="truncate text-xs text-green-100">{email}</p>
-          </div>
-
-          <div className="mt-2">
-            <span className="inline-flex rounded-full bg-yellow-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-950">
-              {role}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="border-b border-yellow-400/10 px-4 py-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
-          Navigation
-        </p>
-      </div>
-
-      <nav className="flex-1 py-1.5">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive =
-            pathname === item.href || pathname.startsWith(`${item.href}/`)
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 border-l-4 px-5 py-2.5 transition-all ${
-                isActive
-                  ? 'border-yellow-400 bg-green-900 text-yellow-300'
-                  : 'border-transparent text-white hover:border-yellow-400 hover:bg-green-900/60 hover:text-yellow-300'
-              }`}
-            >
-              <Icon
-                className={`h-[18px] w-[18px] shrink-0 ${
-                  isActive ? 'text-yellow-300' : 'text-yellow-300/90'
-                }`}
-              />
-              <span className="truncate text-[15px] font-medium">{item.label}</span>
-            </Link>
-          )
-        })}
-      </nav>
-
-      <div className="border-t border-yellow-400/10">
-        <button
-          onClick={handleLogout}
-          className="flex w-full items-center gap-3 border-l-4 border-transparent px-5 py-3 text-left text-white transition hover:border-yellow-400 hover:bg-green-900/60 hover:text-yellow-300"
-        >
-          <LogOut className="h-[26px] w-[18px] shrink-0 text-yellow-300" />
-          <span className="text-[15px] font-medium">Logout</span>
+        <button onClick={() => setOpen(true)}>
+          <Menu className="h-5 w-5 text-yellow-300" />
         </button>
       </div>
-    </aside>
+
+      {/* OVERLAY */}
+      <div
+        onClick={closeMenu}
+        className={`fixed inset-0 bg-black/50 z-40 transition ${
+          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        } lg:hidden`}
+      />
+
+      {/* SIDEBAR */}
+      <aside
+        className={`fixed top-0 left-0 z-50 h-screen w-[270px] bg-green-950 text-white border-r border-yellow-400/10 transition-transform duration-300
+        ${open ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0 lg:sticky`}
+      >
+        <div className="flex h-full flex-col">
+          {/* HEADER */}
+          <div className="px-4 py-4 border-b border-yellow-400/10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Image
+                  src="/logo.jpg"
+                  width={36}
+                  height={36}
+                  alt="logo"
+                  className="rounded-full border border-yellow-400"
+                />
+                <div>
+                  <p className="text-sm font-bold">QORBAN PORTAL</p>
+                  <p className="text-[10px] text-yellow-300">Admin Panel</p>
+                </div>
+              </div>
+
+              <button onClick={closeMenu} className="lg:hidden">
+                <X className="h-5 w-5 text-yellow-300" />
+              </button>
+            </div>
+
+            {/* ACCOUNT */}
+            <div className="mt-3 bg-green-900/60 rounded-xl p-3">
+              <p className="text-[10px] text-yellow-300 uppercase">Account</p>
+              <p className="text-sm font-semibold truncate">{fullName}</p>
+              <p className="text-xs text-green-200 truncate">{email}</p>
+
+              <span className="inline-block mt-2 text-[10px] px-2 py-0.5 bg-yellow-400 text-green-950 rounded-full font-bold">
+                {role}
+              </span>
+            </div>
+          </div>
+
+          {/* NAV */}
+          <nav className="flex-1 px-2 py-3 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const active =
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={closeMenu}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
+                    active
+                      ? 'bg-green-900 text-yellow-300'
+                      : 'hover:bg-green-900/60'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="text-sm">{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+
+          {/* LOGOUT */}
+          <div className="p-2 border-t border-yellow-400/10">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-green-900/60"
+            >
+              <LogOut className="h-4 w-4 text-yellow-300" />
+              <span className="text-sm">Logout</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </>
   )
 }
