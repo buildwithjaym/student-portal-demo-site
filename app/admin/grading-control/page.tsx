@@ -49,15 +49,23 @@ export default function GradingControlPage() {
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [windows, setWindows] = useState<GradingWindow[]>([])
 
-  const didAutoPickSemesterRef = useRef(false)
+  const initializedRef = useRef(false)
 
   const visiblePeriods = GRADING_PERIODS_BY_SEMESTER[semester]
 
   const windowMap = useMemo(() => {
-    return visiblePeriods.reduce<Record<string, GradingWindow | null>>((acc, period) => {
-      acc[period] = windows.find((w) => w.grading_period === period) ?? null
-      return acc
-    }, {})
+    return visiblePeriods.reduce<Record<GradingPeriod, GradingWindow | null>>(
+      (acc, period) => {
+        acc[period] = windows.find((w) => w.grading_period === period) ?? null
+        return acc
+      },
+      {
+        '1st': null,
+        '2nd': null,
+        '3rd': null,
+        '4th': null,
+      }
+    )
   }, [windows, visiblePeriods])
 
   const getCurrentUserId = async () => {
@@ -120,9 +128,11 @@ export default function GradingControlPage() {
       return null
     }
 
-    const prioritized = openWindows.sort(
-      (a, b) => getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period)
-    )[0]
+    const prioritized = openWindows
+      .slice()
+      .sort(
+        (a, b) => getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period)
+      )[0]
 
     return prioritized.semester
   }
@@ -147,7 +157,6 @@ export default function GradingControlPage() {
       .eq('school_year', sy)
       .eq('semester', sem)
       .in('grading_period', periods)
-      .order('grading_period', { ascending: true })
 
     if (error) {
       toast.error(error.message)
@@ -155,32 +164,33 @@ export default function GradingControlPage() {
       return
     }
 
-    setWindows((data as GradingWindow[]) || [])
+    const sorted = ((data ?? []) as GradingWindow[]).slice().sort((a, b) => {
+      return getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period)
+    })
+
+    setWindows(sorted)
   }
 
   const initialize = async () => {
     setLoading(true)
 
-    const selectedYear = await loadAcademicYears()
+    try {
+      const selectedYear = await loadAcademicYears()
 
-    if (!selectedYear) {
+      if (!selectedYear) {
+        return
+      }
+
+      const autoSemester = await detectCurrentOpenSemester(selectedYear)
+      const nextSemester = autoSemester ?? '1st Semester'
+
+      setSemester(nextSemester)
+      initializedRef.current = true
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to initialize grading control.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const autoSemester = await detectCurrentOpenSemester(selectedYear)
-
-    if (autoSemester) {
-      setSemester(autoSemester)
-      didAutoPickSemesterRef.current = true
-      await loadWindows(selectedYear, autoSemester)
-    } else {
-      setSemester('1st Semester')
-      didAutoPickSemesterRef.current = true
-      await loadWindows(selectedYear, '1st Semester')
-    }
-
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -188,12 +198,15 @@ export default function GradingControlPage() {
   }, [])
 
   useEffect(() => {
-    if (!didAutoPickSemesterRef.current) return
+    if (!initializedRef.current || !schoolYear) return
 
     const run = async () => {
       setLoading(true)
-      await loadWindows()
-      setLoading(false)
+      try {
+        await loadWindows(schoolYear, semester)
+      } finally {
+        setLoading(false)
+      }
     }
 
     run()
@@ -224,8 +237,8 @@ export default function GradingControlPage() {
           .from('grading_windows')
           .update({
             is_open: nextOpenState,
-            opened_by: nextOpenState ? userId : existing.opened_by,
-            opened_at: nextOpenState ? new Date().toISOString() : existing.opened_at,
+            opened_by: nextOpenState ? userId : null,
+            opened_at: nextOpenState ? new Date().toISOString() : null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existing.id)
@@ -445,8 +458,8 @@ export default function GradingControlPage() {
                         {openSaving
                           ? 'Saving...'
                           : isOpen
-                          ? 'Close Grading'
-                          : 'Open Grading'}
+                            ? 'Close Grading'
+                            : 'Open Grading'}
                       </button>
 
                       <button

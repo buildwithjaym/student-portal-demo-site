@@ -4,31 +4,55 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Bell, RefreshCw } from 'lucide-react'
 import { supabaseStudent } from '@/lib/supabase-student'
 
+type GradingPeriod = '1st' | '2nd' | '3rd' | '4th'
+
+type SubjectRow = {
+  id: string
+  subject_code: string
+  subject_name: string
+}
+
+type ClassRelation = {
+  id: string
+  section?: string | null
+  grade_level?: string | null
+  subjects: SubjectRow | null
+}
+
 type GradeRow = {
   id: string
   class_id: string
   school_year: string
   semester: string
-  grading_period: '1st' | '2nd' | '3rd' | '4th'
+  grading_period: GradingPeriod
   grade: number
   remarks: string | null
-  classes: {
-    id: string
-    section?: string | null
-    grade_level?: string | null
-    subjects: {
-      id: string
-      subject_code: string
-      subject_name: string
-    } | null
-  } | null
+  classes: ClassRelation | null
+}
+
+type RawClassRelation = {
+  id: string
+  section?: string | null
+  grade_level?: string | null
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
+type RawGradeRow = {
+  id: string
+  class_id: string
+  school_year: string
+  semester: string
+  grading_period: GradingPeriod
+  grade: number
+  remarks: string | null
+  classes: RawClassRelation[] | RawClassRelation | null
 }
 
 type SubmissionRow = {
   class_id: string
   school_year: string
   term: string
-  grading_period: '1st' | '2nd' | '3rd' | '4th'
+  grading_period: GradingPeriod
   is_submitted: boolean
 }
 
@@ -46,7 +70,7 @@ type TableRow = {
   teacherRemark: string | null
 }
 
-const PERIODS: Array<'1st' | '2nd' | '3rd' | '4th'> = ['1st', '2nd', '3rd', '4th']
+const PERIODS: GradingPeriod[] = ['1st', '2nd', '3rd', '4th']
 
 function formatGrade(value: number | null) {
   if (value === null) return '—'
@@ -82,13 +106,45 @@ function getRemarksClass(remarks: string) {
   return 'bg-red-100 text-red-700 ring-1 ring-red-200'
 }
 
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRelation(
+  value: RawClassRelation[] | RawClassRelation | null | undefined
+): ClassRelation | null {
+  const rawClass = getSingleRelation(value)
+  if (!rawClass) return null
+
+  return {
+    id: rawClass.id,
+    section: rawClass.section ?? null,
+    grade_level: rawClass.grade_level ?? null,
+    subjects: getSingleRelation(rawClass.subjects),
+  }
+}
+
+function normalizeGradeRow(row: RawGradeRow): GradeRow {
+  return {
+    id: row.id,
+    class_id: row.class_id,
+    school_year: row.school_year,
+    semester: row.semester,
+    grading_period: row.grading_period,
+    grade: Number(row.grade),
+    remarks: row.remarks,
+    classes: normalizeClassRelation(row.classes),
+  }
+}
+
 export default function StudentGradesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [grades, setGrades] = useState<GradeRow[]>([])
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [selectedSchoolYear, setSelectedSchoolYear] = useState('All')
-  const [selectedPeriod, setSelectedPeriod] = useState<'1st' | '2nd' | '3rd' | '4th'>('1st')
+  const [selectedPeriod, setSelectedPeriod] = useState<GradingPeriod>('1st')
 
   useEffect(() => {
     let mounted = true
@@ -142,7 +198,7 @@ export default function StudentGradesPage() {
 
         if (gradesError) throw gradesError
 
-        const safeGrades = (gradesData as GradeRow[]) || []
+        const safeGrades = ((gradesData ?? []) as RawGradeRow[]).map(normalizeGradeRow)
         const classIds = [...new Set(safeGrades.map((item) => item.class_id))]
 
         let safeSubmissions: SubmissionRow[] = []
@@ -304,7 +360,7 @@ export default function StudentGradesPage() {
 
             <select
               value={selectedPeriod}
-              onChange={(e) => setSelectedPeriod(e.target.value as '1st' | '2nd' | '3rd' | '4th')}
+              onChange={(e) => setSelectedPeriod(e.target.value as GradingPeriod)}
               className="h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500"
             >
               {PERIODS.map((period) => (

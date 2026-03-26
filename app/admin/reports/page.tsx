@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
@@ -38,17 +37,19 @@ type StudentRow = {
   is_active: boolean
 }
 
+type SubjectRow = {
+  id: string
+  subject_code: string
+  subject_name: string
+}
+
 type ClassRow = {
   id: string
   grade_level: 'Grade 11' | 'Grade 12'
   section: string
   school_year: string
   semester: Semester
-  subjects: {
-    id: string
-    subject_code: string
-    subject_name: string
-  } | null
+  subjects: SubjectRow | null
 }
 
 type EnrollmentRow = {
@@ -104,6 +105,38 @@ type AtRiskStudentRow = {
   subjectsBelow75: string[]
 }
 
+type RawClassRow = {
+  id: string
+  grade_level: 'Grade 11' | 'Grade 12'
+  section: string
+  school_year: string
+  semester: Semester
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
+type RawEnrollmentRow = {
+  id: string
+  student_id: string
+  class_id: string
+  school_year: string
+  semester: Semester
+  enrolled_at: string
+  students: StudentRow[] | StudentRow | null
+  classes: RawClassRow[] | RawClassRow | null
+}
+
+type RawGradeRow = {
+  id: string
+  student_id: string
+  class_id: string
+  school_year: string
+  semester: Semester
+  grading_period: GradingPeriod
+  grade: number
+  students: StudentRow[] | StudentRow | null
+  classes: RawClassRow[] | RawClassRow | null
+}
+
 const SCHOOL_NAME =
   'Qorban Institute of Technology Training and Assessment Center, Inc'
 const SCHOOL_ADDRESS = 'Isabela City, Zamboanga Peninsula'
@@ -137,8 +170,51 @@ function formatDateOnly(value: Date) {
   })
 }
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString()
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    subjects: getSingleRelation(row.subjects),
+  }
+}
+
+function normalizeEnrollmentRow(row: RawEnrollmentRow): EnrollmentRow {
+  const rawClass = getSingleRelation(row.classes)
+
+  return {
+    id: row.id,
+    student_id: row.student_id,
+    class_id: row.class_id,
+    school_year: row.school_year,
+    semester: row.semester,
+    enrolled_at: row.enrolled_at,
+    students: getSingleRelation(row.students),
+    classes: rawClass ? normalizeClassRow(rawClass) : null,
+  }
+}
+
+function normalizeGradeRow(row: RawGradeRow): GradeRow {
+  const rawClass = getSingleRelation(row.classes)
+
+  return {
+    id: row.id,
+    student_id: row.student_id,
+    class_id: row.class_id,
+    school_year: row.school_year,
+    semester: row.semester,
+    grading_period: row.grading_period,
+    grade: Number(row.grade),
+    students: getSingleRelation(row.students),
+    classes: rawClass ? normalizeClassRow(rawClass) : null,
+  }
 }
 
 export default function AdminReportsPage() {
@@ -487,7 +563,8 @@ export default function AdminReportsPage() {
       return
     }
 
-    setEnrollments((data ?? []) as EnrollmentRow[])
+    const normalized = ((data ?? []) as RawEnrollmentRow[]).map(normalizeEnrollmentRow)
+    setEnrollments(normalized)
   }
 
   const loadGrades = async (
@@ -540,7 +617,8 @@ export default function AdminReportsPage() {
       return
     }
 
-    setGrades((data ?? []) as GradeRow[])
+    const normalized = ((data ?? []) as RawGradeRow[]).map(normalizeGradeRow)
+    setGrades(normalized)
   }
 
   const initialize = async () => {
@@ -644,17 +722,9 @@ export default function AdminReportsPage() {
         marginX + 100,
         cursorY + 38
       )
-      doc.text(
-        `Grade Level: ${selectedGradeLevel}`,
-        marginX,
-        cursorY + 44
-      )
+      doc.text(`Grade Level: ${selectedGradeLevel}`, marginX, cursorY + 44)
       doc.text(`Section: ${selectedSection}`, marginX + 55, cursorY + 44)
-      doc.text(
-        `Generated: ${formatDateOnly(new Date())}`,
-        marginX + 100,
-        cursorY + 44
-      )
+      doc.text(`Generated: ${formatDateOnly(new Date())}`, marginX + 100, cursorY + 44)
 
       cursorY += 52
 
@@ -775,12 +845,9 @@ export default function AdminReportsPage() {
             const pageNumber = doc.getCurrentPageInfo().pageNumber
             doc.setFontSize(9)
             doc.setFont('helvetica', 'normal')
-            doc.text(
-              `Page ${pageNumber}`,
-              pageWidth - marginX,
-              pageHeight - 8,
-              { align: 'right' }
-            )
+            doc.text(`Page ${pageNumber}`, pageWidth - marginX, pageHeight - 8, {
+              align: 'right',
+            })
           },
         })
       }

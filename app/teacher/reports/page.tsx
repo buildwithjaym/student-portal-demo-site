@@ -1,25 +1,27 @@
 'use client'
 
-import Image from 'next/image'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import {
-  Download,
-  Eye,
-  FileSpreadsheet,
-  FileText,
-  Printer,
+  AlertTriangle,
+  CheckCircle2,
+  FileWarning,
+  GraduationCap,
+  Info,
+  Lock,
+  Save,
   Search,
+  Send,
+  Sparkles,
   Users,
-  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
+import { formatFullName } from '@/lib/name'
 
 type Semester = '1st Semester' | '2nd Semester'
 type GradingPeriod = '1st' | '2nd' | '3rd' | '4th'
-type ReportType = 'class_list_only' | 'class_list_with_grades' | 'attendance_sheet'
 
 type ProfileRow = {
   id: string
@@ -65,13 +67,12 @@ type ClassRow = {
 
 type StudentRow = {
   id: string
+  student_no?: string | null
   first_name: string
   middle_name?: string | null
   last_name: string
   suffix?: string | null
   gender?: 'Male' | 'Female' | null
-  grade_level?: string | null
-  section?: string | null
 }
 
 type EnrollmentQueryRow = {
@@ -94,24 +95,81 @@ type GradingWindowRow = {
   is_locked: boolean
 }
 
-type ReportRow = {
-  student_id: string
-  full_name: string
-  gender: string
-  grade_and_section: string
-  grade: string
-  remarks: string
-  last_name_sort: string
-  first_name_sort: string
+type GradeSubmissionRow = {
+  id: string
+  is_submitted: boolean
+  submitted_at: string | null
 }
 
-type ClassCardMeta = {
-  studentCount: number
-  encodedCount: number
+type StudentGradeInput = {
+  student_id: string
+  student_no: string
+  full_name: string
+  gender: string
+  grade: string
+  remarks: string
+}
+
+type SubmitGradePayload = {
+  student_id: string
+  class_id: string
+  school_year: string
+  semester: Semester
+  grading_period: GradingPeriod
+  grade: number
+  remarks: string | null
+  encoded_by: string
+}
+
+type SupabaseLikeError = {
+  message?: string | null
+  details?: string | null
+  hint?: string | null
+  code?: string | null
+}
+
+type RawClassRow = Omit<ClassRow, 'subjects'> & {
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
+type RawEnrollmentQueryRow = {
+  student_id: string
+  students: StudentRow[] | StudentRow | null
+}
+
+type InitialQueryState = {
+  classId: string
+  schoolYear: string
+  gradingPeriod: GradingPeriod | null
 }
 
 const ALL_PERIODS: GradingPeriod[] = ['1st', '2nd', '3rd', '4th']
-const ATTENDANCE_COLUMN_COUNT = 10
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    subject_id: row.subject_id,
+    teacher_id: row.teacher_id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    is_active: row.is_active,
+    subjects: getSingleRelation(row.subjects),
+  }
+}
+
+function normalizeEnrollmentRow(row: RawEnrollmentQueryRow): EnrollmentQueryRow {
+  return {
+    student_id: row.student_id,
+    students: getSingleRelation(row.students),
+  }
+}
 
 function getSemesterFromPeriod(period: GradingPeriod): Semester {
   return period === '1st' || period === '2nd' ? '1st Semester' : '2nd Semester'
@@ -124,27 +182,91 @@ function getPeriodSortValue(period: GradingPeriod) {
   return 4
 }
 
-function getMiddleInitial(name?: string | null) {
-  if (!name?.trim()) return ''
-  return `${name.trim().charAt(0).toUpperCase()}.`
+function isValidGradingPeriod(value: string | null): value is GradingPeriod {
+  return value === '1st' || value === '2nd' || value === '3rd' || value === '4th'
 }
 
-function getFullName(
-  lastName?: string | null,
-  firstName?: string | null,
-  middleName?: string | null,
-  suffix?: string | null
-) {
-  const mi = getMiddleInitial(middleName)
-  const base = `${lastName ?? ''}, ${firstName ?? ''}${mi ? ` ${mi}` : ''}`.trim()
-  return suffix?.trim() ? `${base} ${suffix.trim()}` : base
+function readInitialQueryState(): InitialQueryState {
+  if (typeof window === 'undefined') {
+    return {
+      classId: '',
+      schoolYear: '',
+      gradingPeriod: null,
+    }
+  }
+
+  const params = new URLSearchParams(window.location.search)
+  const gradingPeriodValue = params.get('gradingPeriod')
+
+  return {
+    classId: params.get('classId') || '',
+    schoolYear: params.get('schoolYear') || '',
+    gradingPeriod: isValidGradingPeriod(gradingPeriodValue) ? gradingPeriodValue : null,
+  }
 }
 
-function getTeacherName(teacher: TeacherRow | null) {
-  if (!teacher) return 'Teacher'
-  return [teacher.first_name, teacher.middle_name, teacher.last_name, teacher.suffix]
-    .filter(Boolean)
-    .join(' ')
+function getGradeError(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return 'Required'
+
+  const numericGrade = Number(trimmed)
+  if (Number.isNaN(numericGrade)) return 'Invalid number'
+  if (numericGrade < 0 || numericGrade > 100) return 'Must be 0 to 100'
+
+  return null
+}
+
+function getReadableError(error: unknown, fallback: string) {
+  if (!error) return fallback
+  if (typeof error === 'string') return error
+
+  if (typeof error === 'object') {
+    const err = error as SupabaseLikeError
+    return err.message || err.details || err.hint || err.code || fallback
+  }
+
+  return fallback
+}
+
+function debugDbError(label: string, error: unknown, extra?: Record<string, unknown>) {
+  const err = (error ?? {}) as SupabaseLikeError
+
+  console.error(`\n[${label}]`)
+  console.error('message:', err.message ?? null)
+  console.error('details:', err.details ?? null)
+  console.error('hint:', err.hint ?? null)
+  console.error('code:', err.code ?? null)
+
+  if (extra) {
+    for (const [key, value] of Object.entries(extra)) {
+      console.error(`${key}:`, value)
+    }
+  }
+
+  console.error(`[/${label}]\n`)
+}
+
+function formatSubmittedAt(value: string | null) {
+  if (!value) return 'Already submitted'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Already submitted'
+  return `Submitted on ${date.toLocaleString()}`
+}
+
+function normalizeGradeInput(value: string) {
+  let next = value.replace(/[^\d.]/g, '')
+  const parts = next.split('.')
+
+  if (parts.length > 2) {
+    next = `${parts[0]}.${parts.slice(1).join('')}`
+  }
+
+  const normalizedParts = next.split('.')
+  if (normalizedParts[1]?.length > 2) {
+    next = `${normalizedParts[0]}.${normalizedParts[1].slice(0, 2)}`
+  }
+
+  return next
 }
 
 function getHonorLabel(grade?: number | null) {
@@ -162,92 +284,83 @@ function getHonorLabel(grade?: number | null) {
   return 'Invalid Grade'
 }
 
-function getReportTitle(reportType: ReportType) {
-  if (reportType === 'class_list_only') return 'Official Class List'
-  if (reportType === 'class_list_with_grades') return 'Official Class List with Grades'
-  return 'Official Attendance Sheet'
+function getStatusToneClasses(tone: 'success' | 'warning' | 'danger' | 'info') {
+  if (tone === 'success') return 'border-green-200 bg-green-50 text-green-800'
+  if (tone === 'danger') return 'border-red-200 bg-red-50 text-red-700'
+  if (tone === 'warning') return 'border-yellow-200 bg-yellow-50 text-yellow-900'
+  return 'border-blue-200 bg-blue-50 text-blue-800'
 }
 
-function getReportToast(reportType: ReportType) {
-  if (reportType === 'class_list_only') return 'Class list loaded.'
-  if (reportType === 'class_list_with_grades') return 'Class list with grades loaded.'
-  return 'Attendance sheet loaded.'
+function getInputToneClasses(hasError: boolean) {
+  if (hasError) {
+    return 'border-red-300 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-100'
+  }
+
+  return 'border-gray-300 focus:border-green-700 focus:ring-green-200'
 }
 
-function getGenderSortValue(gender: string) {
-  if (gender === 'Male') return 0
-  if (gender === 'Female') return 1
-  return 2
-}
-
-function StatCard({
-  title,
-  value,
-  subtitle,
-}: {
-  title: string
-  value: string | number
-  subtitle: string
-}) {
-  return (
-    <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="mt-2 text-3xl font-bold text-green-950">{value}</p>
-      <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
-    </div>
-  )
-}
-
-export default function TeacherReportsPage() {
+export default function TeacherGradesPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const printRef = useRef<HTMLDivElement | null>(null)
 
-  const classIdFromQuery = searchParams.get('classId') || ''
+  const initializedRef = useRef(false)
+  const restrictionToastKeyRef = useRef('')
+  const queryStateRef = useRef<InitialQueryState>({
+    classId: '',
+    schoolYear: '',
+    gradingPeriod: null,
+  })
 
   const [loading, setLoading] = useState(true)
-  const [printing, setPrinting] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   const [teacher, setTeacher] = useState<TeacherRow | null>(null)
+  const [profileId, setProfileId] = useState('')
+
   const [academicYears, setAcademicYears] = useState<AcademicYearRow[]>([])
   const [selectedSchoolYear, setSelectedSchoolYear] = useState('')
   const [selectedGradingPeriod, setSelectedGradingPeriod] = useState<GradingPeriod>('1st')
   const [availablePeriods, setAvailablePeriods] = useState<GradingPeriod[]>(ALL_PERIODS)
 
   const [teacherClasses, setTeacherClasses] = useState<ClassRow[]>([])
-  const [classMetaMap, setClassMetaMap] = useState<Record<string, ClassCardMeta>>({})
-  const [selectedClassId, setSelectedClassId] = useState(classIdFromQuery)
+  const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedClass, setSelectedClass] = useState<ClassRow | null>(null)
 
-  const [rows, setRows] = useState<ReportRow[]>([])
+  const [gradingWindow, setGradingWindow] = useState<GradingWindowRow | null>(null)
+  const [gradeSubmission, setGradeSubmission] = useState<GradeSubmissionRow | null>(null)
+  const [savedGradeCount, setSavedGradeCount] = useState(0)
+
+  const [rows, setRows] = useState<StudentGradeInput[]>([])
+  const [search, setSearch] = useState('')
   const [classSearch, setClassSearch] = useState('')
-  const [studentSearch, setStudentSearch] = useState('')
-  const [selectedReportType, setSelectedReportType] = useState<ReportType>('class_list_only')
 
   const selectedSemester = useMemo(
     () => getSemesterFromPeriod(selectedGradingPeriod),
     [selectedGradingPeriod]
   )
 
-  const attendanceHeaders = useMemo(
-    () => Array.from({ length: ATTENDANCE_COLUMN_COUNT }, (_, index) => `attendance-${index + 1}`),
-    []
-  )
+  const inconsistentSubmittedState =
+    gradeSubmission?.is_submitted === true && savedGradeCount === 0 && rows.length > 0
+
+  const canEncodeGrades =
+    gradingWindow?.is_open === true &&
+    gradingWindow?.is_locked === false &&
+    (!gradeSubmission?.is_submitted || inconsistentSubmittedState)
 
   const filteredClasses = useMemo(() => {
     const keyword = classSearch.trim().toLowerCase()
     if (!keyword) return teacherClasses
 
     return teacherClasses.filter((item) => {
-      const subjectName = item.subjects?.subject_name?.toLowerCase() ?? ''
-      const subjectCode = item.subjects?.subject_code?.toLowerCase() ?? ''
+      const code = item.subjects?.subject_code?.toLowerCase() ?? ''
+      const name = item.subjects?.subject_name?.toLowerCase() ?? ''
       const gradeLevel = item.grade_level.toLowerCase()
       const section = item.section.toLowerCase()
 
       return (
-        subjectName.includes(keyword) ||
-        subjectCode.includes(keyword) ||
+        code.includes(keyword) ||
+        name.includes(keyword) ||
         gradeLevel.includes(keyword) ||
         section.includes(keyword)
       )
@@ -255,66 +368,127 @@ export default function TeacherReportsPage() {
   }, [teacherClasses, classSearch])
 
   const filteredRows = useMemo(() => {
-    const keyword = studentSearch.trim().toLowerCase()
+    const keyword = search.trim().toLowerCase()
     if (!keyword) return rows
 
     return rows.filter((row) => {
       return (
+        row.student_no.toLowerCase().includes(keyword) ||
         row.full_name.toLowerCase().includes(keyword) ||
         row.gender.toLowerCase().includes(keyword) ||
-        row.grade_and_section.toLowerCase().includes(keyword) ||
         row.grade.toLowerCase().includes(keyword) ||
         row.remarks.toLowerCase().includes(keyword)
       )
     })
-  }, [rows, studentSearch])
+  }, [rows, search])
 
-  const averageGrade = useMemo(() => {
-    const numericGrades = rows
-      .map((row) => Number(row.grade))
-      .filter((value) => !Number.isNaN(value))
+  const previewSummary = useMemo(() => {
+    const completed = rows.filter((row) => row.grade.trim() !== '').length
+    const invalid = rows.filter((row) => getGradeError(row.grade) !== null).length
+    const validNumericRows = rows.filter((row) => getGradeError(row.grade) === null)
 
-    if (numericGrades.length === 0) return '—'
+    const average =
+      validNumericRows.length > 0
+        ? (
+            validNumericRows.reduce((sum, row) => sum + Number(row.grade), 0) /
+            validNumericRows.length
+          ).toFixed(2)
+        : '0.00'
 
-    const avg = numericGrades.reduce((sum, value) => sum + value, 0) / numericGrades.length
-    return avg.toFixed(2)
+    return {
+      total: rows.length,
+      completed,
+      invalid,
+      average,
+    }
   }, [rows])
-
-  const reportStats = useMemo(() => {
-    const totalStudents = filteredRows.length
-    const encodedGrades = filteredRows.filter((row) => row.grade.trim() !== '').length
-    const maleCount = filteredRows.filter((row) => row.gender === 'Male').length
-    const femaleCount = filteredRows.filter((row) => row.gender === 'Female').length
-
-    return {
-      totalStudents,
-      encodedGrades,
-      maleCount,
-      femaleCount,
-    }
-  }, [filteredRows])
-
-  const overallStats = useMemo(() => {
-    const totalClasses = filteredClasses.length
-    const totalStudents = filteredClasses.reduce(
-      (sum, item) => sum + (classMetaMap[item.id]?.studentCount ?? 0),
-      0
-    )
-    const totalEncoded = filteredClasses.reduce(
-      (sum, item) => sum + (classMetaMap[item.id]?.encodedCount ?? 0),
-      0
-    )
-
-    return {
-      totalClasses,
-      totalStudents,
-      totalEncoded,
-    }
-  }, [filteredClasses, classMetaMap])
 
   const selectedClassLabel = selectedClass
     ? `${selectedClass.subjects?.subject_code ?? '—'} - ${selectedClass.subjects?.subject_name ?? 'Unnamed Subject'}`
     : 'No class selected'
+
+  const statusMessage = useMemo(() => {
+    if (!selectedClassId) {
+      return {
+        tone: 'info' as const,
+        title: 'Select a class',
+        description: 'Choose a class and start entering grades.',
+      }
+    }
+
+    if (!gradingWindow) {
+      return {
+        tone: 'warning' as const,
+        title: 'No grading window',
+        description: 'This academic year and grading period has no active window yet.',
+      }
+    }
+
+    if (!gradingWindow.is_open) {
+      return {
+        tone: 'warning' as const,
+        title: 'Grading closed',
+        description: 'You can view saved grades, but editing is currently disabled.',
+      }
+    }
+
+    if (gradingWindow.is_locked) {
+      return {
+        tone: 'danger' as const,
+        title: 'Grading locked',
+        description: 'This grading period is locked. Grades are read-only.',
+      }
+    }
+
+    if (inconsistentSubmittedState) {
+      return {
+        tone: 'warning' as const,
+        title: 'Submission needs repair',
+        description:
+          'A submission record exists without saved grade rows. You may resubmit this class.',
+      }
+    }
+
+    if (gradeSubmission?.is_submitted) {
+      return {
+        tone: 'success' as const,
+        title: 'Already submitted',
+        description: `${formatSubmittedAt(
+          gradeSubmission.submitted_at
+        )}. These grades are now read-only.`,
+      }
+    }
+
+    return {
+      tone: 'success' as const,
+      title: 'Ready to submit',
+      description: 'You can enter grades and submit this class now.',
+    }
+  }, [selectedClassId, gradingWindow, gradeSubmission, inconsistentSubmittedState])
+
+  const resetGradeState = () => {
+    setSelectedClass(null)
+    setRows([])
+    setGradeSubmission(null)
+    setSavedGradeCount(0)
+  }
+
+  const notifyRestrictionOnce = (message: string) => {
+    if (restrictionToastKeyRef.current === message) return
+    restrictionToastKeyRef.current = message
+    toast.info(message)
+  }
+
+  const getBlockedReason = () => {
+    if (!selectedClassId) return 'Select a class first.'
+    if (!gradingWindow) return 'No grading window found.'
+    if (!gradingWindow.is_open) return 'Grading is closed.'
+    if (gradingWindow.is_locked) return 'This grading period is locked.'
+    if (gradeSubmission?.is_submitted && !inconsistentSubmittedState) {
+      return 'Grades are already submitted.'
+    }
+    return null
+  }
 
   const loadGuard = async () => {
     const {
@@ -323,9 +497,13 @@ export default function TeacherReportsPage() {
     } = await supabase.auth.getUser()
 
     if (userError || !user) {
+      debugDbError('TeacherGradesPage auth.getUser failed', userError)
+      toast.error('Please log in first.')
       router.replace('/login')
       return null
     }
+
+    setProfileId(user.id)
 
     const { data: profileData, error: profileError } = await supabase
       .from('profiles')
@@ -334,6 +512,9 @@ export default function TeacherReportsPage() {
       .maybeSingle()
 
     if (profileError || !profileData) {
+      debugDbError('TeacherGradesPage profiles lookup failed', profileError, {
+        userId: user.id,
+      })
       toast.error('Failed to load profile.')
       router.replace('/login')
       return null
@@ -349,22 +530,29 @@ export default function TeacherReportsPage() {
     }
 
     if (profileRow.must_change_password) {
+      toast.info('Please change your password first.')
       router.replace('/change-password')
       return null
     }
 
     if (profileRow.role !== 'teacher') {
+      toast.error('Teachers only.')
       router.replace('/login')
       return null
     }
 
     const { data: teacherData, error: teacherError } = await supabase
       .from('teachers')
-      .select('id, profile_id, teacher_no, first_name, middle_name, last_name, suffix, is_active')
+      .select(
+        'id, profile_id, teacher_no, first_name, middle_name, last_name, suffix, is_active'
+      )
       .eq('profile_id', user.id)
       .maybeSingle()
 
     if (teacherError || !teacherData) {
+      debugDbError('TeacherGradesPage teachers lookup failed', teacherError, {
+        userId: user.id,
+      })
       toast.error('Teacher record not found.')
       router.replace('/login')
       return null
@@ -389,25 +577,24 @@ export default function TeacherReportsPage() {
       .order('school_year', { ascending: false })
 
     if (error) {
-      toast.error(error.message)
+      debugDbError('TeacherGradesPage academic_years load failed', error)
+      toast.error(getReadableError(error, 'Failed to load academic years.'))
       setAcademicYears([])
       return []
     }
 
     const yearRows = (data ?? []) as AcademicYearRow[]
     setAcademicYears(yearRows)
-
-    if (yearRows.length > 0) {
-      const active = yearRows.find((row) => row.is_active)
-      setSelectedSchoolYear((prev) => prev || active?.school_year || yearRows[0].school_year)
-    }
-
     return yearRows
   }
 
-  const loadWindowsAndCurrentPeriod = async (schoolYear: string) => {
+  const loadWindowsAndCurrentPeriod = async (
+    schoolYear: string,
+    options?: { preserveSelectedPeriod?: boolean }
+  ) => {
     if (!schoolYear) {
       setAvailablePeriods(ALL_PERIODS)
+      setGradingWindow(null)
       return
     }
 
@@ -417,8 +604,12 @@ export default function TeacherReportsPage() {
       .eq('school_year', schoolYear)
 
     if (error) {
-      toast.error(error.message)
+      debugDbError('TeacherGradesPage grading_windows load failed', error, {
+        schoolYear,
+      })
+      toast.error(getReadableError(error, 'Failed to load grading windows.'))
       setAvailablePeriods(ALL_PERIODS)
+      setGradingWindow(null)
       return
     }
 
@@ -430,6 +621,10 @@ export default function TeacherReportsPage() {
 
     setAvailablePeriods(uniquePeriods.length > 0 ? uniquePeriods : ALL_PERIODS)
 
+    if (options?.preserveSelectedPeriod) {
+      return
+    }
+
     const openWindow =
       windowRows
         .filter((row) => row.is_open && !row.is_locked)
@@ -438,12 +633,51 @@ export default function TeacherReportsPage() {
         )[0] ?? null
 
     const fallbackWindow =
-      windowRows.sort(
-        (a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
-      )[0] ?? null
+      windowRows
+        .slice()
+        .sort(
+          (a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
+        )[0] ?? null
 
     const chosenWindow = openWindow ?? fallbackWindow
-    setSelectedGradingPeriod(chosenWindow?.grading_period ?? '1st')
+
+    if (chosenWindow) {
+      setSelectedGradingPeriod(chosenWindow.grading_period)
+      setGradingWindow(chosenWindow)
+    } else {
+      setSelectedGradingPeriod('1st')
+      setGradingWindow(null)
+    }
+  }
+
+  const loadSpecificWindow = async (schoolYear: string, gradingPeriod: GradingPeriod) => {
+    if (!schoolYear) {
+      setGradingWindow(null)
+      return
+    }
+
+    const semester = getSemesterFromPeriod(gradingPeriod)
+
+    const { data, error } = await supabase
+      .from('grading_windows')
+      .select('id, school_year, semester, grading_period, is_open, is_locked')
+      .eq('school_year', schoolYear)
+      .eq('semester', semester)
+      .eq('grading_period', gradingPeriod)
+      .maybeSingle()
+
+    if (error) {
+      debugDbError('TeacherGradesPage specific grading_window load failed', error, {
+        schoolYear,
+        gradingPeriod,
+        semester,
+      })
+      toast.error(getReadableError(error, 'Failed to load grading window.'))
+      setGradingWindow(null)
+      return
+    }
+
+    setGradingWindow((data as GradingWindowRow | null) ?? null)
   }
 
   const loadTeacherClasses = async (
@@ -455,7 +689,7 @@ export default function TeacherReportsPage() {
 
     if (!teacherId || !schoolYear) {
       setTeacherClasses([])
-      setClassMetaMap({})
+      setSelectedClassId('')
       return
     }
 
@@ -480,102 +714,48 @@ export default function TeacherReportsPage() {
       .eq('school_year', schoolYear)
       .eq('semester', semester)
       .eq('is_active', true)
-      .order('grade_level', { ascending: true })
       .order('section', { ascending: true })
 
     if (error) {
-      toast.error(error.message)
+      debugDbError('TeacherGradesPage classes load failed', error, {
+        teacherId,
+        schoolYear,
+        gradingPeriod,
+        semester,
+      })
+      toast.error(getReadableError(error, 'Failed to load classes.'))
       setTeacherClasses([])
-      setClassMetaMap({})
       return
     }
 
-    const classRows = (data ?? []) as ClassRow[]
+    const classRows = ((data ?? []) as RawClassRow[]).map(normalizeClassRow)
     setTeacherClasses(classRows)
 
     if (classRows.length === 0) {
-      setClassMetaMap({})
       setSelectedClassId('')
       return
     }
 
-    const classIds = classRows.map((item) => item.id)
-
-    const [enrollmentsResult, gradesResult] = await Promise.all([
-      supabase
-        .from('enrollments')
-        .select('class_id, student_id')
-        .eq('school_year', schoolYear)
-        .eq('semester', semester)
-        .in('class_id', classIds),
-      supabase
-        .from('grades')
-        .select('class_id, student_id')
-        .eq('school_year', schoolYear)
-        .eq('semester', semester)
-        .eq('grading_period', gradingPeriod)
-        .in('class_id', classIds),
-    ])
-
-    if (enrollmentsResult.error) {
-      toast.error(enrollmentsResult.error.message)
-      setClassMetaMap({})
-      return
-    }
-
-    if (gradesResult.error) {
-      toast.error(gradesResult.error.message)
-      setClassMetaMap({})
-      return
-    }
-
-    const enrollmentMap = new Map<string, Set<string>>()
-    const gradeMap = new Map<string, Set<string>>()
-
-    for (const row of enrollmentsResult.data ?? []) {
-      const classId = (row as { class_id: string; student_id: string }).class_id
-      const studentId = (row as { class_id: string; student_id: string }).student_id
-      if (!enrollmentMap.has(classId)) enrollmentMap.set(classId, new Set())
-      enrollmentMap.get(classId)!.add(studentId)
-    }
-
-    for (const row of gradesResult.data ?? []) {
-      const classId = (row as { class_id: string; student_id: string }).class_id
-      const studentId = (row as { class_id: string; student_id: string }).student_id
-      if (!gradeMap.has(classId)) gradeMap.set(classId, new Set())
-      gradeMap.get(classId)!.add(studentId)
-    }
-
-    const nextMeta: Record<string, ClassCardMeta> = {}
-    classRows.forEach((item) => {
-      nextMeta[item.id] = {
-        studentCount: (enrollmentMap.get(item.id) ?? new Set()).size,
-        encodedCount: (gradeMap.get(item.id) ?? new Set()).size,
+    setSelectedClassId((prev) => {
+      if (!prev) {
+        return queryStateRef.current.classId || classRows[0].id
       }
+
+      const stillExists = classRows.some((item) => item.id === prev)
+      return stillExists ? prev : classRows[0]?.id ?? ''
     })
-    setClassMetaMap(nextMeta)
-
-    if (!selectedClassId && classRows.length > 0) {
-      setSelectedClassId(classRows[0].id)
-    }
-
-    if (selectedClassId && !classRows.some((item) => item.id === selectedClassId)) {
-      setSelectedClassId(classRows[0]?.id ?? '')
-    }
   }
 
-  const loadReportData = async (
+  const loadSelectedClassData = async (
     teacherId: string,
     schoolYear: string,
     gradingPeriod: GradingPeriod,
-    classId: string,
-    reportType?: ReportType
+    classId: string
   ) => {
     const semester = getSemesterFromPeriod(gradingPeriod)
 
     if (!teacherId || !schoolYear || !classId) {
-      setSelectedClass(null)
-      setRows([])
+      resetGradeState()
       return
     }
 
@@ -603,33 +783,39 @@ export default function TeacherReportsPage() {
       .maybeSingle()
 
     if (classError || !classData) {
+      debugDbError('TeacherGradesPage selected class load failed', classError, {
+        teacherId,
+        schoolYear,
+        gradingPeriod,
+        semester,
+        classId,
+      })
       toast.error('Class not found.')
-      setSelectedClass(null)
-      setRows([])
+      resetGradeState()
       return
     }
 
-    setSelectedClass(classData as ClassRow)
+    setSelectedClass(normalizeClassRow(classData as RawClassRow))
 
-    const [enrollmentsResult, gradesResult] = await Promise.all([
+    const [enrollmentsResult, gradesResult, submissionResult] = await Promise.all([
       supabase
         .from('enrollments')
         .select(`
           student_id,
           students:student_id (
             id,
+            student_no,
             first_name,
             middle_name,
             last_name,
             suffix,
-            gender,
-            grade_level,
-            section
+            gender
           )
         `)
         .eq('class_id', classId)
         .eq('school_year', schoolYear)
         .eq('semester', semester),
+
       supabase
         .from('grades')
         .select('student_id, grade, remarks')
@@ -637,97 +823,158 @@ export default function TeacherReportsPage() {
         .eq('school_year', schoolYear)
         .eq('semester', semester)
         .eq('grading_period', gradingPeriod),
+
+      supabase
+        .from('grade_submissions')
+        .select('id, is_submitted, submitted_at')
+        .eq('class_id', classId)
+        .eq('school_year', schoolYear)
+        .eq('term', semester)
+        .eq('grading_period', gradingPeriod)
+        .maybeSingle(),
     ])
 
     if (enrollmentsResult.error) {
-      toast.error(enrollmentsResult.error.message)
+      debugDbError('TeacherGradesPage enrollments load failed', enrollmentsResult.error, {
+        classId,
+        schoolYear,
+        semester,
+      })
+      toast.error(getReadableError(enrollmentsResult.error, 'Failed to load students.'))
       setRows([])
+      setSavedGradeCount(0)
       return
     }
 
     if (gradesResult.error) {
-      toast.error(gradesResult.error.message)
+      debugDbError('TeacherGradesPage grades load failed', gradesResult.error, {
+        classId,
+        schoolYear,
+        semester,
+        gradingPeriod,
+      })
+      toast.error(getReadableError(gradesResult.error, 'Failed to load grades.'))
       setRows([])
+      setSavedGradeCount(0)
       return
     }
 
-    const enrollments = (enrollmentsResult.data ?? []) as EnrollmentQueryRow[]
+    if (submissionResult.error) {
+      debugDbError(
+        'TeacherGradesPage grade_submissions load failed',
+        submissionResult.error,
+        {
+          classId,
+          schoolYear,
+          semester,
+          gradingPeriod,
+        }
+      )
+      toast.error(getReadableError(submissionResult.error, 'Failed to load submission status.'))
+      setRows([])
+      setSavedGradeCount(0)
+      return
+    }
+
+    const enrollments = ((enrollmentsResult.data ?? []) as RawEnrollmentQueryRow[]).map(
+      normalizeEnrollmentRow
+    )
     const grades = (gradesResult.data ?? []) as GradeRow[]
+    const submissionData = (submissionResult.data as GradeSubmissionRow | null) ?? null
+
+    setGradeSubmission(submissionData)
+    setSavedGradeCount(grades.length)
 
     const gradeMap = new Map<string, GradeRow>()
-    grades.forEach((item) => {
-      gradeMap.set(item.student_id, item)
-    })
+    grades.forEach((item) => gradeMap.set(item.student_id, item))
 
-    const builtRows: ReportRow[] = enrollments
+    const builtRows: StudentGradeInput[] = enrollments
       .filter((item) => item.students)
       .map((item) => {
         const student = item.students as StudentRow
-        const gradeRow = gradeMap.get(student.id)
-
-        const numericGrade =
-          gradeRow?.grade !== undefined && gradeRow?.grade !== null
-            ? Number(gradeRow.grade)
-            : null
+        const existingGrade = gradeMap.get(student.id)
 
         return {
           student_id: student.id,
-          full_name: getFullName(
-            student.last_name,
-            student.first_name,
-            student.middle_name,
-            student.suffix
-          ),
+          student_no: student.student_no ?? '',
+          full_name: formatFullName(student),
           gender: student.gender ?? '—',
-          grade_and_section: `${student.grade_level ?? (classData as ClassRow).grade_level ?? ''} - ${student.section ?? (classData as ClassRow).section ?? ''}`.trim(),
-          grade: numericGrade !== null ? String(numericGrade) : '',
-          remarks: gradeRow?.remarks?.trim() || getHonorLabel(numericGrade),
-          last_name_sort: (student.last_name ?? '').trim().toLowerCase(),
-          first_name_sort: (student.first_name ?? '').trim().toLowerCase(),
+          grade:
+            existingGrade?.grade !== undefined && existingGrade?.grade !== null
+              ? String(existingGrade.grade)
+              : '',
+          remarks: existingGrade?.remarks ?? '',
         }
       })
-      .sort((a, b) => {
-        const genderCompare = getGenderSortValue(a.gender) - getGenderSortValue(b.gender)
-        if (genderCompare !== 0) return genderCompare
-
-        const lastNameCompare = a.last_name_sort.localeCompare(b.last_name_sort)
-        if (lastNameCompare !== 0) return lastNameCompare
-
-        return a.first_name_sort.localeCompare(b.first_name_sort)
-      })
+      .sort((a, b) => a.full_name.localeCompare(b.full_name))
 
     setRows(builtRows)
 
-    if (builtRows.length === 0) {
-      toast.warning('No students found.')
-    } else if (reportType) {
-      toast.success(getReportToast(reportType))
+    if (submissionData?.is_submitted && grades.length === 0 && enrollments.length > 0) {
+      toast.warning(
+        'Submission exists but no saved grades were found. You may resubmit to repair this class.'
+      )
     }
   }
 
   useEffect(() => {
+    queryStateRef.current = readInitialQueryState()
+
     const initialize = async () => {
       setLoading(true)
-      const teacherRow = await loadGuard()
-      if (!teacherRow) return
 
-      const years = await loadAcademicYears()
-      const activeYear = years.find((row) => row.is_active)?.school_year || years[0]?.school_year
-
-      if (activeYear) {
-        await loadWindowsAndCurrentPeriod(activeYear)
+      if (queryStateRef.current.classId) {
+        setSelectedClassId(queryStateRef.current.classId)
       }
 
+      if (queryStateRef.current.schoolYear) {
+        setSelectedSchoolYear(queryStateRef.current.schoolYear)
+      }
+
+      if (queryStateRef.current.gradingPeriod) {
+        setSelectedGradingPeriod(queryStateRef.current.gradingPeriod)
+      }
+
+      const teacherRow = await loadGuard()
+      if (!teacherRow) {
+        setLoading(false)
+        return
+      }
+
+      const years = await loadAcademicYears()
+      const activeYear =
+        queryStateRef.current.schoolYear ||
+        years.find((row) => row.is_active)?.school_year ||
+        years[0]?.school_year ||
+        ''
+
+      if (activeYear) {
+        setSelectedSchoolYear((prev) => prev || activeYear)
+        await loadWindowsAndCurrentPeriod(activeYear, {
+          preserveSelectedPeriod: Boolean(queryStateRef.current.gradingPeriod),
+        })
+      }
+
+      initializedRef.current = true
       setLoading(false)
+      toast.success('Grade encoding page loaded.')
     }
 
     initialize()
   }, [])
 
   useEffect(() => {
-    if (!selectedSchoolYear) return
-    loadWindowsAndCurrentPeriod(selectedSchoolYear)
+    if (!initializedRef.current || !selectedSchoolYear) return
+
+    loadWindowsAndCurrentPeriod(selectedSchoolYear, {
+      preserveSelectedPeriod: Boolean(queryStateRef.current.gradingPeriod),
+    })
   }, [selectedSchoolYear])
+
+  useEffect(() => {
+    if (!selectedSchoolYear) return
+    loadSpecificWindow(selectedSchoolYear, selectedGradingPeriod)
+  }, [selectedSchoolYear, selectedGradingPeriod])
 
   useEffect(() => {
     if (!teacher?.id || !selectedSchoolYear) return
@@ -735,856 +982,988 @@ export default function TeacherReportsPage() {
   }, [teacher?.id, selectedSchoolYear, selectedGradingPeriod])
 
   useEffect(() => {
-    if (!teacher?.id || !selectedSchoolYear || !selectedClassId) return
-    loadReportData(teacher.id, selectedSchoolYear, selectedGradingPeriod, selectedClassId)
-  }, [teacher?.id, selectedSchoolYear, selectedGradingPeriod, selectedClassId])
+    if (!teacher?.id || !selectedSchoolYear || !selectedClassId) {
+      if (!selectedClassId) resetGradeState()
+      return
+    }
 
-  const openPreview = async (classId: string) => {
-    setSelectedClassId(classId)
-    setPreviewOpen(true)
-    setStudentSearch('')
-
-    if (!teacher?.id || !selectedSchoolYear) return
-
-    await loadReportData(
+    loadSelectedClassData(
       teacher.id,
       selectedSchoolYear,
       selectedGradingPeriod,
-      classId,
-      selectedReportType
+      selectedClassId
+    )
+  }, [teacher?.id, selectedSchoolYear, selectedGradingPeriod, selectedClassId])
+
+  useEffect(() => {
+    restrictionToastKeyRef.current = ''
+  }, [selectedClassId, selectedSchoolYear, selectedGradingPeriod])
+
+  useEffect(() => {
+    if (loading || !selectedClassId) return
+
+    if (!gradingWindow) {
+      notifyRestrictionOnce('No grading window found.')
+      return
+    }
+
+    if (!gradingWindow.is_open) {
+      notifyRestrictionOnce('Grading is closed.')
+      return
+    }
+
+    if (gradingWindow.is_locked) {
+      notifyRestrictionOnce('This grading period is locked.')
+      return
+    }
+
+    if (inconsistentSubmittedState) {
+      notifyRestrictionOnce('Submission exists without grades. You may resubmit.')
+      return
+    }
+
+    if (gradeSubmission?.is_submitted) {
+      notifyRestrictionOnce('Grades are already submitted.')
+    }
+  }, [loading, selectedClassId, gradingWindow, gradeSubmission, inconsistentSubmittedState])
+
+  const handleClassSelect = async (classId: string) => {
+    setSelectedClassId(classId)
+
+    if (!teacher?.id || !selectedSchoolYear || !classId) return
+
+    const chosenClass = teacherClasses.find((item) => item.id === classId)
+
+    toast.loading('Loading class data...', { id: 'load-class' })
+
+    await loadSelectedClassData(
+      teacher.id,
+      selectedSchoolYear,
+      selectedGradingPeriod,
+      classId
+    )
+
+    toast.dismiss('load-class')
+    toast.success(
+      `${chosenClass?.subjects?.subject_code ?? 'Class'} • ${chosenClass?.section ?? ''} loaded.`
     )
   }
 
-  const handlePrint = () => {
-    setPrinting(true)
-    setTimeout(() => {
-      window.print()
-      setPrinting(false)
-    }, 250)
+  const handleRowChange = (studentId: string, field: 'grade' | 'remarks', value: string) => {
+    const blockedReason = getBlockedReason()
+    if (blockedReason) {
+      toast.warning(blockedReason)
+      return
+    }
+
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.student_id !== studentId) return row
+
+        if (field === 'grade') {
+          return {
+            ...row,
+            grade: normalizeGradeInput(value),
+          }
+        }
+
+        return {
+          ...row,
+          remarks: value,
+        }
+      })
+    )
   }
 
-  const handleQuickDownload = async (classId: string) => {
-    await openPreview(classId)
-    toast.success('Preparing print-friendly report...')
-    setTimeout(() => {
-      window.print()
-    }, 350)
+  const applyAutomaticRemarks = () => {
+    const blockedReason = getBlockedReason()
+    if (blockedReason) {
+      toast.warning(blockedReason)
+      return
+    }
+
+    setRows((prev) =>
+      prev.map((row) => {
+        const error = getGradeError(row.grade)
+        if (error !== null) return row
+
+        return {
+          ...row,
+          remarks: getHonorLabel(Number(row.grade)),
+        }
+      })
+    )
+
+    toast.success('Remarks updated from grade values.')
+  }
+
+  const validateRows = () => {
+    if (!rows.length) return 'No students found in this class.'
+
+    const withEnteredGrades = rows.filter((row) => row.grade.trim() !== '')
+    if (withEnteredGrades.length === 0) {
+      return 'Please enter at least one grade.'
+    }
+
+    for (const row of rows) {
+      const error = getGradeError(row.grade)
+      if (error === 'Required') return `Please enter a grade for ${row.full_name}.`
+      if (error === 'Invalid number') return `Invalid grade for ${row.full_name}.`
+      if (error === 'Must be 0 to 100') {
+        return `Grade for ${row.full_name} must be between 0 and 100.`
+      }
+    }
+
+    return null
+  }
+
+  const buildGradesPayload = (): SubmitGradePayload[] => {
+    return rows
+      .filter((row) => row.grade.trim() !== '')
+      .map((row) => ({
+        student_id: row.student_id,
+        class_id: selectedClassId,
+        school_year: selectedSchoolYear,
+        semester: selectedSemester,
+        grading_period: selectedGradingPeriod,
+        grade: Number(Number(row.grade).toFixed(2)),
+        remarks: row.remarks.trim() || null,
+        encoded_by: profileId,
+      }))
+  }
+
+  const saveDraftOnly = async () => {
+    if (!teacher || !profileId) {
+      toast.error('Teacher account not loaded.')
+      return
+    }
+
+    const blockedReason = getBlockedReason()
+    if (blockedReason && blockedReason !== 'Grades are already submitted.') {
+      toast.warning(blockedReason)
+      return
+    }
+
+    const validationError = validateRows()
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
+    setSavingDraft(true)
+    toast.loading('Saving grades...', { id: 'save-draft' })
+
+    try {
+      const gradesPayload = buildGradesPayload()
+
+      const { error } = await supabase.from('grades').upsert(gradesPayload, {
+        onConflict: 'student_id,class_id,school_year,semester,grading_period',
+      })
+
+      if (error) {
+        debugDbError('TeacherGradesPage saveDraft grades upsert failed', error, {
+          payload: JSON.stringify(gradesPayload, null, 2),
+        })
+        toast.dismiss('save-draft')
+        toast.error(getReadableError(error, 'Failed to save grades.'))
+        return
+      }
+
+      toast.success('Draft grades saved.', { id: 'save-draft' })
+
+      if (teacher.id && selectedSchoolYear && selectedClassId) {
+        await loadSelectedClassData(
+          teacher.id,
+          selectedSchoolYear,
+          selectedGradingPeriod,
+          selectedClassId
+        )
+      }
+
+      toast.info('Saved grades reloaded.')
+    } catch (error) {
+      debugDbError('TeacherGradesPage saveDraft unexpected error', error)
+      toast.dismiss('save-draft')
+      toast.error(getReadableError(error, 'Unexpected save error.'))
+    } finally {
+      setSavingDraft(false)
+    }
+  }
+
+  const openPreviewModal = () => {
+    if (!selectedClassId || !selectedSchoolYear) {
+      toast.error('Please select a class first.')
+      return
+    }
+
+    if (!selectedClass) {
+      toast.error('Please select a valid class first.')
+      return
+    }
+
+    if (!gradingWindow) {
+      toast.error('No grading window found.')
+      return
+    }
+
+    if (!gradingWindow.is_open) {
+      toast.warning('Grading is closed.')
+      return
+    }
+
+    if (gradingWindow.is_locked) {
+      toast.warning('This grading period is locked.')
+      return
+    }
+
+    if (gradeSubmission?.is_submitted && !inconsistentSubmittedState) {
+      toast.warning('Grades are already submitted.')
+      return
+    }
+
+    const validationError = validateRows()
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
+    if (inconsistentSubmittedState) {
+      toast.warning('Repair mode enabled. Review carefully before resubmitting.')
+    } else {
+      toast.success('Preview ready.')
+    }
+
+    setShowPreviewModal(true)
+  }
+
+  const handleFinalSubmit = async () => {
+    if (!teacher || !profileId) {
+      toast.error('Teacher account not loaded.')
+      return
+    }
+
+    if (!selectedClassId || !selectedSchoolYear) {
+      toast.error('Please select a class first.')
+      return
+    }
+
+    if (!selectedClass) {
+      toast.error('Selected class could not be loaded.')
+      return
+    }
+
+    if (!gradingWindow) {
+      toast.error('No grading window found.')
+      return
+    }
+
+    if (!gradingWindow.is_open) {
+      toast.error('Submission blocked. Grading is closed.')
+      return
+    }
+
+    if (gradingWindow.is_locked) {
+      toast.error('Submission blocked. This period is locked.')
+      return
+    }
+
+    if (gradeSubmission?.is_submitted && !inconsistentSubmittedState) {
+      toast.warning('Grades were already submitted.')
+      setShowPreviewModal(false)
+      return
+    }
+
+    const validationError = validateRows()
+    if (validationError) {
+      toast.error(validationError)
+      return
+    }
+
+    setSubmitting(true)
+    toast.loading('Submitting grades...', { id: 'submit-grades' })
+
+    try {
+      const gradesPayload = buildGradesPayload()
+
+      const { error: gradesError } = await supabase.from('grades').upsert(gradesPayload, {
+        onConflict: 'student_id,class_id,school_year,semester,grading_period',
+      })
+
+      if (gradesError) {
+        debugDbError('TeacherGradesPage submit grades upsert failed', gradesError, {
+          payload: JSON.stringify(gradesPayload, null, 2),
+        })
+        toast.dismiss('submit-grades')
+        toast.error(getReadableError(gradesError, 'Failed to save grades.'))
+        return
+      }
+
+      toast.success('Grades saved to database.', { id: 'submit-grades' })
+
+      const { count: verifiedCount, error: verifyGradesError } = await supabase
+        .from('grades')
+        .select('*', { count: 'exact', head: true })
+        .eq('class_id', selectedClassId)
+        .eq('school_year', selectedSchoolYear)
+        .eq('semester', selectedSemester)
+        .eq('grading_period', selectedGradingPeriod)
+
+      if (verifyGradesError) {
+        debugDbError('TeacherGradesPage verify grades failed', verifyGradesError, {
+          selectedClassId,
+          selectedSchoolYear,
+          selectedSemester,
+          selectedGradingPeriod,
+        })
+        toast.dismiss('submit-grades')
+        toast.error(getReadableError(verifyGradesError, 'Failed to verify grades.'))
+        return
+      }
+
+      if (!verifiedCount || verifiedCount === 0) {
+        toast.dismiss('submit-grades')
+        toast.error('No saved grades found after save.')
+        return
+      }
+
+      toast.success(`Verified ${verifiedCount} saved grade row(s).`)
+
+      const submissionPayload = {
+        class_id: selectedClassId,
+        teacher_id: teacher.id,
+        school_year: selectedSchoolYear,
+        term: selectedSemester,
+        grading_period: selectedGradingPeriod,
+        is_submitted: true,
+        submitted_by: profileId,
+        submitted_at: new Date().toISOString(),
+      }
+
+      const { error: submissionError } = await supabase
+        .from('grade_submissions')
+        .upsert(submissionPayload, {
+          onConflict: 'class_id,school_year,term,grading_period',
+        })
+
+      if (submissionError) {
+        debugDbError('TeacherGradesPage grade_submissions upsert failed', submissionError, {
+          payload: JSON.stringify(submissionPayload, null, 2),
+        })
+        toast.dismiss('submit-grades')
+        toast.error(getReadableError(submissionError, 'Failed to mark submission.'))
+        return
+      }
+
+      toast.success('Submission record created.')
+
+      const logPayload = {
+        profile_id: profileId,
+        action: 'submit_grades',
+        entity_type: 'grades',
+        entity_id: selectedClassId,
+        details: {
+          class_id: selectedClassId,
+          school_year: selectedSchoolYear,
+          semester: selectedSemester,
+          grading_period: selectedGradingPeriod,
+          total_students: rows.length,
+          verified_rows: verifiedCount,
+          subject: selectedClass.subjects?.subject_name ?? null,
+          subject_code: selectedClass.subjects?.subject_code ?? null,
+          section: selectedClass.section ?? null,
+        },
+      }
+
+      const { error: logError } = await supabase.from('activity_logs').insert(logPayload)
+
+      if (logError) {
+        debugDbError('TeacherGradesPage activity_logs insert failed', logError, {
+          payload: JSON.stringify(logPayload, null, 2),
+        })
+        toast.warning('Grades submitted, but activity log was not saved.')
+      } else {
+        toast.success('Activity log saved.')
+      }
+
+      toast.dismiss('submit-grades')
+      toast.success('Grades submitted successfully.')
+      setShowPreviewModal(false)
+
+      await loadSelectedClassData(
+        teacher.id,
+        selectedSchoolYear,
+        selectedGradingPeriod,
+        selectedClassId
+      )
+
+      toast.info('Latest saved grades reloaded.')
+    } catch (error) {
+      debugDbError('TeacherGradesPage unexpected submit error', error)
+      toast.dismiss('submit-grades')
+      toast.error(getReadableError(error, 'Unexpected submit error.'))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-xl">
-          <p className="text-sm text-gray-500">Loading reports...</p>
+          <p className="text-sm text-gray-500">Loading grade encoding...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <style jsx global>{`
-        @page {
-          size: A4 portrait;
-          margin: 12mm;
-        }
-
-        @media print {
-          html,
-          body {
-            background: white !important;
-          }
-
-          header,
-          aside,
-          .no-print {
-            display: none !important;
-          }
-
-          main {
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-
-          .print-only-area {
-            display: block !important;
-          }
-
-          .print-container {
-            box-shadow: none !important;
-            border: none !important;
-            margin: 0 !important;
-            border-radius: 0 !important;
-          }
-
-          .print-page {
-            padding: 0 !important;
-          }
-
-          .page-break-inside-avoid {
-            break-inside: avoid;
-          }
-
-          .attendance-name {
-            font-size: 11px !important;
-          }
-        }
-      `}</style>
-
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="no-print overflow-hidden rounded-[28px] bg-gradient-to-r from-green-950 via-green-900 to-green-800 p-6 text-white shadow-xl"
-      >
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-green-50 ring-1 ring-white/10">
-              <FileText className="h-3.5 w-3.5" />
-              Teacher Reports
+    <>
+      <div className="space-y-6">
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 p-5 text-white shadow-xl sm:p-6"
+        >
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-300">Teacher Grades</p>
+              <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Grade Encoding</h1>
+              <p className="mt-2 max-w-2xl text-sm text-green-50/90">
+                Encode, save, preview, and submit grades with fewer clicks and clearer status.
+              </p>
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              Better reports, faster workflow
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-green-50/90 sm:text-base">
-              Choose a class, open a clean report preview in a modal, then print or save as PDF without leaving the page.
-            </p>
-          </div>
 
-          <button
-            type="button"
-            onClick={handlePrint}
-            disabled={!selectedClass}
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 font-semibold text-green-900 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Printer className="h-4 w-4" />
-            {printing ? 'Preparing...' : 'Print Current Report'}
-          </button>
-        </div>
-      </motion.section>
-
-      <section className="no-print grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          title="Classes"
-          value={overallStats.totalClasses}
-          subtitle="Filtered classes ready for reports"
-        />
-        <StatCard
-          title="Students"
-          value={overallStats.totalStudents}
-          subtitle="Combined students in shown classes"
-        />
-        <StatCard
-          title="Encoded Grades"
-          value={overallStats.totalEncoded}
-          subtitle="Existing grade records for this period"
-        />
-        <StatCard
-          title="Selected Period"
-          value={`${selectedGradingPeriod}`}
-          subtitle={`${selectedSemester} of ${selectedSchoolYear || '—'}`}
-        />
-      </section>
-
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="no-print rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
-      >
-        <div className="grid gap-4 xl:grid-cols-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Academic Year</label>
-            <select
-              value={selectedSchoolYear}
-              onChange={(e) => setSelectedSchoolYear(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-            >
-              <option value="">Select academic year</option>
-              {academicYears.map((year) => (
-                <option key={year.id} value={year.school_year}>
-                  {year.school_year}
-                  {year.is_active ? ' (Active)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Grading Period</label>
-            <select
-              value={selectedGradingPeriod}
-              onChange={(e) => setSelectedGradingPeriod(e.target.value as GradingPeriod)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-            >
-              {availablePeriods.map((period) => (
-                <option key={period} value={period}>
-                  {period} Grading Period
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Default Report Type</label>
-            <select
-              value={selectedReportType}
-              onChange={(e) => setSelectedReportType(e.target.value as ReportType)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-            >
-              <option value="class_list_only">Class List Only</option>
-              <option value="class_list_with_grades">Class List with Grades</option>
-              <option value="attendance_sheet">Attendance Sheet</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Search Class</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={classSearch}
-                onChange={(e) => setClassSearch(e.target.value)}
-                placeholder="Search subject, code, grade, or section"
-                className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-              />
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
+                {selectedSchoolYear || 'No Academic Year'}
+              </span>
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
+                {selectedGradingPeriod} Grading Period
+              </span>
+              <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
+                {selectedSemester}
+              </span>
             </div>
           </div>
-        </div>
-      </motion.section>
+        </motion.section>
 
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="no-print rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
-      >
-        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-green-900">Classes ready for reporting</h2>
-            <p className="text-sm text-gray-600">
-              Open a clean preview modal or quickly print a report for any class.
-            </p>
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        >
+          <div className="grid gap-4 xl:grid-cols-[220px_220px_1fr]">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Academic Year
+              </label>
+              <select
+                value={selectedSchoolYear}
+                onChange={(e) => {
+                  setSelectedSchoolYear(e.target.value)
+                  toast.success('Academic year updated.')
+                }}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              >
+                <option value="">Select academic year</option>
+                {academicYears.map((year) => (
+                  <option key={year.id} value={year.school_year}>
+                    {year.school_year}
+                    {year.is_active ? ' (Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Grading Period
+              </label>
+              <select
+                value={selectedGradingPeriod}
+                onChange={(e) => {
+                  const value = e.target.value as GradingPeriod
+                  setSelectedGradingPeriod(value)
+                  queryStateRef.current.gradingPeriod = value
+                  toast.success(`${value} period selected.`)
+                }}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              >
+                {availablePeriods.map((period) => (
+                  <option key={period} value={period}>
+                    {period} Grading Period
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Search Class
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={classSearch}
+                  onChange={(e) => setClassSearch(e.target.value)}
+                  placeholder="Search subject code, name, grade, or section"
+                  className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
-            <Users className="h-4 w-4" />
-            {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
+          <div className="mt-5">
+            <div
+              className={`rounded-2xl border p-4 text-sm ${getStatusToneClasses(
+                statusMessage.tone
+              )}`}
+            >
+              <div className="flex items-start gap-3">
+                {statusMessage.tone === 'danger' ? (
+                  <Lock className="mt-0.5 h-4 w-4 shrink-0" />
+                ) : statusMessage.tone === 'success' ? (
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                ) : statusMessage.tone === 'warning' ? (
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                ) : (
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                )}
+                <div>
+                  <p className="font-semibold">{statusMessage.title}</p>
+                  <p className="mt-1">{statusMessage.description}</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </motion.section>
 
-        {filteredClasses.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-            No classes found for this selection.
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        >
+          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-green-900">Your Classes</h2>
+              <p className="text-sm text-gray-600">
+                Pick a class once and start entering grades right away.
+              </p>
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+              <Users className="h-4 w-4" />
+              {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
+            </div>
           </div>
-        ) : (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {filteredClasses.map((item) => {
-              const isSelected = item.id === selectedClassId
-              const meta = classMetaMap[item.id] ?? { studentCount: 0, encodedCount: 0 }
 
-              return (
-                <div
-                  key={item.id}
-                  className={`rounded-3xl border p-5 shadow-sm transition ${
-                    isSelected
-                      ? 'border-green-300 bg-green-50/70'
-                      : 'border-green-100 bg-white hover:border-green-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <h3 className="text-lg font-bold text-green-950">
+          {filteredClasses.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
+              No classes found for this selection.
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              {filteredClasses.map((item) => {
+                const isSelected = item.id === selectedClassId
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleClassSelect(item.id)}
+                    className={`rounded-2xl border p-5 text-left transition ${
+                      isSelected
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-green-100 bg-white hover:border-green-200 hover:bg-green-50/50'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg font-bold text-green-900">
                         {item.subjects?.subject_name ?? 'Unnamed Subject'}
                       </h3>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
-                          {item.subjects?.subject_code ?? '—'}
-                        </span>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
-                          {item.grade_level}
-                        </span>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700 ring-1 ring-gray-200">
-                          Section {item.section}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isSelected && (
-                      <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-                        Selected
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
+                        {item.subjects?.subject_code ?? '—'}
                       </span>
-                    )}
-                  </div>
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
-                      <p className="mt-1 text-2xl font-bold text-green-950">{meta.studentCount}</p>
                     </div>
-                    <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Encoded</p>
-                      <p className="mt-1 text-2xl font-bold text-green-950">{meta.encodedCount}</p>
+
+                    <div className="mt-3 grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
+                      <p>
+                        Grade Level: <span className="font-medium">{item.grade_level}</span>
+                      </p>
+                      <p>
+                        Section: <span className="font-medium">{item.section}</span>
+                      </p>
+                      <p>
+                        Academic Year: <span className="font-medium">{item.school_year}</span>
+                      </p>
+                      <p>
+                        Semester: <span className="font-medium">{item.semester}</span>
+                      </p>
                     </div>
-                  </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </motion.section>
 
-                  <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => openPreview(item.id)}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-green-700 bg-white px-4 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-50"
-                    >
-                      <Eye className="h-4 w-4" />
-                      Open Preview
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDownload(item.id)}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
-                    >
-                      <Download className="h-4 w-4" />
-                      Print / Save PDF
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </motion.section>
-
-      <div className="print-only-area hidden">
-        <div className="print-container rounded-3xl border border-green-100 bg-white shadow-sm">
-          <div ref={printRef} className="print-page p-6 sm:p-8">
-            <div className="page-break-inside-avoid">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex w-20 items-start justify-start">
-                  <Image
-                    src="/DePed-logo.png"
-                    alt="DepEd Logo"
-                    width={72}
-                    height={72}
-                    className="h-[68px] w-[68px] object-contain"
-                    priority
-                  />
-                </div>
-
-                <div className="flex-1 text-center">
-                  <p className="text-sm text-gray-700">Republic of the Philippines</p>
-                  <p className="text-lg font-bold text-gray-900">Department of Education</p>
-                  <p className="mt-1 text-2xl font-bold tracking-wide text-green-900">
-                    Qorban Institute of Technology Training and Assessment Center, Inc
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-gray-700">
-                    {getReportTitle(selectedReportType)}
-                  </p>
-                </div>
-
-                <div className="flex w-20 items-start justify-end">
-                  <Image
-                    src="/logo.jpg"
-                    alt="Qorban Logo"
-                    width={72}
-                    height={72}
-                    className="h-[68px] w-[68px] object-contain"
-                    priority
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-x-8 gap-y-2 border-y border-gray-300 py-4 text-sm text-gray-800 sm:grid-cols-2">
-                <p>
-                  <span className="font-semibold">Teacher:</span> {getTeacherName(teacher)}
-                </p>
-                <p>
-                  <span className="font-semibold">Teacher No:</span> {teacher?.teacher_no ?? '—'}
-                </p>
-                <p>
-                  <span className="font-semibold">Academic Year:</span> {selectedSchoolYear || '—'}
-                </p>
-                <p>
-                  <span className="font-semibold">Period:</span> {selectedGradingPeriod} Grading Period
-                </p>
-                <p>
-                  <span className="font-semibold">Subject:</span> {selectedClassLabel}
-                </p>
-                <p>
-                  <span className="font-semibold">Grade / Section:</span>{' '}
-                  {selectedClass ? `${selectedClass.grade_level} / ${selectedClass.section}` : '—'}
-                </p>
-                <p>
-                  <span className="font-semibold">Semester:</span> {selectedSemester}
-                </p>
-                <p>
-                  <span className="font-semibold">Report Type:</span> {getReportTitle(selectedReportType)}
-                </p>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                  <Users className="h-4 w-4" />
-                  {filteredRows.length} student{filteredRows.length !== 1 ? 's' : ''}
-                </div>
-
-                {selectedReportType === 'class_list_with_grades' && (
-                  <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                    <FileText className="h-4 w-4" />
-                    Average Grade: {averageGrade}
-                  </div>
-                )}
-              </div>
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        >
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-green-900">{selectedClassLabel}</h2>
+              <p className="text-sm text-gray-600">
+                {selectedClass
+                  ? `${selectedClass.grade_level} • Section ${selectedClass.section} • ${selectedSemester}`
+                  : 'Select a class to begin.'}
+              </p>
             </div>
 
-            {filteredRows.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-                No report data found for this selection.
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm">
+                <p className="text-gray-500">Students</p>
+                <p className="font-bold text-green-900">{previewSummary.total}</p>
               </div>
-            ) : (
-              <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-300">
-                <table className="w-full table-fixed border-collapse">
-                  <colgroup>
-                    <col className="w-[52px]" />
-                    <col className={selectedReportType === 'attendance_sheet' ? 'w-[34%]' : 'w-[40%]'} />
-                    <col className={selectedReportType === 'attendance_sheet' ? 'w-[16%]' : 'w-[20%]'} />
+              <div className="rounded-2xl border border-green-100 bg-white px-4 py-3 text-sm">
+                <p className="text-gray-500">Completed</p>
+                <p className="font-bold text-green-900">{previewSummary.completed}</p>
+              </div>
+              <div className="rounded-2xl border border-green-100 bg-white px-4 py-3 text-sm">
+                <p className="text-gray-500">Invalid</p>
+                <p className="font-bold text-green-900">{previewSummary.invalid}</p>
+              </div>
+              <div className="rounded-2xl border border-green-100 bg-white px-4 py-3 text-sm">
+                <p className="text-gray-500">Average</p>
+                <p className="font-bold text-green-900">{previewSummary.average}</p>
+              </div>
+            </div>
+          </div>
 
-                    {(selectedReportType === 'class_list_only' ||
-                      selectedReportType === 'class_list_with_grades') && <col className="w-[12%]" />}
+          {rows.length > 0 && (
+            <div className="mt-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="relative max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search student number, name, gender, grade, or remarks"
+                  className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                />
+              </div>
 
-                    {selectedReportType === 'class_list_with_grades' && (
-                      <>
-                        <col className="w-[10%]" />
-                        <col className="w-[18%]" />
-                      </>
-                    )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={applyAutomaticRemarks}
+                  disabled={!canEncodeGrades}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-700 bg-white px-4 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Auto Remarks
+                </button>
 
-                    {selectedReportType === 'attendance_sheet' &&
-                      attendanceHeaders.map((label) => <col key={label} className="w-[5%]" />)}
-                  </colgroup>
+                <button
+                  type="button"
+                  onClick={saveDraftOnly}
+                  disabled={savingDraft || submitting || !canEncodeGrades}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingDraft ? 'Saving...' : 'Save Draft'}
+                </button>
 
-                  <thead className="bg-green-50">
-                    <tr>
-                      <th className="border border-gray-300 px-2 py-3 text-center text-sm font-semibold text-green-900">No.</th>
-                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Full Name</th>
-                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade & Section</th>
+                <button
+                  type="button"
+                  onClick={openPreviewModal}
+                  disabled={submitting || !canEncodeGrades}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Send className="h-4 w-4" />
+                  Review & Submit
+                </button>
+              </div>
+            </div>
+          )}
 
-                      {(selectedReportType === 'class_list_only' ||
-                        selectedReportType === 'class_list_with_grades') && (
-                        <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Gender</th>
-                      )}
+          {rows.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
+              No enrolled students found for this class.
+            </div>
+          ) : (
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-green-100">
+              <table className="min-w-full">
+                <thead className="bg-green-50">
+                  <tr>
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                      Student No
+                    </th>
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                      Student Name
+                    </th>
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                      Gender
+                    </th>
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                      Grade
+                    </th>
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                      Remarks
+                    </th>
+                  </tr>
+                </thead>
 
-                      {selectedReportType === 'class_list_with_grades' && (
-                        <>
-                          <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade</th>
-                          <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Remarks</th>
-                        </>
-                      )}
+                <tbody>
+                  {filteredRows.map((row) => {
+                    const gradeError = getGradeError(row.grade)
+                    const hasGradeError = row.grade.trim() !== '' && gradeError !== null
 
-                      {selectedReportType === 'attendance_sheet' &&
-                        attendanceHeaders.map((label) => (
-                          <th
-                            key={label}
-                            className="border border-gray-300 px-1 py-4 text-center text-sm font-semibold text-green-900"
-                          >
-                            &nbsp;
-                          </th>
-                        ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredRows.map((row, index) => (
-                      <tr key={row.student_id}>
-                        <td className="border border-gray-300 px-2 py-3 text-center text-sm text-gray-700 align-middle">
-                          {index + 1}
+                    return (
+                      <tr key={row.student_id} className="border-t border-gray-100">
+                        <td className="px-4 py-4 text-sm text-gray-700">
+                          {row.student_no || '—'}
                         </td>
 
-                        <td
-                          className={`border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words ${
-                            selectedReportType === 'attendance_sheet' ? 'attendance-name' : ''
-                          }`}
-                        >
-                          {row.full_name}
+                        <td className="px-4 py-4 text-sm font-medium text-green-950">
+                          <div className="flex items-center gap-2">
+                            <span>{row.full_name}</span>
+                            {hasGradeError && (
+                              <AlertTriangle className="h-4 w-4 text-red-500" />
+                            )}
+                          </div>
                         </td>
 
-                        <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                          {row.grade_and_section || '—'}
+                        <td className="px-4 py-4 text-sm text-gray-700">
+                          {row.gender || '—'}
                         </td>
 
-                        {(selectedReportType === 'class_list_only' ||
-                          selectedReportType === 'class_list_with_grades') && (
-                          <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                            {row.gender || '—'}
-                          </td>
-                        )}
+                        <td className="px-4 py-4">
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              value={row.grade}
+                              disabled={!canEncodeGrades}
+                              onChange={(e) =>
+                                handleRowChange(row.student_id, 'grade', e.target.value)
+                              }
+                              onClick={() => {
+                                const reason = getBlockedReason()
+                                if (reason) toast.warning(reason)
+                              }}
+                              className={`w-28 rounded-xl border px-3 py-2 outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:bg-gray-100 ${getInputToneClasses(
+                                hasGradeError
+                              )}`}
+                              placeholder="0 - 100"
+                            />
+                            {hasGradeError && (
+                              <p className="text-xs text-red-600">{gradeError}</p>
+                            )}
+                          </div>
+                        </td>
 
-                        {selectedReportType === 'class_list_with_grades' && (
-                          <>
-                            <td className="border border-gray-300 px-3 py-3 text-sm font-medium text-gray-900 align-middle">
-                              {row.grade || '—'}
-                            </td>
-                            <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words">
-                              {row.remarks || '—'}
-                            </td>
-                          </>
-                        )}
-
-                        {selectedReportType === 'attendance_sheet' &&
-                          attendanceHeaders.map((label) => (
-                            <td
-                              key={`${row.student_id}-${label}`}
-                              className="h-12 border border-gray-300 px-1 py-3 align-middle"
-                            >
-                              &nbsp;
-                            </td>
-                          ))}
+                        <td className="px-4 py-4">
+                          <input
+                            value={row.remarks}
+                            disabled={!canEncodeGrades}
+                            onChange={(e) =>
+                              handleRowChange(row.student_id, 'remarks', e.target.value)
+                            }
+                            onClick={() => {
+                              const reason = getBlockedReason()
+                              if (reason) toast.warning(reason)
+                            }}
+                            className="w-full min-w-[180px] rounded-xl border border-gray-300 px-3 py-2 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            placeholder="Optional remarks"
+                          />
+                        </td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="mt-12 grid gap-10 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-gray-600">Prepared by:</p>
-                <div className="mt-12 border-t border-gray-500 pt-2">
-                  <p className="text-sm font-semibold text-gray-900">{getTeacherName(teacher)}</p>
-                  <p className="text-xs text-gray-600">Subject Teacher</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-600">Date Generated:</p>
-                <div className="mt-12 border-t border-gray-500 pt-2">
-                  <p className="text-sm font-semibold text-gray-900">{new Date().toLocaleDateString()}</p>
-                  <p className="text-xs text-gray-600">System Generated Report</p>
-                </div>
-              </div>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
+          )}
+        </motion.section>
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-green-800" />
+              <h3 className="font-bold text-green-900">Fast Flow</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              Select class, encode grades, then submit. Draft save is available anytime.
+            </p>
           </div>
-        </div>
+
+          <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <Lock className="h-5 w-5 text-green-800" />
+              <h3 className="font-bold text-green-900">Safe Rules</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              Editing is blocked only when grading is closed, locked, or already submitted.
+            </p>
+          </div>
+
+          <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <FileWarning className="h-5 w-5 text-green-800" />
+              <h3 className="font-bold text-green-900">Clean Save Logic</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              Grades are saved first, verified, then marked as submitted in grade submissions.
+            </p>
+          </div>
+        </section>
       </div>
 
       <AnimatePresence>
-        {previewOpen && (
+        {showPreviewModal && (
           <motion.div
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/40 px-4 py-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="no-print fixed inset-0 z-50 bg-black/50 p-3 sm:p-6"
           >
-            <div className="flex h-full items-center justify-center">
-              <motion.div
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.98 }}
-                className="flex h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl"
-              >
-                <div className="flex flex-col gap-4 border-b border-green-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-bold text-green-950">Report Preview</h2>
-                    <p className="mt-1 truncate text-sm text-gray-500">{selectedClassLabel}</p>
+            <motion.div
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 16, scale: 0.98 }}
+              className="mx-auto w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            >
+              <div className="border-b border-gray-100 px-6 py-4">
+                <p className="text-sm font-medium text-yellow-600">Submission Preview</p>
+                <h2 className="text-2xl font-bold text-green-900">
+                  Review Before Final Submit
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  These grades will be saved and then marked as submitted.
+                </p>
+              </div>
+
+              <div className="px-6 py-5">
+                <div className="grid gap-4 md:grid-cols-4">
+                  <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+                    <p className="text-sm text-gray-500">Total Students</p>
+                    <p className="mt-1 text-2xl font-bold text-green-900">
+                      {previewSummary.total}
+                    </p>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePrint}
-                      className="inline-flex items-center gap-2 rounded-xl border border-green-700 bg-white px-4 py-2 text-sm font-semibold text-green-800 transition hover:bg-green-50"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Print / PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewOpen(false)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
-                    >
-                      <X className="h-4 w-4" />
-                      Close
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 border-b border-green-100 px-5 py-4 xl:grid-cols-[220px_260px_1fr]">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Report Type</label>
-                    <select
-                      value={selectedReportType}
-                      onChange={async (e) => {
-                        const nextType = e.target.value as ReportType
-                        setSelectedReportType(nextType)
-
-                        if (teacher?.id && selectedSchoolYear && selectedClassId) {
-                          await loadReportData(
-                            teacher.id,
-                            selectedSchoolYear,
-                            selectedGradingPeriod,
-                            selectedClassId,
-                            nextType
-                          )
-                        }
-                      }}
-                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                    >
-                      <option value="class_list_only">Class List Only</option>
-                      <option value="class_list_with_grades">Class List with Grades</option>
-                      <option value="attendance_sheet">Attendance Sheet</option>
-                    </select>
+                  <div className="rounded-2xl border border-green-100 bg-white p-4">
+                    <p className="text-sm text-gray-500">Completed</p>
+                    <p className="mt-1 text-2xl font-bold text-green-900">
+                      {previewSummary.completed}
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Search Student</label>
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <input
-                        value={studentSearch}
-                        onChange={(e) => setStudentSearch(e.target.value)}
-                        placeholder="Search student in preview"
-                        className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                      />
-                    </div>
+                  <div className="rounded-2xl border border-green-100 bg-white p-4">
+                    <p className="text-sm text-gray-500">Average</p>
+                    <p className="mt-1 text-2xl font-bold text-green-900">
+                      {previewSummary.average}
+                    </p>
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
-                      <p className="mt-1 text-xl font-bold text-green-950">{reportStats.totalStudents}</p>
-                    </div>
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Male</p>
-                      <p className="mt-1 text-xl font-bold text-green-950">{reportStats.maleCount}</p>
-                    </div>
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Female</p>
-                      <p className="mt-1 text-xl font-bold text-green-950">{reportStats.femaleCount}</p>
-                    </div>
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                        {selectedReportType === 'class_list_with_grades' ? 'Average' : 'Encoded'}
-                      </p>
-                      <p className="mt-1 text-xl font-bold text-green-950">
-                        {selectedReportType === 'class_list_with_grades' ? averageGrade : reportStats.encodedGrades}
-                      </p>
-                    </div>
+                  <div className="rounded-2xl border border-green-100 bg-white p-4">
+                    <p className="text-sm text-gray-500">Invalid Rows</p>
+                    <p className="mt-1 text-2xl font-bold text-green-900">
+                      {previewSummary.invalid}
+                    </p>
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-auto bg-gray-50 p-4 sm:p-6">
-                  <div className="print-container mx-auto max-w-5xl rounded-3xl border border-green-100 bg-white shadow-sm">
-                    <div ref={printRef} className="print-page p-6 sm:p-8">
-                      <div className="page-break-inside-avoid">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex w-20 items-start justify-start">
-                            <Image
-                              src="/DePed-logo.png"
-                              alt="DepEd Logo"
-                              width={72}
-                              height={72}
-                              className="h-[68px] w-[68px] object-contain"
-                              priority
-                            />
-                          </div>
-
-                          <div className="flex-1 text-center">
-                            <p className="text-sm text-gray-700">Republic of the Philippines</p>
-                            <p className="text-lg font-bold text-gray-900">Department of Education</p>
-                            <p className="mt-1 text-2xl font-bold tracking-wide text-green-900">
-                              Qorban Institute of Technology Training and Assessment Center, Inc
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-gray-700">
-                              {getReportTitle(selectedReportType)}
-                            </p>
-                          </div>
-
-                          <div className="flex w-20 items-start justify-end">
-                            <Image
-                              src="/logo.jpg"
-                              alt="Qorban Logo"
-                              width={72}
-                              height={72}
-                              className="h-[68px] w-[68px] object-contain"
-                              priority
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-5 grid gap-x-8 gap-y-2 border-y border-gray-300 py-4 text-sm text-gray-800 sm:grid-cols-2">
-                          <p>
-                            <span className="font-semibold">Teacher:</span> {getTeacherName(teacher)}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Teacher No:</span> {teacher?.teacher_no ?? '—'}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Academic Year:</span> {selectedSchoolYear || '—'}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Period:</span> {selectedGradingPeriod} Grading Period
-                          </p>
-                          <p>
-                            <span className="font-semibold">Subject:</span> {selectedClassLabel}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Grade / Section:</span>{' '}
-                            {selectedClass ? `${selectedClass.grade_level} / ${selectedClass.section}` : '—'}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Semester:</span> {selectedSemester}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Report Type:</span>{' '}
-                            {getReportTitle(selectedReportType)}
-                          </p>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-                          <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                            <Users className="h-4 w-4" />
-                            {filteredRows.length} student{filteredRows.length !== 1 ? 's' : ''}
-                          </div>
-
-                          {selectedReportType === 'class_list_with_grades' && (
-                            <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                              <FileSpreadsheet className="h-4 w-4" />
-                              Average Grade: {averageGrade}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {filteredRows.length === 0 ? (
-                        <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-                          No report data found for this selection.
-                        </div>
-                      ) : (
-                        <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-300">
-                          <table className="w-full table-fixed border-collapse">
-                            <colgroup>
-                              <col className="w-[52px]" />
-                              <col className={selectedReportType === 'attendance_sheet' ? 'w-[34%]' : 'w-[40%]'} />
-                              <col className={selectedReportType === 'attendance_sheet' ? 'w-[16%]' : 'w-[20%]'} />
-
-                              {(selectedReportType === 'class_list_only' ||
-                                selectedReportType === 'class_list_with_grades') && <col className="w-[12%]" />}
-
-                              {selectedReportType === 'class_list_with_grades' && (
-                                <>
-                                  <col className="w-[10%]" />
-                                  <col className="w-[18%]" />
-                                </>
-                              )}
-
-                              {selectedReportType === 'attendance_sheet' &&
-                                attendanceHeaders.map((label) => <col key={label} className="w-[5%]" />)}
-                            </colgroup>
-
-                            <thead className="bg-green-50">
-                              <tr>
-                                <th className="border border-gray-300 px-2 py-3 text-center text-sm font-semibold text-green-900">No.</th>
-                                <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Full Name</th>
-                                <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade & Section</th>
-
-                                {(selectedReportType === 'class_list_only' ||
-                                  selectedReportType === 'class_list_with_grades') && (
-                                  <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Gender</th>
-                                )}
-
-                                {selectedReportType === 'class_list_with_grades' && (
-                                  <>
-                                    <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade</th>
-                                    <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Remarks</th>
-                                  </>
-                                )}
-
-                                {selectedReportType === 'attendance_sheet' &&
-                                  attendanceHeaders.map((label) => (
-                                    <th
-                                      key={label}
-                                      className="border border-gray-300 px-1 py-4 text-center text-sm font-semibold text-green-900"
-                                    >
-                                      &nbsp;
-                                    </th>
-                                  ))}
-                              </tr>
-                            </thead>
-
-                            <tbody>
-                              {filteredRows.map((row, index) => (
-                                <tr key={row.student_id}>
-                                  <td className="border border-gray-300 px-2 py-3 text-center text-sm text-gray-700 align-middle">
-                                    {index + 1}
-                                  </td>
-
-                                  <td
-                                    className={`border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words ${
-                                      selectedReportType === 'attendance_sheet' ? 'attendance-name' : ''
-                                    }`}
-                                  >
-                                    {row.full_name}
-                                  </td>
-
-                                  <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                                    {row.grade_and_section || '—'}
-                                  </td>
-
-                                  {(selectedReportType === 'class_list_only' ||
-                                    selectedReportType === 'class_list_with_grades') && (
-                                    <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                                      {row.gender || '—'}
-                                    </td>
-                                  )}
-
-                                  {selectedReportType === 'class_list_with_grades' && (
-                                    <>
-                                      <td className="border border-gray-300 px-3 py-3 text-sm font-medium text-gray-900 align-middle">
-                                        {row.grade || '—'}
-                                      </td>
-                                      <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words">
-                                        {row.remarks || '—'}
-                                      </td>
-                                    </>
-                                  )}
-
-                                  {selectedReportType === 'attendance_sheet' &&
-                                    attendanceHeaders.map((label) => (
-                                      <td
-                                        key={`${row.student_id}-${label}`}
-                                        className="h-12 border border-gray-300 px-1 py-3 align-middle"
-                                      >
-                                        &nbsp;
-                                      </td>
-                                    ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      <div className="mt-12 grid gap-10 sm:grid-cols-2">
-                        <div>
-                          <p className="text-sm text-gray-600">Prepared by:</p>
-                          <div className="mt-12 border-t border-gray-500 pt-2">
-                            <p className="text-sm font-semibold text-gray-900">{getTeacherName(teacher)}</p>
-                            <p className="text-xs text-gray-600">Subject Teacher</p>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-gray-600">Date Generated:</p>
-                          <div className="mt-12 border-t border-gray-500 pt-2">
-                            <p className="text-sm font-semibold text-gray-900">{new Date().toLocaleDateString()}</p>
-                            <p className="text-xs text-gray-600">System Generated Report</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-gray-700">
+                  <p>
+                    <span className="font-semibold text-green-900">Class:</span>{' '}
+                    {selectedClassLabel}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-green-900">Academic Year:</span>{' '}
+                    {selectedSchoolYear}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-green-900">Semester:</span>{' '}
+                    {selectedSemester}
+                  </p>
+                  <p className="mt-1">
+                    <span className="font-semibold text-green-900">Grading Period:</span>{' '}
+                    {selectedGradingPeriod}
+                  </p>
                 </div>
-              </motion.div>
-            </div>
+
+                <div className="mt-5 max-h-[420px] overflow-auto rounded-2xl border border-green-100">
+                  <table className="min-w-full">
+                    <thead className="bg-green-50">
+                      <tr>
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                          Student No
+                        </th>
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                          Student Name
+                        </th>
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                          Grade
+                        </th>
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                          Remarks
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr key={row.student_id} className="border-t border-gray-100">
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {row.student_no || '—'}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-green-950">
+                            {row.full_name}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{row.grade}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">
+                            {row.remarks || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
+                  Grades will be saved first, then verified, then recorded as submitted.
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-gray-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPreviewModal(false)
+                    toast.info('Preview closed.')
+                  }}
+                  disabled={submitting}
+                  className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleFinalSubmit}
+                  disabled={submitting || previewSummary.invalid > 0}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {submitting ? 'Submitting...' : 'Confirm and Submit'}
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   )
 }

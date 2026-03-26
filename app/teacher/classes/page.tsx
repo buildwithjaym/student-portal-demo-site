@@ -59,6 +59,18 @@ type ClassRow = {
   subjects: SubjectRow | null
 }
 
+type RawClassRow = {
+  id: string
+  subject_id: string
+  teacher_id: string | null
+  grade_level: 'Grade 11' | 'Grade 12'
+  section: string
+  school_year: string
+  semester: '1st Semester' | '2nd Semester'
+  is_active: boolean
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
 type EnrollmentRow = {
   class_id: string
   student_id: string
@@ -88,6 +100,25 @@ type MyClassRow = {
 
 const ALL_SEMESTERS = 'All Semesters'
 const ALL_PERIODS = 'All Periods'
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    subject_id: row.subject_id,
+    teacher_id: row.teacher_id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    is_active: row.is_active,
+    subjects: getSingleRelation(row.subjects),
+  }
+}
 
 function SummaryCard({
   title,
@@ -305,7 +336,7 @@ export default function TeacherClassesPage() {
       return
     }
 
-    const classRows = (classesData ?? []) as ClassRow[]
+    const classRows = ((classesData ?? []) as RawClassRow[]).map(normalizeClassRow)
 
     if (classRows.length === 0) {
       setClasses([])
@@ -346,7 +377,9 @@ export default function TeacherClassesPage() {
     const sectionMap = new Map<string, SectionRow>()
 
     for (const row of enrollments) {
-      if (!enrollmentMap.has(row.class_id)) enrollmentMap.set(row.class_id, new Set())
+      if (!enrollmentMap.has(row.class_id)) {
+        enrollmentMap.set(row.class_id, new Set())
+      }
       enrollmentMap.get(row.class_id)!.add(row.student_id)
     }
 
@@ -421,7 +454,8 @@ export default function TeacherClassesPage() {
               {teacher ? formatFullName(teacher) : 'Teacher'}'s Classes
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-green-50/90 sm:text-base">
-              A teacher view focused on assigned subjects, student count, semester, section strand, and period grouping.
+              A teacher view focused on assigned subjects, student count, semester,
+              section strand, and period grouping.
             </p>
           </div>
 
@@ -475,7 +509,9 @@ export default function TeacherClassesPage() {
 
         <div className="grid gap-4 xl:grid-cols-[220px_220px_220px_1fr]">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Academic Year</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Academic Year
+            </label>
             <select
               value={selectedSchoolYear}
               onChange={(e) => setSelectedSchoolYear(e.target.value)}
@@ -492,7 +528,9 @@ export default function TeacherClassesPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Semester</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Semester
+            </label>
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
@@ -505,7 +543,9 @@ export default function TeacherClassesPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Period</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Period
+            </label>
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -520,7 +560,9 @@ export default function TeacherClassesPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Search</label>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              Search
+            </label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
@@ -542,9 +584,7 @@ export default function TeacherClassesPage() {
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-xl font-bold text-green-900">Assigned Classes</h2>
-            <p className="text-sm text-gray-600">
-              Based on the assigned subjects.
-            </p>
+            <p className="text-sm text-gray-600">Based on the assigned subjects.</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
             <Users className="h-4 w-4" />
@@ -592,7 +632,9 @@ export default function TeacherClassesPage() {
                         <Users className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Students
+                        </p>
                         <p className="text-2xl font-bold text-green-950">{item.studentCount}</p>
                       </div>
                     </div>
@@ -604,7 +646,9 @@ export default function TeacherClassesPage() {
                         <Clock3 className="h-5 w-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Period</p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Period
+                        </p>
                         <p className="text-xl font-bold text-green-950">{item.period}</p>
                       </div>
                     </div>
@@ -621,7 +665,8 @@ export default function TeacherClassesPage() {
                       Strand: <span className="font-medium text-gray-900">{item.strand}</span>
                     </p>
                     <p>
-                      School Year: <span className="font-medium text-gray-900">{item.schoolYear}</span>
+                      School Year:{' '}
+                      <span className="font-medium text-gray-900">{item.schoolYear}</span>
                     </p>
                   </div>
                 </div>

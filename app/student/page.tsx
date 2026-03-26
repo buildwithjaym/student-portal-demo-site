@@ -16,28 +16,39 @@ type StudentRow = {
   section: string
 }
 
+type SubjectRow = {
+  id: string
+  subject_code: string
+  subject_name: string
+}
+
+type TeacherRow = {
+  id: string
+  first_name: string
+  last_name: string
+}
+
+type ClassEnrollmentRelation = {
+  id: string
+  section: string
+  grade_level: string
+  school_year: string
+  semester: string
+  subjects: SubjectRow | null
+  teachers: TeacherRow | null
+}
+
 type EnrollmentRow = {
   id: string
   school_year: string
   semester: string
   class_id: string
-  classes: {
-    id: string
-    section: string
-    grade_level: string
-    school_year: string
-    semester: string
-    subjects: {
-      id: string
-      subject_code: string
-      subject_name: string
-    } | null
-    teachers: {
-      id: string
-      first_name: string
-      last_name: string
-    } | null
-  } | null
+  classes: ClassEnrollmentRelation | null
+}
+
+type ClassGradeRelation = {
+  id: string
+  subjects: SubjectRow | null
 }
 
 type GradeRow = {
@@ -47,14 +58,101 @@ type GradeRow = {
   school_year: string
   grade: number
   remarks: string | null
-  classes: {
-    id: string
-    subjects: {
-      id: string
-      subject_code: string
-      subject_name: string
-    } | null
-  } | null
+  classes: ClassGradeRelation | null
+}
+
+type RawClassEnrollmentRelation = {
+  id: string
+  section: string
+  grade_level: string
+  school_year: string
+  semester: string
+  subjects: SubjectRow[] | SubjectRow | null
+  teachers: TeacherRow[] | TeacherRow | null
+}
+
+type RawEnrollmentRow = {
+  id: string
+  school_year: string
+  semester: string
+  class_id: string
+  classes: RawClassEnrollmentRelation[] | RawClassEnrollmentRelation | null
+}
+
+type RawClassGradeRelation = {
+  id: string
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
+type RawGradeRow = {
+  id: string
+  grading_period: string
+  semester: string
+  school_year: string
+  grade: number
+  remarks: string | null
+  classes: RawClassGradeRelation[] | RawClassGradeRelation | null
+}
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeEnrollmentClass(
+  value: RawClassEnrollmentRelation[] | RawClassEnrollmentRelation | null | undefined
+): ClassEnrollmentRelation | null {
+  const raw = getSingleRelation(value)
+  if (!raw) return null
+
+  return {
+    id: raw.id,
+    section: raw.section,
+    grade_level: raw.grade_level,
+    school_year: raw.school_year,
+    semester: raw.semester,
+    subjects: getSingleRelation(raw.subjects),
+    teachers: getSingleRelation(raw.teachers),
+  }
+}
+
+function normalizeEnrollmentRow(row: RawEnrollmentRow): EnrollmentRow {
+  return {
+    id: row.id,
+    school_year: row.school_year,
+    semester: row.semester,
+    class_id: row.class_id,
+    classes: normalizeEnrollmentClass(row.classes),
+  }
+}
+
+function normalizeGradeClass(
+  value: RawClassGradeRelation[] | RawClassGradeRelation | null | undefined
+): ClassGradeRelation | null {
+  const raw = getSingleRelation(value)
+  if (!raw) return null
+
+  return {
+    id: raw.id,
+    subjects: getSingleRelation(raw.subjects),
+  }
+}
+
+function normalizeGradeRow(row: RawGradeRow): GradeRow {
+  return {
+    id: row.id,
+    grading_period: row.grading_period,
+    semester: row.semester,
+    school_year: row.school_year,
+    grade: Number(row.grade),
+    remarks: row.remarks,
+    classes: normalizeGradeClass(row.classes),
+  }
+}
+
+function formatTeacherName(teacher: TeacherRow | null) {
+  if (!teacher) return 'TBA'
+  return `${teacher.first_name} ${teacher.last_name}`.trim()
 }
 
 export default function StudentDashboardPage() {
@@ -80,8 +178,7 @@ export default function StudentDashboardPage() {
 
         const { data: studentData, error: studentError } = await supabaseStudent
           .from('students')
-          .select(
-            `
+          .select(`
             id,
             profile_id,
             student_no,
@@ -92,8 +189,7 @@ export default function StudentDashboardPage() {
             suffix,
             grade_level,
             section
-          `
-          )
+          `)
           .eq('profile_id', user.id)
           .single()
 
@@ -101,46 +197,51 @@ export default function StudentDashboardPage() {
           throw new Error('Student record not found.')
         }
 
-        if (mounted) setStudent(studentData as StudentRow)
+        if (mounted) {
+          setStudent(studentData as StudentRow)
+        }
 
-        const { data: enrollmentData, error: enrollmentError } =
-          await supabaseStudent
-            .from('enrollments')
-            .select(
-              `
+        const { data: enrollmentData, error: enrollmentError } = await supabaseStudent
+          .from('enrollments')
+          .select(`
+            id,
+            school_year,
+            semester,
+            class_id,
+            classes (
               id,
+              section,
+              grade_level,
               school_year,
               semester,
-              class_id,
-              classes (
+              subjects (
                 id,
-                section,
-                grade_level,
-                school_year,
-                semester,
-                subjects (
-                  id,
-                  subject_code,
-                  subject_name
-                ),
-                teachers (
-                  id,
-                  first_name,
-                  last_name
-                )
+                subject_code,
+                subject_name
+              ),
+              teachers (
+                id,
+                first_name,
+                last_name
               )
-            `
             )
-            .eq('student_id', studentData.id)
-            .order('enrolled_at', { ascending: false })
+          `)
+          .eq('student_id', studentData.id)
+          .order('enrolled_at', { ascending: false })
 
         if (enrollmentError) throw enrollmentError
-        if (mounted) setEnrollments((enrollmentData as EnrollmentRow[]) || [])
+
+        const safeEnrollments = ((enrollmentData ?? []) as RawEnrollmentRow[]).map(
+          normalizeEnrollmentRow
+        )
+
+        if (mounted) {
+          setEnrollments(safeEnrollments)
+        }
 
         const { data: gradesData, error: gradesError } = await supabaseStudent
           .from('grades')
-          .select(
-            `
+          .select(`
             id,
             grading_period,
             semester,
@@ -155,17 +256,27 @@ export default function StudentDashboardPage() {
                 subject_name
               )
             )
-          `
-          )
+          `)
           .eq('student_id', studentData.id)
           .order('created_at', { ascending: false })
 
         if (gradesError) throw gradesError
-        if (mounted) setGrades((gradesData as GradeRow[]) || [])
+
+        const safeGrades = ((gradesData ?? []) as RawGradeRow[]).map(normalizeGradeRow)
+
+        if (mounted) {
+          setGrades(safeGrades)
+        }
       } catch (err: any) {
-        if (mounted) setError(err.message || 'Failed to load dashboard.')
+        if (mounted) {
+          setError(err.message || 'Failed to load dashboard.')
+          setEnrollments([])
+          setGrades([])
+        }
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted) {
+          setLoading(false)
+        }
       }
     }
 
@@ -182,7 +293,7 @@ export default function StudentDashboardPage() {
     return (total / grades.length).toFixed(2)
   }, [grades])
 
-  const latestGrades = grades.slice(0, 5)
+  const latestGrades = useMemo(() => grades.slice(0, 5), [grades])
 
   if (loading) {
     return (
@@ -264,11 +375,7 @@ export default function StudentDashboardPage() {
                       </div>
 
                       <div className="text-sm text-gray-700">
-                        <p>
-                          {teacher
-                            ? `${teacher.first_name} ${teacher.last_name}`
-                            : 'TBA'}
-                        </p>
+                        <p>{formatTeacherName(teacher ?? null)}</p>
                         <p>
                           {classItem?.semester} • {classItem?.school_year}
                         </p>

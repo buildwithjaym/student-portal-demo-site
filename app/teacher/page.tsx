@@ -61,6 +61,10 @@ type ClassRow = {
   subjects: SubjectRow | null
 }
 
+type RawClassRow = Omit<ClassRow, 'subjects'> & {
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
 type EnrollmentRow = {
   class_id: string
   student_id: string
@@ -99,6 +103,25 @@ function getPeriodSortValue(period: GradingPeriod) {
   if (period === '2nd') return 2
   if (period === '3rd') return 3
   return 4
+}
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    subject_id: row.subject_id,
+    teacher_id: row.teacher_id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    is_active: row.is_active,
+    subjects: getSingleRelation(row.subjects),
+  }
 }
 
 export default function TeacherPage() {
@@ -157,19 +180,21 @@ export default function TeacherPage() {
       return null
     }
 
-    if (!profile.is_active) {
+    const profileRow = profile as ProfileRow
+
+    if (!profileRow.is_active) {
       toast.error('Your account is inactive.')
       await supabase.auth.signOut()
       router.replace('/login')
       return null
     }
 
-    if (profile.must_change_password) {
+    if (profileRow.must_change_password) {
       router.replace('/change-password')
       return null
     }
 
-    if (profile.role !== 'teacher') {
+    if (profileRow.role !== 'teacher') {
       router.replace('/login')
       return null
     }
@@ -188,14 +213,16 @@ export default function TeacherPage() {
       return null
     }
 
-    if (!teacherData.is_active) {
+    const teacherRow = teacherData as TeacherRow
+
+    if (!teacherRow.is_active) {
       toast.error('Your teacher account is inactive.')
       router.replace('/login')
       return null
     }
 
-    setTeacher(teacherData as TeacherRow)
-    return teacherData as TeacherRow
+    setTeacher(teacherRow)
+    return teacherRow
   }
 
   const loadAcademicYears = async () => {
@@ -213,7 +240,9 @@ export default function TeacherPage() {
     const rows = (data ?? []) as AcademicYearRow[]
     setAcademicYears(rows)
 
-    const activeYear = rows.find((row) => row.is_active)?.school_year ?? rows[0]?.school_year ?? ''
+    const activeYear =
+      rows.find((row) => row.is_active)?.school_year ?? rows[0]?.school_year ?? ''
+
     setSelectedSchoolYear(activeYear)
   }
 
@@ -248,12 +277,14 @@ export default function TeacherPage() {
     const openWindow =
       rows
         .filter((row) => row.is_open && !row.is_locked)
-        .sort((a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period))[0] ??
-      null
+        .sort(
+          (a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
+        )[0] ?? null
 
     const fallbackWindow =
-      [...rows].sort((a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period))[0] ??
-      null
+      [...rows].sort(
+        (a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
+      )[0] ?? null
 
     const chosen = openWindow ?? fallbackWindow
     setSelectedGradingPeriod(chosen?.grading_period ?? '1st')
@@ -303,7 +334,7 @@ export default function TeacherPage() {
       return
     }
 
-    const classRows = (classesData ?? []) as ClassRow[]
+    const classRows = ((classesData ?? []) as RawClassRow[]).map(normalizeClassRow)
 
     if (classRows.length === 0) {
       setClassProgressRows([])
@@ -320,6 +351,7 @@ export default function TeacherPage() {
         .eq('school_year', schoolYear)
         .eq('semester', semester)
         .in('class_id', classIds),
+
       supabase
         .from('grades')
         .select('class_id, student_id')
@@ -327,6 +359,7 @@ export default function TeacherPage() {
         .eq('semester', semester)
         .eq('grading_period', gradingPeriod)
         .in('class_id', classIds),
+
       supabase
         .from('grade_submissions')
         .select('class_id, is_submitted')
@@ -380,7 +413,8 @@ export default function TeacherPage() {
 
       const totalStudents = enrolled.size
       const encodedGrades = encoded.size
-      const progress = totalStudents > 0 ? Math.round((encodedGrades / totalStudents) * 100) : 0
+      const progress =
+        totalStudents > 0 ? Math.round((encodedGrades / totalStudents) * 100) : 0
 
       return {
         classId: cls.id,
@@ -427,7 +461,9 @@ export default function TeacherPage() {
     const submittedClasses = classProgressRows.filter((row) => row.isSubmitted).length
     const averageProgress =
       assignedClasses > 0
-        ? Math.round(classProgressRows.reduce((sum, row) => sum + row.progress, 0) / assignedClasses)
+        ? Math.round(
+            classProgressRows.reduce((sum, row) => sum + row.progress, 0) / assignedClasses
+          )
         : 0
 
     return {
@@ -450,17 +486,20 @@ export default function TeacherPage() {
     <div className="space-y-6">
       <div className="rounded-3xl bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-green-950">
-          Welcome back, {teacher ? formatFullName(teacher) : 'Teacher'}
+          Welcome back, Teacher {teacher ? formatFullName(teacher) : 'Teacher'}
         </h1>
         <p className="mt-2 text-sm text-gray-600">
-          {selectedSchoolYear || 'No school year'} • {selectedGradingPeriod} Grading Period • {selectedSemester}
+          {selectedSchoolYear || 'No school year'} • {selectedGradingPeriod} Grading Period •{' '}
+          {selectedSemester}
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Assigned Classes</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">{summary.assignedClasses}</p>
+          <p className="mt-2 text-2xl font-bold text-green-950">
+            {summary.assignedClasses}
+          </p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
@@ -470,12 +509,16 @@ export default function TeacherPage() {
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Submitted Classes</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">{summary.submittedClasses}</p>
+          <p className="mt-2 text-2xl font-bold text-green-950">
+            {summary.submittedClasses}
+          </p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Average Progress</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">{summary.averageProgress}%</p>
+          <p className="mt-2 text-2xl font-bold text-green-950">
+            {summary.averageProgress}%
+          </p>
         </div>
       </div>
 

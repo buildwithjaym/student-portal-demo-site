@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AlertTriangle,
   CheckCircle2,
-  Eye,
   FileWarning,
   GraduationCap,
   Info,
@@ -129,7 +128,42 @@ type SupabaseLikeError = {
   code?: string | null
 }
 
+type RawClassRow = Omit<ClassRow, 'subjects'> & {
+  subjects: SubjectRow[] | SubjectRow | null
+}
+
+type RawEnrollmentQueryRow = {
+  student_id: string
+  students: StudentRow[] | StudentRow | null
+}
+
 const ALL_PERIODS: GradingPeriod[] = ['1st', '2nd', '3rd', '4th']
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    subject_id: row.subject_id,
+    teacher_id: row.teacher_id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    is_active: row.is_active,
+    subjects: getSingleRelation(row.subjects),
+  }
+}
+
+function normalizeEnrollmentRow(row: RawEnrollmentQueryRow): EnrollmentQueryRow {
+  return {
+    student_id: row.student_id,
+    students: getSingleRelation(row.students),
+  }
+}
 
 function getSemesterFromPeriod(period: GradingPeriod): Semester {
   return period === '1st' || period === '2nd' ? '1st Semester' : '2nd Semester'
@@ -144,11 +178,9 @@ function getPeriodSortValue(period: GradingPeriod) {
 
 function getGradeError(value: string) {
   const trimmed = value.trim()
-
   if (!trimmed) return 'Required'
 
   const numericGrade = Number(trimmed)
-
   if (Number.isNaN(numericGrade)) return 'Invalid number'
   if (numericGrade < 0 || numericGrade > 100) return 'Must be 0 to 100'
 
@@ -157,7 +189,6 @@ function getGradeError(value: string) {
 
 function getReadableError(error: unknown, fallback: string) {
   if (!error) return fallback
-
   if (typeof error === 'string') return error
 
   if (typeof error === 'object') {
@@ -199,8 +230,8 @@ function formatSubmittedAt(value: string | null) {
 
 function normalizeGradeInput(value: string) {
   let next = value.replace(/[^\d.]/g, '')
-
   const parts = next.split('.')
+
   if (parts.length > 2) {
     next = `${parts[0]}.${parts.slice(1).join('')}`
   }
@@ -254,13 +285,14 @@ export default function TeacherGradesPage() {
 
   const initializedRef = useRef(false)
   const restrictionToastKeyRef = useRef('')
+
   const [loading, setLoading] = useState(true)
   const [savingDraft, setSavingDraft] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   const [teacher, setTeacher] = useState<TeacherRow | null>(null)
-  const [profileId, setProfileId] = useState<string>('')
+  const [profileId, setProfileId] = useState('')
 
   const [academicYears, setAcademicYears] = useState<AcademicYearRow[]>([])
   const [selectedSchoolYear, setSelectedSchoolYear] = useState(schoolYearFromQuery)
@@ -331,7 +363,6 @@ export default function TeacherGradesPage() {
   const previewSummary = useMemo(() => {
     const completed = rows.filter((row) => row.grade.trim() !== '').length
     const invalid = rows.filter((row) => getGradeError(row.grade) !== null).length
-
     const validNumericRows = rows.filter((row) => getGradeError(row.grade) === null)
 
     const average =
@@ -535,9 +566,7 @@ export default function TeacherGradesPage() {
 
     if (yearRows.length > 0) {
       const active = yearRows.find((row) => row.is_active)
-      setSelectedSchoolYear(
-        (prev) => prev || active?.school_year || yearRows[0].school_year
-      )
+      setSelectedSchoolYear((prev) => prev || active?.school_year || yearRows[0].school_year)
     }
 
     return yearRows
@@ -579,18 +608,14 @@ export default function TeacherGradesPage() {
       windowRows
         .filter((row) => row.is_open && !row.is_locked)
         .sort(
-          (a, b) =>
-            getPeriodSortValue(a.grading_period) -
-            getPeriodSortValue(b.grading_period)
+          (a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
         )[0] ?? null
 
     const fallbackWindow =
       windowRows
         .slice()
         .sort(
-          (a, b) =>
-            getPeriodSortValue(a.grading_period) -
-            getPeriodSortValue(b.grading_period)
+          (a, b) => getPeriodSortValue(a.grading_period) - getPeriodSortValue(b.grading_period)
         )[0] ?? null
 
     const chosenWindow = openWindow ?? fallbackWindow
@@ -604,10 +629,7 @@ export default function TeacherGradesPage() {
     }
   }
 
-  const loadSpecificWindow = async (
-    schoolYear: string,
-    gradingPeriod: GradingPeriod
-  ) => {
+  const loadSpecificWindow = async (schoolYear: string, gradingPeriod: GradingPeriod) => {
     if (!schoolYear) {
       setGradingWindow(null)
       return
@@ -684,7 +706,7 @@ export default function TeacherGradesPage() {
       return
     }
 
-    const classRows = (data ?? []) as ClassRow[]
+    const classRows = ((data ?? []) as RawClassRow[]).map(normalizeClassRow)
     setTeacherClasses(classRows)
 
     if (!selectedClassId && classRows.length > 0) {
@@ -746,7 +768,7 @@ export default function TeacherGradesPage() {
       return
     }
 
-    setSelectedClass(classData as ClassRow)
+    setSelectedClass(normalizeClassRow(classData as RawClassRow))
 
     const [enrollmentsResult, gradesResult, submissionResult] = await Promise.all([
       supabase
@@ -827,7 +849,9 @@ export default function TeacherGradesPage() {
       return
     }
 
-    const enrollments = (enrollmentsResult.data ?? []) as EnrollmentQueryRow[]
+    const enrollments = ((enrollmentsResult.data ?? []) as RawEnrollmentQueryRow[]).map(
+      normalizeEnrollmentRow
+    )
     const grades = (gradesResult.data ?? []) as GradeRow[]
     const submissionData = (submissionResult.data as GradeSubmissionRow | null) ?? null
 
@@ -1230,10 +1254,7 @@ export default function TeacherGradesPage() {
 
       toast.success('Grades saved to database.', { id: 'submit-grades' })
 
-      const {
-        count: verifiedCount,
-        error: verifyGradesError,
-      } = await supabase
+      const { count: verifiedCount, error: verifyGradesError } = await supabase
         .from('grades')
         .select('*', { count: 'exact', head: true })
         .eq('class_id', selectedClassId)
