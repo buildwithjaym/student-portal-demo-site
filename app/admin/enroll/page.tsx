@@ -84,10 +84,59 @@ type EnrollmentForm = {
   semester: Semester
 }
 
+type RawClassRow = {
+  id: string
+  grade_level: string
+  section: string
+  school_year: string
+  semester: Semester
+  subjects: SubjectRow[] | SubjectRow | null
+  teachers: TeacherRow[] | TeacherRow | null
+}
+
+type RawEnrollmentRow = {
+  id: string
+  school_year: string
+  semester: Semester
+  enrolled_at: string
+  students: StudentRow[] | StudentRow | null
+  classes: RawClassRow[] | RawClassRow | null
+}
+
 const initialForm: EnrollmentForm = {
   student_id: '',
   school_year: '',
   semester: '1st Semester',
+}
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    subjects: getSingleRelation(row.subjects),
+    teachers: getSingleRelation(row.teachers),
+  }
+}
+
+function normalizeEnrollmentRow(row: RawEnrollmentRow): EnrollmentRow {
+  const rawClass = getSingleRelation(row.classes)
+
+  return {
+    id: row.id,
+    school_year: row.school_year,
+    semester: row.semester,
+    enrolled_at: row.enrolled_at,
+    students: getSingleRelation(row.students),
+    classes: rawClass ? normalizeClassRow(rawClass) : null,
+  }
 }
 
 export default function EnrollPage() {
@@ -207,7 +256,10 @@ export default function EnrollPage() {
     if (classesResult.error) {
       toast.error(classesResult.error.message)
     } else {
-      setClasses((classesResult.data ?? []) as ClassRow[])
+      const normalizedClasses = ((classesResult.data ?? []) as RawClassRow[]).map(
+        normalizeClassRow
+      )
+      setClasses(normalizedClasses)
     }
   }
 
@@ -260,7 +312,10 @@ export default function EnrollPage() {
       toast.error(error.message)
       setEnrollments([])
     } else {
-      setEnrollments((data ?? []) as EnrollmentRow[])
+      const normalizedEnrollments = ((data ?? []) as RawEnrollmentRow[]).map(
+        normalizeEnrollmentRow
+      )
+      setEnrollments(normalizedEnrollments)
     }
 
     setLoading(false)
@@ -422,7 +477,11 @@ export default function EnrollPage() {
 
   const closeModal = () => {
     setShowModal(false)
-    resetForm()
+    setForm({
+      ...initialForm,
+      school_year: activeSchoolYear,
+    })
+    setStudentDropdownSearch('')
   }
 
   const handleChange = (
@@ -609,7 +668,6 @@ export default function EnrollPage() {
         animate={{ opacity: 1, y: 0 }}
         className="overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm"
       >
-        {/* Desktop / large tablet table */}
         <div className="hidden xl:block">
           <div className="overflow-x-auto">
             <table className="min-w-full">
@@ -723,7 +781,6 @@ export default function EnrollPage() {
           </div>
         </div>
 
-        {/* Mobile / tablet cards */}
         <div className="xl:hidden">
           {loading ? (
             <div className="px-4 py-10 text-center text-sm text-gray-500">

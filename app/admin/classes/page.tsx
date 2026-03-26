@@ -43,6 +43,23 @@ type AcademicYearRow = {
   is_active: boolean
 }
 
+type SubjectRelation = {
+  id: string
+  subject_code: string
+  subject_name: string
+  grade_level: GradeLevel
+  semester: Semester
+}
+
+type TeacherRelation = {
+  id: string
+  teacher_no: string
+  first_name: string
+  middle_name: string | null
+  last_name: string
+  suffix: string | null
+}
+
 type ClassRow = {
   id: string
   subject_id: string
@@ -53,29 +70,54 @@ type ClassRow = {
   semester: Semester
   is_active: boolean
   created_at: string
-  subjects: {
-    id: string
-    subject_code: string
-    subject_name: string
-    grade_level: GradeLevel
-    semester: Semester
-  } | null
-  teachers:
-    | {
-        id: string
-        teacher_no: string
-        first_name: string
-        middle_name: string | null
-        last_name: string
-        suffix: string | null
-      }
-    | null
+  subjects: SubjectRelation | null
+  teachers: TeacherRelation | null
+}
+
+type RawClassRow = {
+  id: string
+  subject_id: string
+  teacher_id: string | null
+  grade_level: GradeLevel
+  section: string
+  school_year: string
+  semester: Semester
+  is_active: boolean
+  created_at: string
+  subjects: SubjectRelation[] | SubjectRelation | null
+  teachers: TeacherRelation[] | TeacherRelation | null
 }
 
 type DuplicateAssignment = {
   classId: string
   teacherName: string
   subjectLabel: string
+}
+
+type DuplicateQuerySubject = {
+  id: string
+  subject_code: string
+  subject_name: string
+}
+
+type DuplicateQueryTeacher = {
+  id: string
+  first_name: string
+  middle_name: string | null
+  last_name: string
+  suffix: string | null
+}
+
+type RawDuplicateAssignmentRow = {
+  id: string
+  subjects: DuplicateQuerySubject[] | DuplicateQuerySubject | null
+  teachers: DuplicateQueryTeacher[] | DuplicateQueryTeacher | null
+}
+
+type DuplicateAssignmentRow = {
+  id: string
+  subjects: DuplicateQuerySubject | null
+  teachers: DuplicateQueryTeacher | null
 }
 
 type ClassForm = {
@@ -96,6 +138,35 @@ const initialForm: ClassForm = {
   school_year: '',
   semester: '',
   is_active: true,
+}
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    subject_id: row.subject_id,
+    teacher_id: row.teacher_id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    is_active: row.is_active,
+    created_at: row.created_at,
+    subjects: getSingleRelation(row.subjects),
+    teachers: getSingleRelation(row.teachers),
+  }
+}
+
+function normalizeDuplicateRow(row: RawDuplicateAssignmentRow): DuplicateAssignmentRow {
+  return {
+    id: row.id,
+    subjects: getSingleRelation(row.subjects),
+    teachers: getSingleRelation(row.teachers),
+  }
 }
 
 export default function ClassesPage() {
@@ -133,11 +204,11 @@ export default function ClassesPage() {
     return classes.filter((item) => {
       const subjectLabel =
         `${item.subjects?.subject_code ?? ''} ${item.subjects?.subject_name ?? ''}`.toLowerCase()
-      const teacherLabel = item.teachers ? formatFullName(item.teachers).toLowerCase() : ''
+      const teacherLabel = item.teachers ? formatFullName(item.teachers) : ''
 
       return (
         subjectLabel.includes(keyword) ||
-        teacherLabel.includes(keyword) ||
+        teacherLabel.toLowerCase().includes(keyword) ||
         item.grade_level.toLowerCase().includes(keyword) ||
         item.section.toLowerCase().includes(keyword) ||
         item.school_year.toLowerCase().includes(keyword) ||
@@ -246,7 +317,8 @@ export default function ClassesPage() {
       toast.error(error.message)
       setClasses([])
     } else {
-      setClasses((data as ClassRow[]) ?? [])
+      const normalized = ((data as RawClassRow[] | null) ?? []).map(normalizeClassRow)
+      setClasses(normalized)
     }
 
     setLoading(false)
@@ -285,8 +357,7 @@ export default function ClassesPage() {
 
       const sectionStillValid = sections.some(
         (section) =>
-          section.section_name === prev.section &&
-          section.grade_level === nextGradeLevel
+          section.section_name === prev.section && section.grade_level === nextGradeLevel
       )
 
       return {
@@ -397,25 +468,8 @@ export default function ClassesPage() {
         return
       }
 
-      const row = data as
-        | {
-            id: string
-            subjects: {
-              id: string
-              subject_code: string
-              subject_name: string
-            } | null
-            teachers:
-              | {
-                  id: string
-                  first_name: string
-                  middle_name: string | null
-                  last_name: string
-                  suffix: string | null
-                }
-              | null
-          }
-        | null
+      const rawRow = data as RawDuplicateAssignmentRow | null
+      const row = rawRow ? normalizeDuplicateRow(rawRow) : null
 
       if (!row) {
         setDuplicateAssignment(null)
@@ -423,9 +477,7 @@ export default function ClassesPage() {
         return
       }
 
-      const teacherName = row.teachers
-        ? formatFullName(row.teachers)
-        : 'Unassigned Teacher'
+      const teacherName = row.teachers ? formatFullName(row.teachers) : 'Unassigned Teacher'
 
       const subjectLabel = row.subjects
         ? `${row.subjects.subject_code} - ${row.subjects.subject_name}`
@@ -443,9 +495,7 @@ export default function ClassesPage() {
     checkDuplicate()
   }, [showModal, form.subject_id, form.section, form.school_year, form.semester, editingClass])
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
 
     setForm((prev) => ({
@@ -965,8 +1015,8 @@ export default function ClassesPage() {
                         ? 'Updating...'
                         : 'Saving...'
                       : editingClass
-                      ? 'Update Class'
-                      : 'Save Class'}
+                        ? 'Update Class'
+                        : 'Save Class'}
                   </button>
                 </div>
               </form>

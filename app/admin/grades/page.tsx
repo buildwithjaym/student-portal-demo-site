@@ -63,6 +63,19 @@ type ClassRow = {
   teachers: TeacherRow | null
 }
 
+type RawClassRow = {
+  id: string
+  subject_id: string
+  teacher_id: string | null
+  grade_level: 'Grade 11' | 'Grade 12'
+  section: string
+  school_year: string
+  semester: Semester
+  is_active: boolean
+  subjects: SubjectRow[] | SubjectRow | null
+  teachers: TeacherRow[] | TeacherRow | null
+}
+
 type GradeSubmissionRow = {
   id: string
   class_id: string
@@ -117,6 +130,26 @@ function formatDateTime(value: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleString()
+}
+
+function getSingleRelation<T>(value: T[] | T | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+function normalizeClassRow(row: RawClassRow): ClassRow {
+  return {
+    id: row.id,
+    subject_id: row.subject_id,
+    teacher_id: row.teacher_id,
+    grade_level: row.grade_level,
+    section: row.section,
+    school_year: row.school_year,
+    semester: row.semester,
+    is_active: row.is_active,
+    subjects: getSingleRelation(row.subjects),
+    teachers: getSingleRelation(row.teachers),
+  }
 }
 
 export default function AdminGradesPage() {
@@ -322,7 +355,7 @@ export default function AdminGradesPage() {
 
       if (classError) throw classError
 
-      const classes = (classData ?? []) as ClassRow[]
+      const classes = ((classData ?? []) as RawClassRow[]).map(normalizeClassRow)
       const classMap = new Map<string, ClassRow>()
 
       for (const item of classes) {
