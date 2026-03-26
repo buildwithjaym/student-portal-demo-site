@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
+  AlertTriangle,
   CheckCircle2,
   Lock,
   LockOpen,
   RefreshCw,
   Search,
-  ShieldCheck,
   UserCheck,
+  X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -118,24 +119,6 @@ function formatDateTime(value: string | null) {
   return date.toLocaleString()
 }
 
-function SummaryCard({
-  title,
-  value,
-  subtitle,
-}: {
-  title: string
-  value: string | number
-  subtitle: string
-}) {
-  return (
-    <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
-      <p className="text-sm text-gray-500">{title}</p>
-      <p className="mt-2 text-3xl font-bold text-green-900">{value}</p>
-      <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
-    </div>
-  )
-}
-
 export default function AdminGradesPage() {
   const initializedRef = useRef(false)
 
@@ -151,6 +134,9 @@ export default function AdminGradesPage() {
 
   const [rows, setRows] = useState<SubmissionRow[]>([])
   const [search, setSearch] = useState('')
+
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionRow | null>(null)
 
   const selectedSemester = useMemo(
     () => getSemesterFromPeriod(selectedGradingPeriod),
@@ -178,18 +164,6 @@ export default function AdminGradesPage() {
         .includes(keyword)
     )
   }, [rows, search])
-
-  const summary = useMemo(() => {
-    const total = filteredRows.length
-    const submitted = filteredRows.filter((row) => row.isSubmitted).length
-    const editable = filteredRows.filter((row) => !row.isSubmitted).length
-
-    return {
-      total,
-      submitted,
-      editable,
-    }
-  }, [filteredRows])
 
   const loadAcademicYears = async () => {
     const { data, error } = await supabase
@@ -222,7 +196,9 @@ export default function AdminGradesPage() {
   const detectCurrentPeriod = async (schoolYear: string) => {
     const { data, error } = await supabase
       .from('grading_windows')
-      .select('id, school_year, semester, grading_period, is_open, is_locked, opened_at, locked_at')
+      .select(
+        'id, school_year, semester, grading_period, is_open, is_locked, opened_at, locked_at'
+      )
       .eq('school_year', schoolYear)
 
     if (error) {
@@ -235,16 +211,20 @@ export default function AdminGradesPage() {
     const openWindow =
       windows
         .filter((item) => item.is_open && !item.is_locked)
-        .sort((a, b) => getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period))[0] ??
-      null
+        .sort(
+          (a, b) =>
+            getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period)
+        )[0] ?? null
 
     if (openWindow) return openWindow.grading_period
 
     const fallbackWindow =
       windows
         .slice()
-        .sort((a, b) => getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period))[0] ??
-      null
+        .sort(
+          (a, b) =>
+            getPeriodOrder(a.grading_period) - getPeriodOrder(b.grading_period)
+        )[0] ?? null
 
     return fallbackWindow?.grading_period ?? '1st'
   }
@@ -262,7 +242,9 @@ export default function AdminGradesPage() {
 
     const { data, error } = await supabase
       .from('grading_windows')
-      .select('id, school_year, semester, grading_period, is_open, is_locked, opened_at, locked_at')
+      .select(
+        'id, school_year, semester, grading_period, is_open, is_locked, opened_at, locked_at'
+      )
       .eq('school_year', schoolYear)
       .eq('semester', semester)
       .eq('grading_period', gradingPeriod)
@@ -421,7 +403,7 @@ export default function AdminGradesPage() {
     toast.success('Submission records refreshed.')
   }
 
-  const reopenSubmission = async (row: SubmissionRow) => {
+  const requestReopenSubmission = (row: SubmissionRow) => {
     if (!selectedWindow) {
       toast.error('No grading window found for the selected grading period.')
       return
@@ -437,7 +419,20 @@ export default function AdminGradesPage() {
       return
     }
 
-    setReopeningId(row.submissionId)
+    setSelectedSubmission(row)
+    setConfirmOpen(true)
+  }
+
+  const closeConfirmation = () => {
+    if (reopeningId) return
+    setConfirmOpen(false)
+    setSelectedSubmission(null)
+  }
+
+  const reopenSubmission = async () => {
+    if (!selectedSubmission) return
+
+    setReopeningId(selectedSubmission.submissionId)
 
     try {
       const { error } = await supabase
@@ -448,11 +443,12 @@ export default function AdminGradesPage() {
           submitted_at: null,
           updated_at: new Date().toISOString(),
         })
-        .eq('id', row.submissionId)
+        .eq('id', selectedSubmission.submissionId)
 
       if (error) throw error
 
       toast.success('Submission reopened. The teacher can edit grades again.')
+      closeConfirmation()
       await loadRows(selectedSchoolYear, selectedGradingPeriod)
     } catch (error: any) {
       toast.error(error.message || 'Failed to reopen submission.')
@@ -475,321 +471,344 @@ export default function AdminGradesPage() {
     !!selectedWindow && selectedWindow.is_open && !selectedWindow.is_locked
 
   return (
-    <div className="space-y-6">
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="overflow-hidden rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 p-5 text-white shadow-xl sm:p-6"
-      >
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-sm font-medium text-yellow-300">Administration</p>
-            <h1 className="mt-1 text-2xl font-bold sm:text-3xl">
-              Grade Submission Management
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-green-50/90">
-              Review class submission records and reopen finalized submissions when a teacher needs to make corrections.
-            </p>
-          </div>
+    <>
+      <div className="space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-2"
+        >
+          <p className="text-sm font-medium text-yellow-600">Administration</p>
+          <h1 className="text-3xl font-bold text-green-900">Grades</h1>
+          <p className="text-gray-600">
+            View submission records and reopen submitted grades when teachers need to make corrections.
+          </p>
+        </motion.div>
 
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
-              {selectedSchoolYear || 'No Academic Year'}
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
-              {selectedGradingPeriod} Grading Period
-            </span>
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white">
-              {selectedSemester}
-            </span>
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
-      >
-        <div className="grid gap-4 xl:grid-cols-[220px_220px_1fr_auto]">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Academic Year
-            </label>
-            <select
-              value={selectedSchoolYear}
-              onChange={(e) => setSelectedSchoolYear(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-            >
-              <option value="">Select academic year</option>
-              {academicYears.map((year) => (
-                <option key={year.id} value={year.school_year}>
-                  {year.school_year}
-                  {year.is_active ? ' (Active)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Grading Period
-            </label>
-            <select
-              value={selectedGradingPeriod}
-              onChange={(e) => setSelectedGradingPeriod(e.target.value as GradingPeriod)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-            >
-              {ALL_PERIODS.map((period) => (
-                <option key={period} value={period}>
-                  {period} Grading Period
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Search
-            </label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search teacher, subject, grade level, or section"
-                className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:opacity-60 xl:w-auto"
-            >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
-            Viewing {selectedGradingPeriod} Grading Period
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                selectedWindow?.is_open
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-200 text-gray-700'
-              }`}
-            >
-              {selectedWindow?.is_open ? 'Window Open' : 'Window Closed'}
-            </span>
-
-            <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                selectedWindow?.is_locked
-                  ? 'bg-red-100 text-red-700'
-                  : 'bg-blue-100 text-blue-700'
-              }`}
-            >
-              {selectedWindow?.is_locked ? 'Window Locked' : 'Window Unlocked'}
-            </span>
-          </div>
-        </div>
-      </motion.section>
-
-      <section className="grid gap-4 md:grid-cols-3">
-        <SummaryCard
-          title="Submission Records"
-          value={summary.total}
-          subtitle="Classes with submission records for this period"
-        />
-        <SummaryCard
-          title="Submitted"
-          value={summary.submitted}
-          subtitle="Classes already finalized by teachers"
-        />
-        <SummaryCard
-          title="Editable"
-          value={summary.editable}
-          subtitle="Classes currently open for teacher updates"
-        />
-      </section>
-
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
-      >
-        <div className="flex items-start gap-3">
-          <div className="rounded-2xl bg-green-100 p-2 text-green-800">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-bold text-green-900">Grading Window Status</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Reopening a submitted class is only available when this grading period is open and unlocked.
-            </p>
-
-            <div className="mt-4 grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
-              <p>
-                Opened At:{' '}
-                <span className="font-medium text-gray-900">
-                  {formatDateTime(selectedWindow?.opened_at ?? null)}
-                </span>
-              </p>
-              <p>
-                Locked At:{' '}
-                <span className="font-medium text-gray-900">
-                  {formatDateTime(selectedWindow?.locked_at ?? null)}
-                </span>
-              </p>
-            </div>
-
-            {!selectedWindow && (
-              <div className="mt-4 rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
-                No grading window record exists for this academic year and grading period.
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.section>
-
-      <motion.section
-        initial={{ opacity: 0, y: 14 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
-      >
-        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-green-900">Submission Records</h2>
-            <p className="text-sm text-gray-600">
-              This page reads submission status from the submission records created during teacher final submit.
-            </p>
-          </div>
-
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
-            <UserCheck className="h-4 w-4" />
-            {filteredRows.length} record{filteredRows.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-            Loading submission records...
-          </div>
-        ) : filteredRows.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-            No submission records were found for this academic year and grading period.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredRows.map((row) => (
-              <div
-                key={row.key}
-                className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+        >
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[220px_220px_minmax(0,1fr)_auto]">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Academic Year
+              </label>
+              <select
+                value={selectedSchoolYear}
+                onChange={(e) => setSelectedSchoolYear(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
               >
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-bold text-green-900">
-                        {row.subjectName}
-                      </h3>
-                      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-800">
-                        {row.subjectCode}
-                      </span>
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                        {row.gradeLevel}
-                      </span>
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
-                        Section {row.section}
-                      </span>
+                <option value="">Select academic year</option>
+                {academicYears.map((year) => (
+                  <option key={year.id} value={year.school_year}>
+                    {year.school_year}
+                    {year.is_active ? ' (Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Grading Period
+              </label>
+              <select
+                value={selectedGradingPeriod}
+                onChange={(e) => setSelectedGradingPeriod(e.target.value as GradingPeriod)}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              >
+                {ALL_PERIODS.map((period) => (
+                  <option key={period} value={period}>
+                    {period} Grading Period
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Search
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search teacher, subject, grade level, or section"
+                  className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-4 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:opacity-60 xl:w-auto"
+              >
+                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="text-sm text-gray-600">
+              {selectedSemester} • {selectedGradingPeriod} Grading Period
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  selectedWindow?.is_open
+                    ? 'bg-green-100 text-green-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {selectedWindow?.is_open ? 'Window Open' : 'Window Closed'}
+              </span>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  selectedWindow?.is_locked
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-blue-100 text-blue-700'
+                }`}
+              >
+                {selectedWindow?.is_locked ? 'Locked' : 'Unlocked'}
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+        >
+          <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-green-900">Submission Records</h2>
+              <p className="text-sm text-gray-600">
+                Read submission status and restore grade access when needed.
+              </p>
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+              <UserCheck className="h-4 w-4" />
+              {filteredRows.length} record{filteredRows.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="rounded-xl bg-green-50 p-5 text-gray-500">
+              Loading submission records...
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
+              No submission records were found for this academic year and grading period.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredRows.map((row) => (
+                <div
+                  key={row.key}
+                  className="rounded-2xl border border-green-100 bg-green-50 p-5"
+                >
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-bold text-green-900">
+                          {row.subjectName}
+                        </h3>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-800">
+                          {row.subjectCode}
+                        </span>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
+                          {row.gradeLevel}
+                        </span>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
+                          Section {row.section}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
+                        <p>
+                          Teacher:{' '}
+                          <span className="font-medium text-gray-900">{row.teacherName}</span>
+                        </p>
+                        <p>
+                          Teacher No:{' '}
+                          <span className="font-medium text-gray-900">{row.teacherNo}</span>
+                        </p>
+                        <p>
+                          Academic Year:{' '}
+                          <span className="font-medium text-gray-900">{row.schoolYear}</span>
+                        </p>
+                        <p>
+                          Submitted At:{' '}
+                          <span className="font-medium text-gray-900">
+                            {formatDateTime(row.submittedAt)}
+                          </span>
+                        </p>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            row.isSubmitted
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-900'
+                          }`}
+                        >
+                          {row.isSubmitted ? 'Submitted' : 'Editable'}
+                        </span>
+
+                        {row.isSubmitted && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Finalized
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="mt-4 grid gap-3 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
-                      <p>
-                        Teacher:{' '}
-                        <span className="font-medium text-gray-900">{row.teacherName}</span>
-                      </p>
-                      <p>
-                        Teacher No:{' '}
-                        <span className="font-medium text-gray-900">{row.teacherNo}</span>
-                      </p>
-                      <p>
-                        Academic Year:{' '}
-                        <span className="font-medium text-gray-900">{row.schoolYear}</span>
-                      </p>
-                      <p>
-                        Submitted At:{' '}
-                        <span className="font-medium text-gray-900">
-                          {formatDateTime(row.submittedAt)}
-                        </span>
-                      </p>
-                    </div>
+                    <div className="w-full xl:w-60">
+                      {row.isSubmitted ? (
+                        <button
+                          type="button"
+                          onClick={() => requestReopenSubmission(row)}
+                          disabled={!canRestoreAccess || reopeningId === row.submissionId}
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {selectedWindow?.is_locked ? (
+                            <Lock className="h-4 w-4" />
+                          ) : (
+                            <LockOpen className="h-4 w-4" />
+                          )}
+                          {reopeningId === row.submissionId
+                            ? 'Allowing Edit...'
+                            : 'Allow Teacher to Edit'}
+                        </button>
+                      ) : (
+                        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
+                          This class is already open for teacher editing.
+                        </div>
+                      )}
 
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          row.isSubmitted
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-900'
-                        }`}
-                      >
-                        {row.isSubmitted ? 'Submitted' : 'Editable'}
-                      </span>
-
-                      {row.isSubmitted && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Finalized by teacher
-                        </span>
+                      {row.isSubmitted && !canRestoreAccess && (
+                        <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                          Open and unlock the grading period first before allowing edits.
+                        </div>
                       )}
                     </div>
                   </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
 
-                  <div className="w-full xl:w-64">
-                    {row.isSubmitted ? (
-                      <button
-                        type="button"
-                        onClick={() => reopenSubmission(row)}
-                        disabled={!canRestoreAccess || reopeningId === row.submissionId}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {selectedWindow?.is_locked ? (
-                          <Lock className="h-4 w-4" />
-                        ) : (
-                          <LockOpen className="h-4 w-4" />
-                        )}
-                        {reopeningId === row.submissionId
-                          ? 'Allowing Edit...'
-                          : 'Allow Teacher to Edit'}
-                      </button>
-                    ) : (
-                      <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
-                        This class is already open for teacher editing because it is not finalized.
-                      </div>
-                    )}
-
-                    {row.isSubmitted && !canRestoreAccess && (
-                      <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                        Open and unlock the grading period first before allowing edits.
-                      </div>
-                    )}
+      <AnimatePresence>
+        {confirmOpen && selectedSubmission && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={closeConfirmation}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ duration: 0.18 }}
+              className="w-full max-w-md rounded-2xl border border-green-100 bg-white p-6 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-amber-100 p-2 text-amber-700">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-green-900">
+                      Allow teacher to edit again?
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-600">
+                      This will reopen the submitted record and allow the teacher to update grades again.
+                    </p>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={closeConfirmation}
+                  disabled={!!reopeningId}
+                  className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-            ))}
-          </div>
+
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm">
+                <p className="font-semibold text-gray-900">{selectedSubmission.subjectName}</p>
+                <div className="mt-2 space-y-1 text-gray-600">
+                  <p>
+                    Teacher:{' '}
+                    <span className="font-medium text-gray-900">
+                      {selectedSubmission.teacherName}
+                    </span>
+                  </p>
+                  <p>
+                    Section:{' '}
+                    <span className="font-medium text-gray-900">
+                      {selectedSubmission.gradeLevel} • Section {selectedSubmission.section}
+                    </span>
+                  </p>
+                  <p>
+                    Academic Year:{' '}
+                    <span className="font-medium text-gray-900">
+                      {selectedSubmission.schoolYear}
+                    </span>
+                  </p>
+                  <p>
+                    Grading Period:{' '}
+                    <span className="font-medium text-gray-900">
+                      {selectedSubmission.gradingPeriod} Grading Period
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeConfirmation}
+                  disabled={!!reopeningId}
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  onClick={reopenSubmission}
+                  disabled={!!reopeningId}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700 disabled:opacity-60"
+                >
+                  <LockOpen className="h-4 w-4" />
+                  {reopeningId ? 'Allowing Edit...' : 'Yes, Allow Edit'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </motion.section>
-    </div>
+      </AnimatePresence>
+    </>
   )
 }

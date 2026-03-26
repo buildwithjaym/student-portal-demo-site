@@ -15,6 +15,7 @@ import {
   School,
   ShieldCheck,
   FileSpreadsheet,
+  BarChart3,
   LogOut,
   Menu,
   X,
@@ -32,6 +33,7 @@ const navItems = [
   { label: 'School Years', href: '/admin/school-years', icon: CalendarRange },
   { label: 'Grading Control', href: '/admin/grading-control', icon: ShieldCheck },
   { label: 'Grades', href: '/admin/grades', icon: FileSpreadsheet },
+  { label: 'Reports', href: '/admin/reports', icon: BarChart3 }
 ]
 
 type AdminSidebarProps = {
