@@ -34,7 +34,17 @@ const navItems = [
   { label: 'Grades', href: '/admin/grades', icon: FileSpreadsheet },
 ]
 
-export default function AdminSidebar({ fullName, email, role }: any) {
+type AdminSidebarProps = {
+  fullName: string
+  email: string
+  role: string
+}
+
+export default function AdminSidebar({
+  fullName,
+  email,
+  role,
+}: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -46,7 +56,9 @@ export default function AdminSidebar({ fullName, email, role }: any) {
     router.replace('/login')
   }
 
-  useEffect(() => closeMenu(), [pathname])
+  useEffect(() => {
+    closeMenu()
+  }, [pathname])
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
@@ -57,98 +69,213 @@ export default function AdminSidebar({ fullName, email, role }: any) {
 
   return (
     <>
-      {/* MOBILE HEADER */}
-      <div className="lg:hidden h-16 flex items-center justify-between px-4 bg-green-950 text-white border-b border-yellow-400/10">
-        <span className="font-bold text-sm">QORBAN PORTAL</span>
+      {/* Mobile / Tablet Header */}
+      <div className="flex h-16 items-center justify-between border-b border-yellow-400/10 bg-green-950 px-4 text-white lg:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
+            <Image
+              src="/logo.jpg"
+              width={32}
+              height={32}
+              alt="Qorban Portal Logo"
+              className="object-contain"
+              priority
+            />
+          </div>
 
-        <button onClick={() => setOpen(true)}>
-          <Menu className="h-5 w-5 text-yellow-300" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold tracking-wide">
+              QORBAN PORTAL
+            </p>
+            <p className="text-[10px] text-yellow-300">Admin Panel</p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
         </button>
       </div>
 
-      {/* OVERLAY */}
+      {/* Overlay */}
       <div
         onClick={closeMenu}
-        className={`fixed inset-0 bg-black/50 z-40 transition ${
-          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        } lg:hidden`}
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden ${
+          open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+        }`}
       />
 
-      {/* SIDEBAR */}
-      <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-[270px] bg-green-950 text-white border-r border-yellow-400/10 transition-transform duration-300
-        ${open ? 'translate-x-0' : '-translate-x-full'}
-        lg:translate-x-0 lg:sticky`}
-      >
+      {/* Desktop Sidebar */}
+      <aside className="hidden h-screen w-[280px] shrink-0 border-r border-yellow-400/10 bg-green-950 text-white lg:sticky lg:top-0 lg:flex lg:flex-col">
         <div className="flex h-full flex-col">
-          {/* HEADER */}
-          <div className="px-4 py-4 border-b border-yellow-400/10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+          <div className="border-b border-yellow-400/10 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
                 <Image
                   src="/logo.jpg"
                   width={36}
                   height={36}
-                  alt="logo"
-                  className="rounded-full border border-yellow-400"
+                  alt="Qorban Portal Logo"
+                  className="object-contain"
+                  priority
                 />
-                <div>
-                  <p className="text-sm font-bold">QORBAN PORTAL</p>
-                  <p className="text-[10px] text-yellow-300">Admin Panel</p>
-                </div>
               </div>
 
-              <button onClick={closeMenu} className="lg:hidden">
-                <X className="h-5 w-5 text-yellow-300" />
-              </button>
+              <div className="min-w-0">
+                <p className="truncate text-base font-bold tracking-wide">
+                  QORBAN PORTAL
+                </p>
+                <p className="text-xs text-yellow-300">Admin Panel</p>
+              </div>
             </div>
 
-            {/* ACCOUNT */}
-            <div className="mt-3 bg-green-900/60 rounded-xl p-3">
-              <p className="text-[10px] text-yellow-300 uppercase">Account</p>
-              <p className="text-sm font-semibold truncate">{fullName}</p>
-              <p className="text-xs text-green-200 truncate">{email}</p>
+            <div className="mt-4 rounded-xl bg-green-900/60 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-yellow-300">
+                Account
+              </p>
+              <p className="truncate text-sm font-semibold">{fullName}</p>
+              <p className="truncate text-xs text-green-200">{email}</p>
 
-              <span className="inline-block mt-2 text-[10px] px-2 py-0.5 bg-yellow-400 text-green-950 rounded-full font-bold">
+              <span className="mt-2 inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold uppercase text-green-950">
                 {role}
               </span>
             </div>
           </div>
 
-          {/* NAV */}
+          <div className="border-b border-yellow-400/10 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
+              Navigation
+            </p>
+          </div>
+
           <nav className="flex-1 px-2 py-3 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon
               const active =
-                pathname === item.href ||
-                pathname.startsWith(`${item.href}/`)
+                pathname === item.href || pathname.startsWith(`${item.href}/`)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${
+                    active
+                      ? 'bg-green-900 text-yellow-300'
+                      : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate text-sm font-medium">{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+
+          <div className="border-t border-yellow-400/10 p-2">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
+            >
+              <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
+              <span className="text-sm font-medium">Logout</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile / Tablet Right Drawer */}
+      <aside
+        className={`fixed right-0 top-0 z-50 flex h-screen w-[280px] max-w-[86vw] flex-col border-l border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+          open ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-yellow-400/10 px-4 py-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-yellow-400 bg-white shadow-sm">
+                  <Image
+                    src="/logo.jpg"
+                    width={32}
+                    height={32}
+                    alt="Qorban Portal Logo"
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold tracking-wide">
+                    QORBAN PORTAL
+                  </p>
+                  <p className="text-[10px] text-yellow-300">Admin Panel</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeMenu}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70"
+                aria-label="Close menu"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-3 rounded-xl bg-green-900/60 p-3">
+              <p className="text-[10px] uppercase tracking-wide text-yellow-300">
+                Account
+              </p>
+              <p className="truncate text-sm font-semibold">{fullName}</p>
+              <p className="truncate text-xs text-green-200">{email}</p>
+
+              <span className="mt-2 inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold uppercase text-green-950">
+                {role}
+              </span>
+            </div>
+          </div>
+
+          <div className="border-b border-yellow-400/10 px-4 py-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
+              Navigation
+            </p>
+          </div>
+
+          <nav className="flex-1 px-2 py-3 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon
+              const active =
+                pathname === item.href || pathname.startsWith(`${item.href}/`)
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={closeMenu}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${
                     active
                       ? 'bg-green-900 text-yellow-300'
-                      : 'hover:bg-green-900/60'
+                      : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
                   }`}
                 >
-                  <Icon className="h-4 w-4" />
-                  <span className="text-sm">{item.label}</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate text-sm font-medium">{item.label}</span>
                 </Link>
               )
             })}
           </nav>
 
-          {/* LOGOUT */}
-          <div className="p-2 border-t border-yellow-400/10">
+          <div className="border-t border-yellow-400/10 p-2">
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-green-900/60"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
             >
-              <LogOut className="h-4 w-4 text-yellow-300" />
-              <span className="text-sm">Logout</span>
+              <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
+              <span className="text-sm font-medium">Logout</span>
             </button>
           </div>
         </div>
