@@ -52,7 +52,6 @@ export default function AdminSidebar({
   const [open, setOpen] = useState(false)
 
   const closeMenu = () => setOpen(false)
-  const openMenu = () => setOpen(true)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -62,23 +61,6 @@ export default function AdminSidebar({
   useEffect(() => {
     closeMenu()
   }, [pathname])
-
-  useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : ''
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeMenu()
-    }
-
-    if (open) {
-      window.addEventListener('keydown', handleKeyDown)
-    }
-
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [open])
 
   return (
     <>
@@ -106,7 +88,7 @@ export default function AdminSidebar({
 
         <button
           type="button"
-          onClick={openMenu}
+          onClick={() => setOpen(true)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
           aria-label="Open menu"
           aria-expanded={open}
@@ -210,13 +192,12 @@ export default function AdminSidebar({
       {/* Mobile Sidebar Drawer */}
       <aside
         id="mobile-admin-sidebar"
-        className={`fixed left-0 top-0 z-50 h-dvh w-[86vw] max-w-[320px] min-w-[260px] border-r border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
-          open ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 right-0 z-50 w-[82vw] max-w-[280px] min-w-[220px] border-l border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+          open ? 'translate-x-0' : 'translate-x-full'
         }`}
         aria-hidden={!open}
       >
-        <div className="grid h-full grid-rows-[auto_1fr_auto] overflow-hidden">
-          {/* Top */}
+        <div className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-y-auto overscroll-contain">
           <div className="border-b border-yellow-400/10 px-3 py-4">
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -242,14 +223,14 @@ export default function AdminSidebar({
               <button
                 type="button"
                 onClick={closeMenu}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
                 aria-label="Close menu"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="mt-3 rounded-xl bg-green-900/60 p-3">
+            <div className="mt-3 rounded-xl bg-green-900/60 p-2.5">
               <p className="text-[10px] uppercase tracking-wide text-yellow-300">
                 Account
               </p>
@@ -262,9 +243,14 @@ export default function AdminSidebar({
             </div>
           </div>
 
-          {/* Middle scrollable nav */}
-          <nav className="min-h-0 overflow-y-auto px-2 py-2">
-            <div className="space-y-1 pb-2">
+          <div className="border-b border-yellow-400/10 px-3 py-2.5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
+              Navigation
+            </p>
+          </div>
+
+          <nav className="px-2 py-2">
+            <div className="space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon
                 const active =
@@ -275,14 +261,14 @@ export default function AdminSidebar({
                     key={item.href}
                     href={item.href}
                     onClick={closeMenu}
-                    className={`flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 transition ${
+                    className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2.5 transition ${
                       active
                         ? 'bg-green-900 text-yellow-300'
                         : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
                     }`}
                   >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    <span className="truncate text-sm font-medium">
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="truncate text-[13px] font-medium sm:text-sm">
                       {item.label}
                     </span>
                   </Link>
@@ -291,14 +277,15 @@ export default function AdminSidebar({
             </div>
           </nav>
 
-          {/* Bottom pinned logout */}
-          <div className="border-t border-yellow-400/10 bg-green-950 p-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mt-auto border-t border-yellow-400/10 p-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-xl bg-green-900/40 px-3 py-3 text-left transition hover:bg-green-900/70 hover:text-yellow-300"
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-3 text-left transition hover:bg-green-900/60 hover:text-yellow-300"
             >
-              <LogOut className="h-5 w-5 shrink-0 text-yellow-300" />
-              <span className="truncate text-sm font-medium">Logout</span>
+              <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
+              <span className="truncate text-[13px] font-medium sm:text-sm">
+                Logout
+              </span>
             </button>
           </div>
         </div>
