@@ -61,9 +61,16 @@ const getCurrentStudentYear = () => {
   return new Date().getFullYear()
 }
 
+const normalizeGender = (value: string): 'Male' | 'Female' | null => {
+  const cleaned = value.trim().toLowerCase()
+
+  if (cleaned === 'male') return 'Male'
+  if (cleaned === 'female') return 'Female'
+  return null
+}
+
 const generateNextStudentNo = (students: Student[]) => {
   const currentYear = getCurrentStudentYear()
-  const prefix = `${currentYear}-Q`
 
   const maxNumberForYear = students.reduce((max, student) => {
     const match = student.student_no.match(/^(\d{4})-Q(\d{6})$/i)
@@ -79,7 +86,7 @@ const generateNextStudentNo = (students: Student[]) => {
   }, 0)
 
   const nextSequence = String(maxNumberForYear + 1).padStart(6, '0')
-  return `${prefix}${nextSequence}`
+  return `${currentYear}-Q${nextSequence}`
 }
 
 export default function StudentsPage() {
@@ -129,8 +136,8 @@ export default function StudentsPage() {
   }
 
   useEffect(() => {
-    fetchStudents()
-    fetchSections()
+    void fetchStudents()
+    void fetchSections()
   }, [])
 
   const availableSections = useMemo(() => {
@@ -252,7 +259,7 @@ export default function StudentsPage() {
     last_name: string
     suffix: string | null
     email: string | null
-    gender: string | null
+    gender: 'Male' | 'Female' | null
     grade_level: string
     section: string
     is_active: boolean
@@ -291,7 +298,7 @@ export default function StudentsPage() {
         last_name: form.last_name.trim(),
         suffix: form.suffix.trim() || null,
         email: form.email.trim().toLowerCase() || null,
-        gender: form.gender.trim() || null,
+        gender: normalizeGender(form.gender),
         grade_level: form.grade_level,
         section: form.section.trim(),
         is_active: form.is_active,
@@ -600,6 +607,7 @@ export default function StudentsPage() {
                 <button
                   onClick={closeModal}
                   className="rounded-xl px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100"
+                  disabled={saving}
                 >
                   Close
                 </button>
