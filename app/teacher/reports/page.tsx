@@ -107,7 +107,6 @@ type ReportRow = {
   student_id: string
   full_name: string
   gender: string
-  grade_and_section: string
   grade: string
   remarks: string
   last_name_sort: string
@@ -225,10 +224,298 @@ function StatCard({
   subtitle: string
 }) {
   return (
-    <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border border-green-100 bg-white p-4 shadow-sm sm:p-5">
       <p className="text-sm font-medium text-gray-500">{title}</p>
-      <p className="mt-2 text-3xl font-bold text-green-950">{value}</p>
+      <p className="mt-2 text-2xl font-bold text-green-950 sm:text-3xl">{value}</p>
       <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
+    </div>
+  )
+}
+
+function ReportDocument({
+  teacher,
+  selectedSchoolYear,
+  selectedGradingPeriod,
+  selectedSemester,
+  selectedClass,
+  selectedClassLabel,
+  selectedReportType,
+  filteredRows,
+  attendanceHeaders,
+  averageGrade,
+  printRef,
+  mode = 'print',
+}: {
+  teacher: TeacherRow | null
+  selectedSchoolYear: string
+  selectedGradingPeriod: GradingPeriod
+  selectedSemester: Semester
+  selectedClass: ClassRow | null
+  selectedClassLabel: string
+  selectedReportType: ReportType
+  filteredRows: ReportRow[]
+  attendanceHeaders: string[]
+  averageGrade: string
+  printRef?: React.RefObject<HTMLDivElement | null>
+  mode?: 'preview' | 'print'
+}) {
+  const isPreview = mode === 'preview'
+
+  return (
+    <div
+      className={
+        isPreview
+          ? 'mx-auto w-full max-w-[980px] rounded-[24px] border border-green-100 bg-white shadow-[0_18px_60px_rgba(15,23,42,0.08)]'
+          : 'mx-auto w-full max-w-[980px] bg-white'
+      }
+    >
+      <div
+        ref={printRef}
+        className={[
+          'print-page bg-white',
+          isPreview
+            ? 'p-3 sm:p-5 lg:p-7 [transform:scale(0.94)] sm:[transform:scale(0.98)] lg:[transform:scale(1)] origin-top'
+            : 'p-0',
+        ].join(' ')}
+      >
+        <div className={isPreview ? 'mx-auto w-[1064px] max-w-none bg-white' : 'w-full bg-white'}>
+          <div className="page-break-inside-avoid px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex w-16 items-start justify-start sm:w-20">
+                <Image
+                  src="/DePed-logo.png"
+                  alt="DepEd Logo"
+                  width={72}
+                  height={72}
+                  className="h-[44px] w-[44px] object-contain sm:h-[68px] sm:w-[68px]"
+                  priority
+                />
+              </div>
+
+              <div className="flex-1 text-center">
+                <p className="text-[10px] text-gray-700 sm:text-sm">Republic of the Philippines</p>
+                <p className="text-sm font-bold text-gray-900 sm:text-[18px]">
+                  Department of Education
+                </p>
+                <p className="mt-2 text-[18px] font-bold tracking-wide text-green-900 sm:text-[22px]">
+                  Qorban Institute of Technology Training and Assessment Center, Inc
+                </p>
+                <p className="mt-1 text-xs font-medium text-gray-700 sm:text-sm">
+                  {getReportTitle(selectedReportType)}
+                </p>
+              </div>
+
+              <div className="flex w-16 items-start justify-end sm:w-20">
+                <Image
+                  src="/logo.jpg"
+                  alt="Qorban Logo"
+                  width={72}
+                  height={72}
+                  className="h-[44px] w-[44px] object-contain sm:h-[68px] sm:w-[68px]"
+                  priority
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-x-10 gap-y-3 border-y border-gray-300 py-5 text-[13px] text-gray-800 sm:text-sm md:grid-cols-2">
+              <p>
+                <span className="font-semibold">Teacher:</span> {getTeacherName(teacher)}
+              </p>
+              <p>
+                <span className="font-semibold">Teacher No:</span> {teacher?.teacher_no ?? '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Academic Year:</span> {selectedSchoolYear || '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Period:</span> {selectedGradingPeriod} Grading Period
+              </p>
+              <p>
+                <span className="font-semibold">Subject:</span> {selectedClassLabel}
+              </p>
+              <p>
+                <span className="font-semibold">Grade / Section:</span>{' '}
+                {selectedClass ? `${selectedClass.grade_level} / ${selectedClass.section}` : '—'}
+              </p>
+              <p>
+                <span className="font-semibold">Semester:</span> {selectedSemester}
+              </p>
+              <p>
+                <span className="font-semibold">Report Type:</span> {getReportTitle(selectedReportType)}
+              </p>
+            </div>
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+              <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-3 py-2 font-medium text-green-800 sm:px-4">
+                <Users className="h-4 w-4" />
+                {filteredRows.length} student{filteredRows.length !== 1 ? 's' : ''}
+              </div>
+
+              {selectedReportType === 'class_list_with_grades' && (
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-3 py-2 font-medium text-green-800 sm:px-4">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Average Grade: {averageGrade}
+                </div>
+              )}
+            </div>
+
+            {filteredRows.length === 0 ? (
+              <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+                No report data found for this selection.
+              </div>
+            ) : (
+              <div
+                className={
+                  isPreview
+                    ? 'report-table-wrap mt-6 overflow-x-auto rounded-[22px] border border-gray-300'
+                    : 'report-table-wrap mt-6 overflow-visible border border-gray-300'
+                }
+              >
+                <table className={isPreview ? 'min-w-full border-collapse bg-white' : 'w-full border-collapse bg-white'}>
+                  <colgroup>
+                    <col className="w-[52px]" />
+                    <col
+                      className={
+                        selectedReportType === 'attendance_sheet'
+                          ? isPreview
+                            ? 'min-w-[260px]'
+                            : 'w-[34%]'
+                          : isPreview
+                            ? 'min-w-[320px]'
+                            : 'w-[60%]'
+                      }
+                    />
+
+                    {(selectedReportType === 'class_list_only' ||
+                      selectedReportType === 'class_list_with_grades') && (
+                      <col className={isPreview ? 'min-w-[140px]' : 'w-[14%]'} />
+                    )}
+
+                    {selectedReportType === 'class_list_with_grades' && (
+                      <>
+                        <col className={isPreview ? 'min-w-[110px]' : 'w-[10%]'} />
+                        <col className={isPreview ? 'min-w-[200px]' : 'w-[16%]'} />
+                      </>
+                    )}
+
+                    {selectedReportType === 'attendance_sheet' &&
+                      attendanceHeaders.map((label) => (
+                        <col key={label} className={isPreview ? 'w-[48px]' : 'w-[6.6%]'} />
+                      ))}
+                  </colgroup>
+
+                  <thead className="bg-green-50">
+                    <tr>
+                      <th className="border border-gray-300 px-2 py-3 text-center text-xs font-semibold text-green-900 sm:text-sm">
+                        No.
+                      </th>
+                      <th className="border border-gray-300 px-3 py-3 text-left text-xs font-semibold text-green-900 sm:text-sm">
+                        Full Name
+                      </th>
+
+                      {(selectedReportType === 'class_list_only' ||
+                        selectedReportType === 'class_list_with_grades') && (
+                        <th className="border border-gray-300 px-3 py-3 text-left text-xs font-semibold text-green-900 sm:text-sm">
+                          Gender
+                        </th>
+                      )}
+
+                      {selectedReportType === 'class_list_with_grades' && (
+                        <>
+                          <th className="border border-gray-300 px-3 py-3 text-left text-xs font-semibold text-green-900 sm:text-sm">
+                            Grade
+                          </th>
+                          <th className="border border-gray-300 px-3 py-3 text-left text-xs font-semibold text-green-900 sm:text-sm">
+                            Remarks
+                          </th>
+                        </>
+                      )}
+
+                      {selectedReportType === 'attendance_sheet' &&
+                        attendanceHeaders.map((label) => (
+                          <th
+                            key={label}
+                            className="border border-gray-300 px-1 py-3 text-center text-[10px] font-semibold text-green-900 sm:text-xs"
+                          >
+                            &nbsp;
+                          </th>
+                        ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {filteredRows.map((row, index) => (
+                      <tr key={row.student_id}>
+                        <td className="border border-gray-300 px-2 py-3 text-center align-middle text-xs text-gray-700 sm:text-sm">
+                          {index + 1}
+                        </td>
+
+                        <td
+                          className={`border border-gray-300 px-3 py-3 align-middle text-xs text-gray-700 break-words sm:text-sm ${
+                            selectedReportType === 'attendance_sheet' ? 'attendance-name' : ''
+                          }`}
+                        >
+                          {row.full_name}
+                        </td>
+
+                        {(selectedReportType === 'class_list_only' ||
+                          selectedReportType === 'class_list_with_grades') && (
+                          <td className="border border-gray-300 px-3 py-3 align-middle text-xs text-gray-700 sm:text-sm">
+                            {row.gender || '—'}
+                          </td>
+                        )}
+
+                        {selectedReportType === 'class_list_with_grades' && (
+                          <>
+                            <td className="border border-gray-300 px-3 py-3 align-middle text-xs font-medium text-gray-900 sm:text-sm">
+                              {row.grade || '—'}
+                            </td>
+                            <td className="border border-gray-300 px-3 py-3 align-middle text-xs text-gray-700 break-words sm:text-sm">
+                              {row.remarks || '—'}
+                            </td>
+                          </>
+                        )}
+
+                        {selectedReportType === 'attendance_sheet' &&
+                          attendanceHeaders.map((label) => (
+                            <td
+                              key={`${row.student_id}-${label}`}
+                              className="h-10 border border-gray-300 px-1 py-2 align-middle sm:h-12 sm:py-3"
+                            >
+                              &nbsp;
+                            </td>
+                          ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="mt-12 grid gap-12 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-gray-600 sm:text-sm">Prepared by:</p>
+                <div className="mt-12 border-t border-gray-500 pt-2">
+                  <p className="text-xs font-semibold text-gray-900 sm:text-sm">
+                    {getTeacherName(teacher)}
+                  </p>
+                  <p className="text-[11px] text-gray-600 sm:text-xs">Subject Teacher</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs text-gray-600 sm:text-sm">Date Generated:</p>
+                <div className="mt-12 border-t border-gray-500 pt-2">
+                  <p className="text-xs font-semibold text-gray-900 sm:text-sm">
+                    {new Date().toLocaleDateString()}
+                  </p>
+                  <p className="text-[11px] text-gray-600 sm:text-xs">System Generated Report</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -297,7 +584,6 @@ function TeacherReportsPageContent() {
       return (
         row.full_name.toLowerCase().includes(keyword) ||
         row.gender.toLowerCase().includes(keyword) ||
-        row.grade_and_section.toLowerCase().includes(keyword) ||
         row.grade.toLowerCase().includes(keyword) ||
         row.remarks.toLowerCase().includes(keyword)
       )
@@ -715,7 +1001,6 @@ function TeacherReportsPageContent() {
             student.suffix
           ),
           gender: student.gender ?? '—',
-          grade_and_section: `${student.grade_level ?? normalizedClass.grade_level ?? ''} - ${student.section ?? normalizedClass.section ?? ''}`.trim(),
           grade: numericGrade !== null ? String(numericGrade) : '',
           remarks: gradeRow?.remarks?.trim() || getHonorLabel(numericGrade),
           last_name_sort: (student.last_name ?? '').trim().toLowerCase(),
@@ -775,6 +1060,24 @@ function TeacherReportsPageContent() {
     loadReportData(teacher.id, selectedSchoolYear, selectedGradingPeriod, selectedClassId)
   }, [teacher?.id, selectedSchoolYear, selectedGradingPeriod, selectedClassId])
 
+  useEffect(() => {
+    if (!previewOpen) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewOpen(false)
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [previewOpen])
+
   const openPreview = async (classId: string) => {
     setSelectedClassId(classId)
     setPreviewOpen(true)
@@ -820,6 +1123,11 @@ function TeacherReportsPageContent() {
   return (
     <div className="space-y-6">
       <style jsx global>{`
+        html,
+        body {
+          background: #f8fafc;
+        }
+
         @page {
           size: A4 portrait;
           margin: 12mm;
@@ -829,11 +1137,21 @@ function TeacherReportsPageContent() {
           html,
           body {
             background: white !important;
+            overflow: visible !important;
           }
 
+          body * {
+            visibility: hidden;
+          }
+
+          .print-only-area,
+          .print-only-area * {
+            visibility: visible;
+          }
+
+          .no-print,
           header,
-          aside,
-          .no-print {
+          aside {
             display: none !important;
           }
 
@@ -844,17 +1162,37 @@ function TeacherReportsPageContent() {
 
           .print-only-area {
             display: block !important;
+            position: static !important;
+            inset: auto !important;
+            width: 100% !important;
+            background: white !important;
           }
 
           .print-container {
             box-shadow: none !important;
             border: none !important;
-            margin: 0 !important;
             border-radius: 0 !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            background: white !important;
           }
 
           .print-page {
             padding: 0 !important;
+            transform: none !important;
+            zoom: 1 !important;
+            background: white !important;
+          }
+
+          .report-table-wrap {
+            overflow: visible !important;
+            border-radius: 0 !important;
+          }
+
+          .report-table-wrap table {
+            width: 100% !important;
+            table-layout: fixed !important;
           }
 
           .page-break-inside-avoid {
@@ -864,13 +1202,22 @@ function TeacherReportsPageContent() {
           .attendance-name {
             font-size: 11px !important;
           }
+
+          table,
+          thead,
+          tbody,
+          tr,
+          td,
+          th {
+            break-inside: avoid !important;
+          }
         }
       `}</style>
 
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="no-print overflow-hidden rounded-[28px] bg-gradient-to-r from-green-950 via-green-900 to-green-800 p-6 text-white shadow-xl"
+        className="no-print overflow-hidden rounded-[28px] bg-gradient-to-r from-green-950 via-green-900 to-green-800 p-5 text-white shadow-xl sm:p-6"
       >
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
@@ -878,11 +1225,11 @@ function TeacherReportsPageContent() {
               <FileText className="h-3.5 w-3.5" />
               Teacher Reports
             </div>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-4xl">
               Better reports, faster workflow
             </h1>
             <p className="mt-3 text-sm leading-6 text-green-50/90 sm:text-base">
-              Choose a class, open a clean report preview in a modal, then print or save as PDF without leaving the page.
+              Choose a class, open a clean report preview, then print or save as PDF without leaving the page.
             </p>
           </div>
 
@@ -924,7 +1271,7 @@ function TeacherReportsPageContent() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="no-print rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        className="no-print rounded-3xl border border-green-100 bg-white p-4 shadow-sm sm:p-5"
       >
         <div className="grid gap-4 xl:grid-cols-4">
           <div>
@@ -990,7 +1337,7 @@ function TeacherReportsPageContent() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="no-print rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        className="no-print rounded-3xl border border-green-100 bg-white p-4 shadow-sm sm:p-5"
       >
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1019,7 +1366,7 @@ function TeacherReportsPageContent() {
               return (
                 <div
                   key={item.id}
-                  className={`rounded-3xl border p-5 shadow-sm transition ${
+                  className={`rounded-3xl border p-4 shadow-sm transition sm:p-5 ${
                     isSelected
                       ? 'border-green-300 bg-green-50/70'
                       : 'border-green-100 bg-white hover:border-green-200'
@@ -1052,11 +1399,15 @@ function TeacherReportsPageContent() {
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Students
+                      </p>
                       <p className="mt-1 text-2xl font-bold text-green-950">{meta.studentCount}</p>
                     </div>
                     <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Encoded</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        Encoded
+                      </p>
                       <p className="mt-1 text-2xl font-bold text-green-950">{meta.encodedCount}</p>
                     </div>
                   </div>
@@ -1087,216 +1438,21 @@ function TeacherReportsPageContent() {
         )}
       </motion.section>
 
-      <div className="print-only-area hidden">
-        <div className="print-container rounded-3xl border border-green-100 bg-white shadow-sm">
-          <div ref={printRef} className="print-page p-6 sm:p-8">
-            <div className="page-break-inside-avoid">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex w-20 items-start justify-start">
-                  <Image
-                    src="/DePed-logo.png"
-                    alt="DepEd Logo"
-                    width={72}
-                    height={72}
-                    className="h-[68px] w-[68px] object-contain"
-                    priority
-                  />
-                </div>
-
-                <div className="flex-1 text-center">
-                  <p className="text-sm text-gray-700">Republic of the Philippines</p>
-                  <p className="text-lg font-bold text-gray-900">Department of Education</p>
-                  <p className="mt-1 text-2xl font-bold tracking-wide text-green-900">
-                    Qorban Institute of Technology Training and Assessment Center, Inc
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-gray-700">
-                    {getReportTitle(selectedReportType)}
-                  </p>
-                </div>
-
-                <div className="flex w-20 items-start justify-end">
-                  <Image
-                    src="/logo.jpg"
-                    alt="Qorban Logo"
-                    width={72}
-                    height={72}
-                    className="h-[68px] w-[68px] object-contain"
-                    priority
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-x-8 gap-y-2 border-y border-gray-300 py-4 text-sm text-gray-800 sm:grid-cols-2">
-                <p>
-                  <span className="font-semibold">Teacher:</span> {getTeacherName(teacher)}
-                </p>
-                <p>
-                  <span className="font-semibold">Teacher No:</span> {teacher?.teacher_no ?? '—'}
-                </p>
-                <p>
-                  <span className="font-semibold">Academic Year:</span> {selectedSchoolYear || '—'}
-                </p>
-                <p>
-                  <span className="font-semibold">Period:</span> {selectedGradingPeriod} Grading Period
-                </p>
-                <p>
-                  <span className="font-semibold">Subject:</span> {selectedClassLabel}
-                </p>
-                <p>
-                  <span className="font-semibold">Grade / Section:</span>{' '}
-                  {selectedClass ? `${selectedClass.grade_level} / ${selectedClass.section}` : '—'}
-                </p>
-                <p>
-                  <span className="font-semibold">Semester:</span> {selectedSemester}
-                </p>
-                <p>
-                  <span className="font-semibold">Report Type:</span> {getReportTitle(selectedReportType)}
-                </p>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                  <Users className="h-4 w-4" />
-                  {filteredRows.length} student{filteredRows.length !== 1 ? 's' : ''}
-                </div>
-
-                {selectedReportType === 'class_list_with_grades' && (
-                  <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                    <FileText className="h-4 w-4" />
-                    Average Grade: {averageGrade}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {filteredRows.length === 0 ? (
-              <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-                No report data found for this selection.
-              </div>
-            ) : (
-              <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-300">
-                <table className="w-full table-fixed border-collapse">
-                  <colgroup>
-                    <col className="w-[52px]" />
-                    <col className={selectedReportType === 'attendance_sheet' ? 'w-[34%]' : 'w-[40%]'} />
-                    <col className={selectedReportType === 'attendance_sheet' ? 'w-[16%]' : 'w-[20%]'} />
-
-                    {(selectedReportType === 'class_list_only' ||
-                      selectedReportType === 'class_list_with_grades') && <col className="w-[12%]" />}
-
-                    {selectedReportType === 'class_list_with_grades' && (
-                      <>
-                        <col className="w-[10%]" />
-                        <col className="w-[18%]" />
-                      </>
-                    )}
-
-                    {selectedReportType === 'attendance_sheet' &&
-                      attendanceHeaders.map((label) => <col key={label} className="w-[5%]" />)}
-                  </colgroup>
-
-                  <thead className="bg-green-50">
-                    <tr>
-                      <th className="border border-gray-300 px-2 py-3 text-center text-sm font-semibold text-green-900">No.</th>
-                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Full Name</th>
-                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade & Section</th>
-
-                      {(selectedReportType === 'class_list_only' ||
-                        selectedReportType === 'class_list_with_grades') && (
-                        <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Gender</th>
-                      )}
-
-                      {selectedReportType === 'class_list_with_grades' && (
-                        <>
-                          <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade</th>
-                          <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Remarks</th>
-                        </>
-                      )}
-
-                      {selectedReportType === 'attendance_sheet' &&
-                        attendanceHeaders.map((label) => (
-                          <th
-                            key={label}
-                            className="border border-gray-300 px-1 py-4 text-center text-sm font-semibold text-green-900"
-                          >
-                            &nbsp;
-                          </th>
-                        ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {filteredRows.map((row, index) => (
-                      <tr key={row.student_id}>
-                        <td className="border border-gray-300 px-2 py-3 text-center text-sm text-gray-700 align-middle">
-                          {index + 1}
-                        </td>
-
-                        <td
-                          className={`border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words ${
-                            selectedReportType === 'attendance_sheet' ? 'attendance-name' : ''
-                          }`}
-                        >
-                          {row.full_name}
-                        </td>
-
-                        <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                          {row.grade_and_section || '—'}
-                        </td>
-
-                        {(selectedReportType === 'class_list_only' ||
-                          selectedReportType === 'class_list_with_grades') && (
-                          <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                            {row.gender || '—'}
-                          </td>
-                        )}
-
-                        {selectedReportType === 'class_list_with_grades' && (
-                          <>
-                            <td className="border border-gray-300 px-3 py-3 text-sm font-medium text-gray-900 align-middle">
-                              {row.grade || '—'}
-                            </td>
-                            <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words">
-                              {row.remarks || '—'}
-                            </td>
-                          </>
-                        )}
-
-                        {selectedReportType === 'attendance_sheet' &&
-                          attendanceHeaders.map((label) => (
-                            <td
-                              key={`${row.student_id}-${label}`}
-                              className="h-12 border border-gray-300 px-1 py-3 align-middle"
-                            >
-                              &nbsp;
-                            </td>
-                          ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <div className="mt-12 grid gap-10 sm:grid-cols-2">
-              <div>
-                <p className="text-sm text-gray-600">Prepared by:</p>
-                <div className="mt-12 border-t border-gray-500 pt-2">
-                  <p className="text-sm font-semibold text-gray-900">{getTeacherName(teacher)}</p>
-                  <p className="text-xs text-gray-600">Subject Teacher</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-gray-600">Date Generated:</p>
-                <div className="mt-12 border-t border-gray-500 pt-2">
-                  <p className="text-sm font-semibold text-gray-900">{new Date().toLocaleDateString()}</p>
-                  <p className="text-xs text-gray-600">System Generated Report</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="print-only-area hidden bg-white">
+        <ReportDocument
+          teacher={teacher}
+          selectedSchoolYear={selectedSchoolYear}
+          selectedGradingPeriod={selectedGradingPeriod}
+          selectedSemester={selectedSemester}
+          selectedClass={selectedClass}
+          selectedClassLabel={selectedClassLabel}
+          selectedReportType={selectedReportType}
+          filteredRows={filteredRows}
+          attendanceHeaders={attendanceHeaders}
+          averageGrade={averageGrade}
+          printRef={printRef}
+          mode="print"
+        />
       </div>
 
       <AnimatePresence>
@@ -1305,316 +1461,126 @@ function TeacherReportsPageContent() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="no-print fixed inset-0 z-50 bg-black/50 p-3 sm:p-6"
+            className="no-print fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px]"
           >
-            <div className="flex h-full items-center justify-center">
+            <div className="flex h-dvh w-full items-center justify-center p-0 sm:p-4 lg:p-6">
               <motion.div
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                initial={{ opacity: 0, y: 14, scale: 0.985 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 16, scale: 0.98 }}
-                className="flex h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl"
+                exit={{ opacity: 0, y: 14, scale: 0.985 }}
+                className="flex h-dvh w-full flex-col bg-[#f8fafc] sm:h-[92vh] sm:max-h-[920px] sm:w-full sm:max-w-[1180px] sm:rounded-[28px] sm:shadow-2xl"
               >
-                <div className="flex flex-col gap-4 border-b border-green-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-bold text-green-950">Report Preview</h2>
-                    <p className="mt-1 truncate text-sm text-gray-500">{selectedClassLabel}</p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handlePrint}
-                      className="inline-flex items-center gap-2 rounded-xl border border-green-700 bg-white px-4 py-2 text-sm font-semibold text-green-800 transition hover:bg-green-50"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Print / PDF
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreviewOpen(false)}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
-                    >
-                      <X className="h-4 w-4" />
-                      Close
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 border-b border-green-100 px-5 py-4 xl:grid-cols-[220px_260px_1fr]">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Report Type</label>
-                    <select
-                      value={selectedReportType}
-                      onChange={async (e) => {
-                        const nextType = e.target.value as ReportType
-                        setSelectedReportType(nextType)
-
-                        if (teacher?.id && selectedSchoolYear && selectedClassId) {
-                          await loadReportData(
-                            teacher.id,
-                            selectedSchoolYear,
-                            selectedGradingPeriod,
-                            selectedClassId,
-                            nextType
-                          )
-                        }
-                      }}
-                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                    >
-                      <option value="class_list_only">Class List Only</option>
-                      <option value="class_list_with_grades">Class List with Grades</option>
-                      <option value="attendance_sheet">Attendance Sheet</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">Search Student</label>
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <input
-                        value={studentSearch}
-                        onChange={(e) => setStudentSearch(e.target.value)}
-                        placeholder="Search student in preview"
-                        className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
-                      />
+                <div className="border-b border-green-100 bg-white/95 px-4 py-4 backdrop-blur sm:rounded-t-[28px] sm:px-5">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-bold text-green-950">Report Preview</h2>
+                      <p className="mt-1 truncate text-sm text-gray-500">{selectedClassLabel}</p>
                     </div>
-                  </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
-                      <p className="mt-1 text-xl font-bold text-green-950">{reportStats.totalStudents}</p>
-                    </div>
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Male</p>
-                      <p className="mt-1 text-xl font-bold text-green-950">{reportStats.maleCount}</p>
-                    </div>
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Female</p>
-                      <p className="mt-1 text-xl font-bold text-green-950">{reportStats.femaleCount}</p>
-                    </div>
-                    <div className="rounded-2xl bg-green-50 px-4 py-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                        {selectedReportType === 'class_list_with_grades' ? 'Average' : 'Encoded'}
-                      </p>
-                      <p className="mt-1 text-xl font-bold text-green-950">
-                        {selectedReportType === 'class_list_with_grades' ? averageGrade : reportStats.encodedGrades}
-                      </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handlePrint}
+                        className="inline-flex items-center gap-2 rounded-xl border border-green-700 bg-white px-4 py-2 text-sm font-semibold text-green-800 transition hover:bg-green-50"
+                      >
+                        <Printer className="h-4 w-4" />
+                        Print / PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewOpen(false)}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+                      >
+                        <X className="h-4 w-4" />
+                        Close
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-auto bg-gray-50 p-4 sm:p-6">
-                  <div className="print-container mx-auto max-w-5xl rounded-3xl border border-green-100 bg-white shadow-sm">
-                    <div ref={printRef} className="print-page p-6 sm:p-8">
-                      <div className="page-break-inside-avoid">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex w-20 items-start justify-start">
-                            <Image
-                              src="/DePed-logo.png"
-                              alt="DepEd Logo"
-                              width={72}
-                              height={72}
-                              className="h-[68px] w-[68px] object-contain"
-                              priority
-                            />
-                          </div>
+                <div className="border-b border-green-100 bg-white px-4 py-4 sm:px-5">
+                  <div className="grid gap-4 xl:grid-cols-[220px_280px_1fr]">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Report Type</label>
+                      <select
+                        value={selectedReportType}
+                        onChange={async (e) => {
+                          const nextType = e.target.value as ReportType
+                          setSelectedReportType(nextType)
 
-                          <div className="flex-1 text-center">
-                            <p className="text-sm text-gray-700">Republic of the Philippines</p>
-                            <p className="text-lg font-bold text-gray-900">Department of Education</p>
-                            <p className="mt-1 text-2xl font-bold tracking-wide text-green-900">
-                              Qorban Institute of Technology Training and Assessment Center, Inc
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-gray-700">
-                              {getReportTitle(selectedReportType)}
-                            </p>
-                          </div>
+                          if (teacher?.id && selectedSchoolYear && selectedClassId) {
+                            await loadReportData(
+                              teacher.id,
+                              selectedSchoolYear,
+                              selectedGradingPeriod,
+                              selectedClassId,
+                              nextType
+                            )
+                          }
+                        }}
+                        className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      >
+                        <option value="class_list_only">Class List Only</option>
+                        <option value="class_list_with_grades">Class List with Grades</option>
+                        <option value="attendance_sheet">Attendance Sheet</option>
+                      </select>
+                    </div>
 
-                          <div className="flex w-20 items-start justify-end">
-                            <Image
-                              src="/logo.jpg"
-                              alt="Qorban Logo"
-                              width={72}
-                              height={72}
-                              className="h-[68px] w-[68px] object-contain"
-                              priority
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mt-5 grid gap-x-8 gap-y-2 border-y border-gray-300 py-4 text-sm text-gray-800 sm:grid-cols-2">
-                          <p>
-                            <span className="font-semibold">Teacher:</span> {getTeacherName(teacher)}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Teacher No:</span> {teacher?.teacher_no ?? '—'}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Academic Year:</span> {selectedSchoolYear || '—'}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Period:</span> {selectedGradingPeriod} Grading Period
-                          </p>
-                          <p>
-                            <span className="font-semibold">Subject:</span> {selectedClassLabel}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Grade / Section:</span>{' '}
-                            {selectedClass ? `${selectedClass.grade_level} / ${selectedClass.section}` : '—'}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Semester:</span> {selectedSemester}
-                          </p>
-                          <p>
-                            <span className="font-semibold">Report Type:</span>{' '}
-                            {getReportTitle(selectedReportType)}
-                          </p>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
-                          <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                            <Users className="h-4 w-4" />
-                            {filteredRows.length} student{filteredRows.length !== 1 ? 's' : ''}
-                          </div>
-
-                          {selectedReportType === 'class_list_with_grades' && (
-                            <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-2 font-medium text-green-800">
-                              <FileSpreadsheet className="h-4 w-4" />
-                              Average Grade: {averageGrade}
-                            </div>
-                          )}
-                        </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">Search Student</label>
+                      <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                          value={studentSearch}
+                          onChange={(e) => setStudentSearch(e.target.value)}
+                          placeholder="Search student in preview"
+                          className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                        />
                       </div>
+                    </div>
 
-                      {filteredRows.length === 0 ? (
-                        <div className="mt-6 rounded-2xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
-                          No report data found for this selection.
-                        </div>
-                      ) : (
-                        <div className="mt-6 overflow-x-auto rounded-2xl border border-gray-300">
-                          <table className="w-full table-fixed border-collapse">
-                            <colgroup>
-                              <col className="w-[52px]" />
-                              <col className={selectedReportType === 'attendance_sheet' ? 'w-[34%]' : 'w-[40%]'} />
-                              <col className={selectedReportType === 'attendance_sheet' ? 'w-[16%]' : 'w-[20%]'} />
-
-                              {(selectedReportType === 'class_list_only' ||
-                                selectedReportType === 'class_list_with_grades') && <col className="w-[12%]" />}
-
-                              {selectedReportType === 'class_list_with_grades' && (
-                                <>
-                                  <col className="w-[10%]" />
-                                  <col className="w-[18%]" />
-                                </>
-                              )}
-
-                              {selectedReportType === 'attendance_sheet' &&
-                                attendanceHeaders.map((label) => <col key={label} className="w-[5%]" />)}
-                            </colgroup>
-
-                            <thead className="bg-green-50">
-                              <tr>
-                                <th className="border border-gray-300 px-2 py-3 text-center text-sm font-semibold text-green-900">No.</th>
-                                <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Full Name</th>
-                                <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade & Section</th>
-
-                                {(selectedReportType === 'class_list_only' ||
-                                  selectedReportType === 'class_list_with_grades') && (
-                                  <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Gender</th>
-                                )}
-
-                                {selectedReportType === 'class_list_with_grades' && (
-                                  <>
-                                    <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Grade</th>
-                                    <th className="border border-gray-300 px-3 py-3 text-left text-sm font-semibold text-green-900">Remarks</th>
-                                  </>
-                                )}
-
-                                {selectedReportType === 'attendance_sheet' &&
-                                  attendanceHeaders.map((label) => (
-                                    <th
-                                      key={label}
-                                      className="border border-gray-300 px-1 py-4 text-center text-sm font-semibold text-green-900"
-                                    >
-                                      &nbsp;
-                                    </th>
-                                  ))}
-                              </tr>
-                            </thead>
-
-                            <tbody>
-                              {filteredRows.map((row, index) => (
-                                <tr key={row.student_id}>
-                                  <td className="border border-gray-300 px-2 py-3 text-center text-sm text-gray-700 align-middle">
-                                    {index + 1}
-                                  </td>
-
-                                  <td
-                                    className={`border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words ${
-                                      selectedReportType === 'attendance_sheet' ? 'attendance-name' : ''
-                                    }`}
-                                  >
-                                    {row.full_name}
-                                  </td>
-
-                                  <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                                    {row.grade_and_section || '—'}
-                                  </td>
-
-                                  {(selectedReportType === 'class_list_only' ||
-                                    selectedReportType === 'class_list_with_grades') && (
-                                    <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle">
-                                      {row.gender || '—'}
-                                    </td>
-                                  )}
-
-                                  {selectedReportType === 'class_list_with_grades' && (
-                                    <>
-                                      <td className="border border-gray-300 px-3 py-3 text-sm font-medium text-gray-900 align-middle">
-                                        {row.grade || '—'}
-                                      </td>
-                                      <td className="border border-gray-300 px-3 py-3 text-sm text-gray-700 align-middle break-words">
-                                        {row.remarks || '—'}
-                                      </td>
-                                    </>
-                                  )}
-
-                                  {selectedReportType === 'attendance_sheet' &&
-                                    attendanceHeaders.map((label) => (
-                                      <td
-                                        key={`${row.student_id}-${label}`}
-                                        className="h-12 border border-gray-300 px-1 py-3 align-middle"
-                                      >
-                                        &nbsp;
-                                      </td>
-                                    ))}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      <div className="mt-12 grid gap-10 sm:grid-cols-2">
-                        <div>
-                          <p className="text-sm text-gray-600">Prepared by:</p>
-                          <div className="mt-12 border-t border-gray-500 pt-2">
-                            <p className="text-sm font-semibold text-gray-900">{getTeacherName(teacher)}</p>
-                            <p className="text-xs text-gray-600">Subject Teacher</p>
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm text-gray-600">Date Generated:</p>
-                          <div className="mt-12 border-t border-gray-500 pt-2">
-                            <p className="text-sm font-semibold text-gray-900">{new Date().toLocaleDateString()}</p>
-                            <p className="text-xs text-gray-600">System Generated Report</p>
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                      <div className="rounded-2xl bg-green-50 px-4 py-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Students</p>
+                        <p className="mt-1 text-xl font-bold text-green-950">{reportStats.totalStudents}</p>
+                      </div>
+                      <div className="rounded-2xl bg-green-50 px-4 py-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Male</p>
+                        <p className="mt-1 text-xl font-bold text-green-950">{reportStats.maleCount}</p>
+                      </div>
+                      <div className="rounded-2xl bg-green-50 px-4 py-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Female</p>
+                        <p className="mt-1 text-xl font-bold text-green-950">{reportStats.femaleCount}</p>
+                      </div>
+                      <div className="rounded-2xl bg-green-50 px-4 py-3">
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          {selectedReportType === 'class_list_with_grades' ? 'Average' : 'Encoded'}
+                        </p>
+                        <p className="mt-1 text-xl font-bold text-green-950">
+                          {selectedReportType === 'class_list_with_grades'
+                            ? averageGrade
+                            : reportStats.encodedGrades}
+                        </p>
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-auto bg-[#f8fafc] p-2 sm:p-4 lg:p-6">
+                  <ReportDocument
+                    teacher={teacher}
+                    selectedSchoolYear={selectedSchoolYear}
+                    selectedGradingPeriod={selectedGradingPeriod}
+                    selectedSemester={selectedSemester}
+                    selectedClass={selectedClass}
+                    selectedClassLabel={selectedClassLabel}
+                    selectedReportType={selectedReportType}
+                    filteredRows={filteredRows}
+                    attendanceHeaders={attendanceHeaders}
+                    averageGrade={averageGrade}
+                    printRef={printRef}
+                    mode="preview"
+                  />
                 </div>
               </motion.div>
             </div>

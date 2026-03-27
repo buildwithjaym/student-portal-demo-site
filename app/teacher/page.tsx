@@ -589,7 +589,7 @@ export default function TeacherPage() {
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <button
                       type="button"
                       disabled={!canEncodeGrades}
@@ -602,7 +602,7 @@ export default function TeacherPage() {
                           )}&gradingPeriod=${encodeURIComponent(selectedGradingPeriod)}`
                         )
                       }
-                      className="rounded-xl bg-green-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      className="w-full rounded-xl bg-green-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
                     >
                       Open Grade Encoding
                     </button>
@@ -616,7 +616,7 @@ export default function TeacherPage() {
                           )}&semester=${encodeURIComponent(selectedSemester)}`
                         )
                       }
-                      className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 sm:w-auto"
                     >
                       Open Reports
                     </button>
