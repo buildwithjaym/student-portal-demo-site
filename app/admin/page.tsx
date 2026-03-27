@@ -109,7 +109,7 @@ export default function AdminDashboardPage() {
 
         console.log('[Dashboard] chart items:', chartItems)
         setChartData(chartItems)
-
+ 
         const studentMap = new Map<string, StudentRow>()
         for (const student of students) {
           studentMap.set(student.id, student)
