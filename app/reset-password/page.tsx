@@ -3,21 +3,24 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const initialEmail = searchParams.get('email') ?? ''
-
-  const [email, setEmail] = useState(initialEmail)
+  const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const emailFromQuery = searchParams.get('email') ?? ''
+    setEmail(emailFromQuery)
+  }, [searchParams])
 
   const normalizedEmail = useMemo(() => email.trim().toLowerCase(), [email])
   const normalizedCode = useMemo(() => code.trim(), [code])
@@ -214,10 +217,7 @@ export default function ResetPasswordPage() {
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="mb-2 block text-sm font-semibold text-gray-700"
-                  >
+                  <label htmlFor="email" className="mb-2 block text-sm font-semibold text-gray-700">
                     Registered Email
                   </label>
                   <input
@@ -237,10 +237,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="code"
-                    className="mb-2 block text-sm font-semibold text-gray-700"
-                  >
+                  <label htmlFor="code" className="mb-2 block text-sm font-semibold text-gray-700">
                     OTP Code
                   </label>
                   <input
@@ -265,10 +262,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="newPassword"
-                    className="mb-2 block text-sm font-semibold text-gray-700"
-                  >
+                  <label htmlFor="newPassword" className="mb-2 block text-sm font-semibold text-gray-700">
                     New Password
                   </label>
                   <input
@@ -291,10 +285,7 @@ export default function ResetPasswordPage() {
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="mb-2 block text-sm font-semibold text-gray-700"
-                  >
+                  <label htmlFor="confirmPassword" className="mb-2 block text-sm font-semibold text-gray-700">
                     Confirm New Password
                   </label>
                   <input
@@ -337,5 +328,13 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white" />}>
+      <ResetPasswordContent />
+    </Suspense>
   )
 }

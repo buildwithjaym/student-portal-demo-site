@@ -928,7 +928,7 @@ export default function EnrollPage() {
                     Automatic Enrollment
                   </p>
                   <h2 className="text-xl font-bold text-green-900 sm:text-2xl">
-                    Save
+                    Enroll Student
                   </h2>
                 </div>
 
