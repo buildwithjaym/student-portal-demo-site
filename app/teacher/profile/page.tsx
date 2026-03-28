@@ -29,7 +29,7 @@ type Teacher = {
   last_name: string
   suffix?: string | null
   email?: string
-  phone?: string
+  contact?: string
   address?: string
 }
 
@@ -145,7 +145,7 @@ export default function ProfilePage() {
           {/* DETAILS */}
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Info icon={<Mail />} label="Email" value={teacher.email} />
-            <Info icon={<Phone />} label="Phone" value={teacher.phone} />
+            <Info icon={<Phone />} label="Phone" value={teacher.contact} />
             <Info icon={<MapPin />} label="Address" value={teacher.address} />
             <Info icon={<School />} label="Department" value="Senior High" />
           </div>

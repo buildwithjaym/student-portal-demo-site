@@ -16,6 +16,8 @@ type Teacher = {
   last_name: string
   suffix: string | null
   email: string | null
+  contact: string | null
+  address: string | null
   is_active: boolean
   created_at: string
 }
@@ -27,6 +29,8 @@ type TeacherForm = {
   last_name: string
   suffix: string
   email: string
+  contact: string
+  address: string
   is_active: boolean
 }
 
@@ -37,6 +41,8 @@ const initialForm: TeacherForm = {
   last_name: '',
   suffix: '',
   email: '',
+  contact: '',
+  address: '',
   is_active: true,
 }
 
@@ -85,7 +91,8 @@ export default function TeachersPage() {
       return (
         teacher.teacher_no.toLowerCase().includes(keyword) ||
         fullName.includes(keyword) ||
-        (teacher.email ?? '').toLowerCase().includes(keyword)
+        (teacher.email ?? '').toLowerCase().includes(keyword) ||
+        (teacher.contact ?? '').toLowerCase().includes(keyword)
       )
     })
   }, [teachers, search])
@@ -126,6 +133,8 @@ export default function TeachersPage() {
       last_name: teacher.last_name,
       suffix: teacher.suffix ?? '',
       email: teacher.email ?? '',
+      contact: teacher.contact ?? '',
+      address:teacher.address ?? '',
       is_active: teacher.is_active,
     })
     setShowModal(true)
@@ -158,6 +167,8 @@ export default function TeachersPage() {
       last_name: form.last_name.trim(),
       suffix: form.suffix.trim() || null,
       email: form.email.trim().toLowerCase() || null,
+      contact: form.contact.trim() || null,
+      address: form.address.trim() || null,
       is_active: form.is_active,
     }
 
@@ -281,7 +292,7 @@ export default function TeachersPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by teacher no, name, or email"
+              placeholder="Search by teacher no, name, email, or contact"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
@@ -315,6 +326,12 @@ export default function TeachersPage() {
                   Email
                 </th>
                 <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  Contact
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  Address
+                </th>
+                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
                   Status
                 </th>
                 <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
@@ -326,13 +343,13 @@ export default function TeachersPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     Loading teachers...
                   </td>
                 </tr>
               ) : paginatedTeachers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     No teachers found.
                   </td>
                 </tr>
@@ -355,6 +372,12 @@ export default function TeachersPage() {
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-600">
                       {teacher.email || '—'}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-600">
+                      {teacher.contact || '—'}
+                    </td>
+                     <td className="px-4 py-4 text-sm text-gray-600">
+                      {teacher.address || '—'}
                     </td>
                     <td className="px-4 py-4">
                       {teacher.is_active ? (
@@ -546,6 +569,34 @@ export default function TeachersPage() {
                     />
                   </div>
 
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Contact
+                    </label>
+                    <input
+                      name="contact"
+                      type="text"
+                      value={form.contact}
+                      onChange={handleChange}
+                      placeholder="09xxxxxxxxx"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
+                    />
+                  </div>
+                  <div>
+                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                      Address
+                    </label>
+                    <input
+                      name="address"
+                      type="text"
+                      value={form.address}
+                      onChange={handleChange}
+                      placeholder="Enter address"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      disabled={saving}
+                    />
+                  </div>
                   <div>
                     <label className="mb-1.5 block text-sm font-medium text-gray-700">
                       Status

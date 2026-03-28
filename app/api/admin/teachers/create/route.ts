@@ -8,6 +8,8 @@ type CreateTeacherPayload = {
   middle_name?: string | null
   last_name: string
   suffix?: string | null
+  contact?: string | null
+  address?: string | null
   is_active: boolean
 }
 
@@ -23,6 +25,8 @@ export async function POST(req: Request) {
     const middle_name = body.middle_name?.trim() || null
     const last_name = body.last_name?.trim()
     const suffix = body.suffix?.trim() || null
+    const contact = body.contact?.trim() || null
+    const address = body.address?.trim() || null
     const is_active = body.is_active ?? true
 
     if (!teacher_no || !email || !first_name || !last_name) {
@@ -31,7 +35,12 @@ export async function POST(req: Request) {
         { status: 400 }
       )
     }
-
+    if (address && address.length > 255) {
+  return NextResponse.json(
+        { error: 'Address is too long.' },
+        { status: 400 }
+      )
+    }
     const temporaryPassword = teacher_no
 
     const authStarted = Date.now()
@@ -47,6 +56,8 @@ export async function POST(req: Request) {
           last_name,
           suffix,
           teacher_no,
+          contact,
+          address,
         },
       })
     console.log('createUser ms:', Date.now() - authStarted)
@@ -91,6 +102,8 @@ export async function POST(req: Request) {
       middle_name,
       last_name,
       suffix,
+      contact,
+      address,
       is_active,
     })
     console.log('insert teacher ms:', Date.now() - teacherStarted)

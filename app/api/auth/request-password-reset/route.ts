@@ -21,6 +21,7 @@ const RESET_EMAIL_FROM = process.env.RESET_EMAIL_FROM
 const OTP_EXPIRY_MINUTES = 10
 const OTP_EXPIRY_MS = OTP_EXPIRY_MINUTES * 60 * 1000
 const OTP_LENGTH = 6
+const IS_PROD = process.env.NODE_ENV === 'production'
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
@@ -59,6 +60,21 @@ function getMissingEnvKeys() {
   return missing
 }
 
+function errorResponse(
+  message: string,
+  status: number,
+  debug?: Record<string, unknown>
+) {
+  return NextResponse.json(
+    {
+      success: false,
+      message,
+      ...(IS_PROD ? {} : { debug }),
+    },
+    { status }
+  )
+}
+
 async function sendResetOtpEmail(to: string, code: string) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -87,7 +103,7 @@ async function sendResetOtpEmail(to: string, code: string) {
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`Failed to send reset email: ${errorText}`)
+    throw new Error(`Resend error: ${errorText}`)
   }
 }
 
@@ -98,27 +114,26 @@ export async function POST(request: Request) {
     if (missingEnv.length > 0) {
       console.error('[request-password-reset] missing env:', missingEnv)
 
-      return NextResponse.json(
-        { success: false, message: 'Server not configured properly.' },
-        { status: 500 }
-      )
+      return errorResponse('Server not configured properly.', 500, {
+        step: 'env_check',
+        missingEnv,
+      })
     }
 
     const body = (await request.json()) as RequestBody
     const email = normalizeEmail(body.email)
 
     if (!email) {
-      return NextResponse.json(
-        { success: false, message: 'Email is required.' },
-        { status: 400 }
-      )
+      return errorResponse('Email is required.', 400, {
+        step: 'validate_email',
+      })
     }
 
     if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { success: false, message: 'Please enter a valid email address.' },
-        { status: 400 }
-      )
+      return errorResponse('Please enter a valid email address.', 400, {
+        step: 'validate_email',
+        email,
+      })
     }
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
@@ -132,24 +147,24 @@ export async function POST(request: Request) {
     if (profileError) {
       console.error('[request-password-reset] profile lookup error:', profileError)
 
-      return NextResponse.json(
-        { success: false, message: 'Unable to verify your account right now.' },
-        { status: 500 }
-      )
+      return errorResponse('Unable to verify your account right now.', 500, {
+        step: 'profile_lookup',
+        profileError,
+      })
     }
 
     if (!profile) {
-      return NextResponse.json(
-        { success: false, message: 'No account matched this email.' },
-        { status: 404 }
-      )
+      return errorResponse('No account matched this email.', 404, {
+        step: 'profile_lookup',
+        email,
+      })
     }
 
     if (!profile.is_active) {
-      return NextResponse.json(
-        { success: false, message: 'This account is inactive. Contact the admin.' },
-        { status: 403 }
-      )
+      return errorResponse('This account is inactive. Contact the admin.', 403, {
+        step: 'profile_lookup',
+        email,
+      })
     }
 
     const resetCode = generateResetCode()
@@ -166,10 +181,10 @@ export async function POST(request: Request) {
     if (invalidateError) {
       console.error('[request-password-reset] invalidate error:', invalidateError)
 
-      return NextResponse.json(
-        { success: false, message: 'Failed to prepare password reset request.' },
-        { status: 500 }
-      )
+      return errorResponse('Failed to prepare password reset request.', 500, {
+        step: 'invalidate_old_requests',
+        invalidateError,
+      })
     }
 
     const { data: insertedRequest, error: insertError } = await supabase
@@ -186,10 +201,10 @@ export async function POST(request: Request) {
     if (insertError) {
       console.error('[request-password-reset] insert error:', insertError)
 
-      return NextResponse.json(
-        { success: false, message: 'Failed to create password reset request.' },
-        { status: 500 }
-      )
+      return errorResponse('Failed to create password reset request.', 500, {
+        step: 'insert_reset_request',
+        insertError,
+      })
     }
 
     try {
@@ -202,10 +217,11 @@ export async function POST(request: Request) {
         .update({ used_at: new Date().toISOString() })
         .eq('id', insertedRequest.id)
 
-      return NextResponse.json(
-        { success: false, message: 'Failed to send OTP to your email.' },
-        { status: 500 }
-      )
+      return errorResponse('Failed to send OTP to your email.', 500, {
+        step: 'send_email',
+        emailError:
+          emailError instanceof Error ? emailError.message : String(emailError),
+      })
     }
 
     const { error: profileUpdateError } = await supabase
@@ -214,27 +230,32 @@ export async function POST(request: Request) {
       .eq('id', profile.id)
 
     if (profileUpdateError) {
-      console.error('[request-password-reset] profile update error:', profileUpdateError)
+      console.error(
+        '[request-password-reset] profile update error:',
+        profileUpdateError
+      )
 
-      return NextResponse.json(
+      return errorResponse(
+        'OTP sent, but account update failed. Please contact support.',
+        500,
         {
-          success: false,
-          message: 'OTP sent, but account update failed. Please contact support.',
-        },
-        { status: 500 }
+          step: 'update_profile',
+          profileUpdateError,
+        }
       )
     }
 
     return NextResponse.json({
       success: true,
       message: 'OTP has been sent to your Gmail.',
+      ...(IS_PROD ? {} : { debug: { step: 'done' } }),
     })
   } catch (error) {
     console.error('[request-password-reset] unexpected error:', error)
 
-    return NextResponse.json(
-      { success: false, message: 'Something went wrong while sending OTP.' },
-      { status: 500 }
-    )
+    return errorResponse('Something went wrong while sending OTP.', 500, {
+      step: 'unexpected',
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 }
