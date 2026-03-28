@@ -21,7 +21,7 @@ const RESET_EMAIL_FROM = process.env.RESET_EMAIL_FROM
 const OTP_EXPIRY_MINUTES = 10
 const OTP_EXPIRY_MS = OTP_EXPIRY_MINUTES * 60 * 1000
 const OTP_LENGTH = 6
-const IS_PROD = process.env.NODE_ENV === 'production'
+const LOGO_URL = 'https://www.qorbanportal.online/logo.jpg'
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
@@ -29,6 +29,18 @@ function isValidEmail(value: string) {
 
 function normalizeEmail(value?: string) {
   return value?.trim().toLowerCase() || ''
+}
+
+function maskEmail(email: string) {
+  const [local, domain] = email.split('@')
+
+  if (!local || !domain) return email
+
+  if (local.length <= 2) {
+    return `${local[0] || '*'}*@${domain}`
+  }
+
+  return `${local.slice(0, 2)}${'*'.repeat(Math.max(local.length - 2, 1))}@${domain}`
 }
 
 function generateResetCode() {
@@ -69,10 +81,107 @@ function errorResponse(
     {
       success: false,
       message,
-      ...(IS_PROD ? {} : { debug }),
+      debug,
     },
     { status }
   )
+}
+
+function buildResetEmailHtml(code: string) {
+  const year = new Date().getFullYear()
+
+  return `
+    <div style="margin:0;padding:0;background:#f3f7f4;">
+      <table role="presentation" style="width:100%;border-collapse:collapse;background:#f3f7f4;padding:24px 12px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" style="width:100%;max-width:620px;border-collapse:collapse;background:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,0.10);font-family:Arial,sans-serif;">
+              
+              <tr>
+                <td style="background:linear-gradient(135deg,#052e16 0%,#166534 55%,#15803d 100%);padding:32px 28px;text-align:center;">
+                  <div style="margin-bottom:16px;">
+                    <img
+                      src="${LOGO_URL}"
+                      alt="Qorban Portal Logo"
+                      width="84"
+                      height="84"
+                      style="display:block;margin:0 auto;border-radius:50%;background:#ffffff;padding:6px;border:4px solid #facc15;object-fit:contain;"
+                    />
+                  </div>
+
+                  <h1 style="margin:0;font-size:30px;line-height:1.2;color:#ffffff;font-weight:800;letter-spacing:0.02em;">
+                    Qorban Portal
+                  </h1>
+                  <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#dcfce7;">
+                    Online Grade Management System
+                  </p>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:36px 30px 18px;">
+                  <h2 style="margin:0 0 12px;font-size:26px;line-height:1.3;color:#111827;font-weight:800;">
+                    Password Reset OTP
+                  </h2>
+
+                  <p style="margin:0 0 18px;font-size:15px;line-height:1.8;color:#4b5563;">
+                    We received a request to reset your Qorban Portal password. Use the one-time password below to continue securely.
+                  </p>
+
+                  <div style="margin:26px 0;padding:24px;border:1px solid #bbf7d0;border-radius:20px;background:linear-gradient(180deg,#f0fdf4 0%,#ecfdf5 100%);text-align:center;">
+                    <p style="margin:0 0 10px;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#166534;font-weight:800;">
+                      Your One-Time Password
+                    </p>
+                    <div style="font-size:36px;line-height:1.2;font-weight:800;letter-spacing:10px;color:#14532d;">
+                      ${code}
+                    </div>
+                  </div>
+
+                  <div style="margin:0 0 18px;padding:16px 18px;border-radius:16px;background:#f9fafb;border:1px solid #e5e7eb;">
+                    <p style="margin:0 0 8px;font-size:14px;line-height:1.8;color:#374151;">
+                      This OTP will expire in <strong style="color:#111827;">${OTP_EXPIRY_MINUTES} minutes</strong>.
+                    </p>
+                    <p style="margin:0;font-size:14px;line-height:1.8;color:#374151;">
+                      For your security, do not share this code with anyone.
+                    </p>
+                  </div>
+
+                  <div style="margin-top:16px;padding:16px 18px;border-radius:16px;background:#fffbeb;border:1px solid #fde68a;">
+                    <p style="margin:0;font-size:13px;line-height:1.8;color:#92400e;">
+                      If you did not request this password reset, you can safely ignore this email. No changes will be made unless this OTP is used.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:0 30px 30px;">
+                  <hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 20px;" />
+                  <p style="margin:0 0 6px;font-size:13px;color:#6b7280;">
+                    Need help? Please contact your system administrator.
+                  </p>
+                  <p style="margin:0;font-size:12px;color:#9ca3af;">
+                    © ${year} Qorban Portal. All rights reserved.
+                  </p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `
+}
+
+function buildResetEmailText(code: string) {
+  return `Qorban Portal - Password Reset OTP
+
+Your OTP code is: ${code}
+
+This OTP will expire in ${OTP_EXPIRY_MINUTES} minutes.
+
+If you did not request a password reset, you can ignore this email.`
 }
 
 async function sendResetOtpEmail(to: string, code: string) {
@@ -86,18 +195,8 @@ async function sendResetOtpEmail(to: string, code: string) {
       from: RESET_EMAIL_FROM,
       to: [to],
       subject: 'Qorban Portal - Password Reset OTP',
-      html: `
-        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827;">
-          <h2>Qorban Portal</h2>
-          <p>Your OTP code is:</p>
-          <div style="font-size:28px;font-weight:700;letter-spacing:6px;color:#166534;margin:16px 0;">
-            ${code}
-          </div>
-          <p>This code will expire in ${OTP_EXPIRY_MINUTES} minutes.</p>
-          <p>If you did not request a password reset, you can ignore this email.</p>
-        </div>
-      `,
-      text: `Qorban Portal Password Reset\n\nYour OTP code is: ${code}\n\nThis code will expire in ${OTP_EXPIRY_MINUTES} minutes.\n\nIf you did not request a password reset, you can ignore this email.`,
+      html: buildResetEmailHtml(code),
+      text: buildResetEmailText(code),
     }),
   })
 
@@ -210,7 +309,10 @@ export async function POST(request: Request) {
     try {
       await sendResetOtpEmail(email, resetCode)
     } catch (emailError) {
-      console.error('[request-password-reset] email send error:', emailError)
+      console.error(
+        `[request-password-reset] email send error for ${maskEmail(email)}:`,
+        emailError
+      )
 
       await supabase
         .from('password_reset_requests')
@@ -248,7 +350,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: 'OTP has been sent to your Gmail.',
-      ...(IS_PROD ? {} : { debug: { step: 'done' } }),
+      debug: { step: 'done' },
     })
   } catch (error) {
     console.error('[request-password-reset] unexpected error:', error)
