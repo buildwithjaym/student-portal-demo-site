@@ -89,7 +89,7 @@ type RawGradeRow = {
   grading_period: string
   semester: string
   school_year: string
-  grade: number
+  grade: number | null
   remarks: string | null
   classes: RawClassGradeRelation[] | RawClassGradeRelation | null
 }
@@ -262,7 +262,9 @@ export default function StudentDashboardPage() {
 
         if (gradesError) throw gradesError
 
-        const safeGrades = ((gradesData ?? []) as RawGradeRow[]).map(normalizeGradeRow)
+        const safeGrades = ((gradesData ?? []) as RawGradeRow[])
+          .filter((row) => row.grade !== null)
+          .map(normalizeGradeRow)
 
         if (mounted) {
           setGrades(safeGrades)
@@ -287,11 +289,40 @@ export default function StudentDashboardPage() {
     }
   }, [])
 
-  const averageGrade = useMemo(() => {
-    if (!grades.length) return null
-    const total = grades.reduce((sum, item) => sum + Number(item.grade), 0)
-    return (total / grades.length).toFixed(2)
+  const currentGradingPeriod = useMemo(() => {
+    const validGrades = grades.filter(
+      (item) =>
+        item.grade !== null &&
+        item.grade !== undefined &&
+        !Number.isNaN(Number(item.grade))
+    )
+
+    if (!validGrades.length) return null
+    return validGrades[0]?.grading_period || null
   }, [grades])
+
+  const currentPeriodGrades = useMemo(() => {
+    if (!currentGradingPeriod) return []
+
+    return grades.filter(
+      (item) =>
+        item.grading_period === currentGradingPeriod &&
+        item.grade !== null &&
+        item.grade !== undefined &&
+        !Number.isNaN(Number(item.grade))
+    )
+  }, [grades, currentGradingPeriod])
+
+  const currentPeriodAverage = useMemo(() => {
+    if (!currentPeriodGrades.length) return null
+
+    const total = currentPeriodGrades.reduce(
+      (sum, item) => sum + Number(item.grade),
+      0
+    )
+
+    return (total / currentPeriodGrades.length).toFixed(2)
+  }, [currentPeriodGrades])
 
   const latestGrades = useMemo(() => grades.slice(0, 5), [grades])
 
@@ -335,8 +366,12 @@ export default function StudentDashboardPage() {
           value={String(enrollments.length)}
         />
         <DashboardCard
-          label="Average Grade"
-          value={averageGrade || 'No grades yet'}
+          label={
+            currentGradingPeriod
+              ? `${currentGradingPeriod} Average`
+              : 'Current Period Average'
+          }
+          value={currentPeriodAverage || 'No grades yet'}
           highlight
         />
       </section>
@@ -410,7 +445,7 @@ export default function StudentDashboardPage() {
                       {item.classes?.subjects?.subject_name || 'Unknown Subject'}
                     </p>
                     <p className="text-sm text-gray-600">
-                      {item.semester} • {item.grading_period} Grading
+                      {item.grading_period} Grading
                     </p>
                   </div>
 
