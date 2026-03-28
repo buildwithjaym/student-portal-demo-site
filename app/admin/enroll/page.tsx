@@ -611,7 +611,7 @@ export default function EnrollPage() {
           className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 sm:w-auto"
         >
           <Plus className="h-5 w-5" />
-          Auto Enroll Student
+          Enroll Student
         </button>
       </motion.div>
 
@@ -928,7 +928,7 @@ export default function EnrollPage() {
                     Automatic Enrollment
                   </p>
                   <h2 className="text-xl font-bold text-green-900 sm:text-2xl">
-                    Enroll Student
+                    Save
                   </h2>
                 </div>
 

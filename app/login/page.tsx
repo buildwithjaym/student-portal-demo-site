@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -27,34 +28,18 @@ export default function LoginPage() {
   useEffect(() => {
     let isMounted = true
 
-    const log = (...args: unknown[]) => {
-      console.log('[LoginPage]', ...args)
-    }
-
     const finishChecking = () => {
       if (!isMounted) return
       setCheckingSession(false)
     }
 
     const getProfileFromSession = async (): Promise<ProfileRow | null> => {
-      log('Starting session check')
-
       const {
         data: { user },
         error: userError,
       } = await supabase.auth.getUser()
 
-      if (userError) {
-        log('getUser error:', userError)
-        return null
-      }
-
-      if (!user) {
-        log('No authenticated user found')
-        return null
-      }
-
-      log('Authenticated user found:', user.id)
+      if (userError || !user) return null
 
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -62,23 +47,13 @@ export default function LoginPage() {
         .eq('id', user.id)
         .single()
 
-      if (profileError) {
-        log('Profile lookup error:', profileError)
-        return null
-      }
+      if (profileError || !profile?.role) return null
 
-      if (!profile?.role) {
-        log('Profile found but no role present')
-        return null
-      }
-
-      log('Resolved profile:', profile)
       return profile as ProfileRow
     }
 
     const redirectByProfile = async (profile: ProfileRow) => {
       if (!profile.is_active) {
-        log('Profile is inactive, signing out')
         await supabase.auth.signOut()
         setError('Your account is inactive. Please contact the administrator.')
         finishChecking()
@@ -86,30 +61,25 @@ export default function LoginPage() {
       }
 
       if (profile.must_change_password) {
-        log('Redirecting to /change-password')
         router.replace('/change-password')
         return
       }
 
       if (profile.role === 'admin') {
-        log('Redirecting to /admin')
         router.replace('/admin')
         return
       }
 
       if (profile.role === 'teacher') {
-        log('Redirecting to /teacher')
         router.replace('/teacher')
         return
       }
 
       if (profile.role === 'student') {
-        log('Redirecting to /student')
         router.replace('/student')
         return
       }
 
-      log('Unknown role, staying on login page')
       finishChecking()
     }
 
@@ -118,36 +88,25 @@ export default function LoginPage() {
 
       const timeoutId = window.setTimeout(() => {
         timeoutHandledRef.current = true
-        log('Session check timed out, showing login form')
         finishChecking()
       }, 1000)
 
       try {
         const profile = await getProfileFromSession()
-
         window.clearTimeout(timeoutId)
 
-        if (timeoutHandledRef.current) {
-          log('Session result arrived after timeout, ignoring redirect')
-          return
-        }
+        if (timeoutHandledRef.current) return
 
         if (!profile) {
-          log('No valid session profile, staying on login page')
           finishChecking()
           return
         }
 
         await redirectByProfile(profile)
-      } catch (err) {
+      } catch {
         window.clearTimeout(timeoutId)
-        console.error('[LoginPage] Session check failed:', err)
 
-        if (timeoutHandledRef.current) {
-          log('Error happened after timeout, already showing login')
-          return
-        }
-
+        if (timeoutHandledRef.current) return
         finishChecking()
       }
     }
@@ -164,15 +123,12 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    console.log('[LoginPage] Attempting login for:', email)
-
     const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     })
 
     if (signInError) {
-      console.error('[LoginPage] signInWithPassword error:', signInError)
       setError(signInError.message)
       setLoading(false)
       return
@@ -181,13 +137,10 @@ export default function LoginPage() {
     const user = data.user
 
     if (!user) {
-      console.error('[LoginPage] Login succeeded but no user returned')
       setError('Login failed. Please try again.')
       setLoading(false)
       return
     }
-
-    console.log('[LoginPage] Login success, fetching profile for user:', user.id)
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -196,13 +149,10 @@ export default function LoginPage() {
       .single()
 
     if (profileError || !profile) {
-      console.error('[LoginPage] Profile lookup after login failed:', profileError)
       setError('Profile not found.')
       setLoading(false)
       return
     }
-
-    console.log('[LoginPage] Profile after login:', profile)
 
     if (!profile.is_active) {
       await supabase.auth.signOut()
@@ -242,7 +192,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-950 via-green-900 to-green-800 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-green-950 via-green-900 to-green-800 px-4 py-8">
       <div className="w-full max-w-md rounded-3xl border border-yellow-300/20 bg-white p-8 shadow-2xl">
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-4 border-yellow-400 bg-white shadow-md">
@@ -262,19 +212,27 @@ export default function LoginPage() {
           <p className="mt-1 text-sm font-medium text-yellow-600">
             Online Grade Management System
           </p>
+         
         </div>
-         {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label
+              htmlFor="email"
+              className="mb-1.5 block text-sm font-medium text-gray-700"
+            >
               Email
             </label>
             <input
+              id="email"
               type="email"
+              autoComplete="email"
               className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -285,13 +243,27 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Password
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Password
+              </label>
+
+              <Link
+                href="/login/forgot-password"
+                className="text-sm font-medium text-green-800 transition hover:text-green-900 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
 
             <div className="relative">
               <input
+                id="password"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-20 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -310,9 +282,6 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
-   
-  
-         
 
           <button
             type="submit"
@@ -322,6 +291,10 @@ export default function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-xs text-gray-500">
+          Powered by Qorban Portal
+        </div>
       </div>
     </div>
   )
