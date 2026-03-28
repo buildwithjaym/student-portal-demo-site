@@ -6,27 +6,39 @@ type RequestBody = {
   email?: string
 }
 
+type ProfileLookup = {
+  id: string
+  email: string
+  is_active: boolean
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const RESET_CODE_SECRET = process.env.RESET_CODE_SECRET
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const RESET_EMAIL_FROM = process.env.RESET_EMAIL_FROM
 
-// --------------------
-// Helpers
-// --------------------
+const OTP_EXPIRY_MINUTES = 10
+const OTP_EXPIRY_MS = OTP_EXPIRY_MINUTES * 60 * 1000
+const OTP_LENGTH = 6
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-function generateCode() {
-  return crypto.randomInt(100000, 1000000).toString()
+function normalizeEmail(value?: string) {
+  return value?.trim().toLowerCase() || ''
 }
 
-function hashCode(email: string, code: string) {
+function generateResetCode() {
+  const min = 10 ** (OTP_LENGTH - 1)
+  const max = 10 ** OTP_LENGTH
+  return crypto.randomInt(min, max).toString()
+}
+
+function hashResetCode(email: string, code: string) {
   if (!RESET_CODE_SECRET) {
-    throw new Error('RESET_CODE_SECRET missing')
+    throw new Error('RESET_CODE_SECRET is not configured.')
   }
 
   return crypto
@@ -35,21 +47,56 @@ function hashCode(email: string, code: string) {
     .digest('hex')
 }
 
-// --------------------
-// Route
-// --------------------
+function getMissingEnvKeys() {
+  const missing: string[] = []
 
-export async function POST(req: Request) {
+  if (!SUPABASE_URL) missing.push('NEXT_PUBLIC_SUPABASE_URL')
+  if (!SUPABASE_SERVICE_ROLE_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY')
+  if (!RESET_CODE_SECRET) missing.push('RESET_CODE_SECRET')
+  if (!RESEND_API_KEY) missing.push('RESEND_API_KEY')
+  if (!RESET_EMAIL_FROM) missing.push('RESET_EMAIL_FROM')
+
+  return missing
+}
+
+async function sendResetOtpEmail(to: string, code: string) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: RESET_EMAIL_FROM,
+      to: [to],
+      subject: 'Qorban Portal - Password Reset OTP',
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827;">
+          <h2>Qorban Portal</h2>
+          <p>Your OTP code is:</p>
+          <div style="font-size:28px;font-weight:700;letter-spacing:6px;color:#166534;margin:16px 0;">
+            ${code}
+          </div>
+          <p>This code will expire in ${OTP_EXPIRY_MINUTES} minutes.</p>
+          <p>If you did not request a password reset, you can ignore this email.</p>
+        </div>
+      `,
+      text: `Qorban Portal Password Reset\n\nYour OTP code is: ${code}\n\nThis code will expire in ${OTP_EXPIRY_MINUTES} minutes.\n\nIf you did not request a password reset, you can ignore this email.`,
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`Failed to send reset email: ${errorText}`)
+  }
+}
+
+export async function POST(request: Request) {
   try {
-    // ✅ ENV CHECK
-    if (
-      !SUPABASE_URL ||
-      !SUPABASE_SERVICE_ROLE_KEY ||
-      !RESEND_API_KEY ||
-      !RESET_EMAIL_FROM ||
-      !RESET_CODE_SECRET
-    ) {
-      console.error('❌ Missing ENV')
+    const missingEnv = getMissingEnvKeys()
+
+    if (missingEnv.length > 0) {
+      console.error('[request-password-reset] missing env:', missingEnv)
 
       return NextResponse.json(
         { success: false, message: 'Server not configured properly.' },
@@ -57,68 +104,75 @@ export async function POST(req: Request) {
       )
     }
 
-    const body = (await req.json()) as RequestBody
-    const email = body.email?.trim().toLowerCase() || ''
+    const body = (await request.json()) as RequestBody
+    const email = normalizeEmail(body.email)
 
-    if (!email || !isValidEmail(email)) {
+    if (!email) {
       return NextResponse.json(
-        { success: false, message: 'Invalid email.' },
+        { success: false, message: 'Email is required.' },
         { status: 400 }
       )
     }
 
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY
-    )
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        { success: false, message: 'Please enter a valid email address.' },
+        { status: 400 }
+      )
+    }
 
-    // --------------------
-    // Check profile
-    // --------------------
+    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, is_active')
+      .select('id, email, is_active')
       .eq('email', email)
-      .maybeSingle()
+      .maybeSingle<ProfileLookup>()
 
     if (profileError) {
-      console.error('PROFILE ERROR:', profileError)
-      throw profileError
+      console.error('[request-password-reset] profile lookup error:', profileError)
+
+      return NextResponse.json(
+        { success: false, message: 'Unable to verify your account right now.' },
+        { status: 500 }
+      )
     }
 
     if (!profile) {
       return NextResponse.json(
-        { success: false, message: 'No account found.' },
+        { success: false, message: 'No account matched this email.' },
         { status: 404 }
       )
     }
 
     if (!profile.is_active) {
       return NextResponse.json(
-        { success: false, message: 'Account inactive.' },
+        { success: false, message: 'This account is inactive. Contact the admin.' },
         { status: 403 }
       )
     }
 
-    // --------------------
-    // Generate OTP
-    // --------------------
+    const resetCode = generateResetCode()
+    const codeHash = hashResetCode(email, resetCode)
+    const nowIso = new Date().toISOString()
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MS).toISOString()
 
-    const code = generateCode()
-    const codeHash = hashCode(email, code)
-
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString()
-
-    // invalidate old
-    await supabase
+    const { error: invalidateError } = await supabase
       .from('password_reset_requests')
-      .update({ used_at: new Date().toISOString() })
+      .update({ used_at: nowIso })
       .eq('profile_id', profile.id)
       .is('used_at', null)
 
-    // insert new
-    const { error: insertError } = await supabase
+    if (invalidateError) {
+      console.error('[request-password-reset] invalidate error:', invalidateError)
+
+      return NextResponse.json(
+        { success: false, message: 'Failed to prepare password reset request.' },
+        { status: 500 }
+      )
+    }
+
+    const { data: insertedRequest, error: insertError } = await supabase
       .from('password_reset_requests')
       .insert({
         profile_id: profile.id,
@@ -126,45 +180,60 @@ export async function POST(req: Request) {
         code_hash: codeHash,
         expires_at: expiresAt,
       })
+      .select('id')
+      .single()
 
     if (insertError) {
-      console.error('INSERT ERROR:', insertError)
-      throw insertError
+      console.error('[request-password-reset] insert error:', insertError)
+
+      return NextResponse.json(
+        { success: false, message: 'Failed to create password reset request.' },
+        { status: 500 }
+      )
     }
 
-    // --------------------
-    // SEND EMAIL (RESEND)
-    // --------------------
+    try {
+      await sendResetOtpEmail(email, resetCode)
+    } catch (emailError) {
+      console.error('[request-password-reset] email send error:', emailError)
 
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: RESET_EMAIL_FROM,
-        to: [email],
-        subject: 'Qorban Portal OTP Code',
-        html: `<h2>Your OTP Code</h2><p style="font-size:24px">${code}</p>`,
-      }),
-    })
+      await supabase
+        .from('password_reset_requests')
+        .update({ used_at: new Date().toISOString() })
+        .eq('id', insertedRequest.id)
 
-    if (!emailRes.ok) {
-      const errText = await emailRes.text()
-      console.error('EMAIL ERROR:', errText)
-      throw new Error('Email failed')
+      return NextResponse.json(
+        { success: false, message: 'Failed to send OTP to your email.' },
+        { status: 500 }
+      )
+    }
+
+    const { error: profileUpdateError } = await supabase
+      .from('profiles')
+      .update({ must_change_password: true })
+      .eq('id', profile.id)
+
+    if (profileUpdateError) {
+      console.error('[request-password-reset] profile update error:', profileUpdateError)
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'OTP sent, but account update failed. Please contact support.',
+        },
+        { status: 500 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      message: 'OTP sent to your email.',
+      message: 'OTP has been sent to your Gmail.',
     })
-  } catch (err) {
-    console.error('❌ RESET REQUEST ERROR:', err)
+  } catch (error) {
+    console.error('[request-password-reset] unexpected error:', error)
 
     return NextResponse.json(
-      { success: false, message: 'Failed to send OTP.' },
+      { success: false, message: 'Something went wrong while sending OTP.' },
       { status: 500 }
     )
   }

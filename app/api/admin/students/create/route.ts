@@ -51,20 +51,20 @@ export async function POST(req: Request) {
 
     const temporaryPassword = student_no
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password: temporaryPassword,
-      email_confirm: true,
-      user_metadata: {
-        role: 'student',
-        first_name,
-        middle_name,
-        last_name,
-        suffix,
-        gender,
-        student_no,
-      },
-    })
+    const { data: authData, error: authError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          role: 'student',
+          first_name,
+          middle_name,
+          last_name,
+          suffix,
+          student_no,
+        },
+      })
 
     if (authError || !authData?.user?.id) {
       return NextResponse.json(
@@ -84,7 +84,6 @@ export async function POST(req: Request) {
         middle_name,
         last_name,
         suffix,
-        gender,
         role: 'student',
         is_active,
         must_change_password: true,
