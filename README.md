@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Typing SVG](https://readme-typing-svg.demolab.com?font=Geist&weight=700&size=26&pause=1000&color=166534&center=true&vCenter=true&width=700&lines=Online+Grade+Management+System;Built+for+Students%2C+Teachers%2C+and+Administrators;Secure%2C+Modern%2C+and+Scalable)](https://git.io/typing-svg)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Geist\&weight=700\&size=26\&pause=1000\&color=166534\&center=true\&vCenter=true\&width=700\&lines=Online+Grade+Management+System;Built+for+Students%2C+Teachers%2C+and+Administrators;Secure%2C+Modern%2C+and+Scalable)](https://git.io/typing-svg)
 
 <br />
 
@@ -10,11 +10,11 @@
 
 <br /><br />
 
-![Next.js](https://img.shields.io/badge/Next.js-15-166534?style=for-the-badge&logo=nextdotjs&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-Ready-14532D?style=for-the-badge&logo=typescript&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20DB-166534?style=for-the-badge&logo=supabase&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-Styled-15803D?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-Deployed-854D0E?style=for-the-badge&logo=vercel&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-15-166534?style=for-the-badge\&logo=nextdotjs\&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-Ready-14532D?style=for-the-badge\&logo=typescript\&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-Auth%20%26%20DB-166534?style=for-the-badge\&logo=supabase\&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-Styled-15803D?style=for-the-badge\&logo=tailwindcss\&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-Deployed-854D0E?style=for-the-badge\&logo=vercel\&logoColor=white)
 
 <br />
 
@@ -32,66 +32,84 @@
 
 It provides a secure, role-based platform for:
 
-- viewing and managing grades
-- handling user accounts and profiles
-- enforcing password-change flows
-- maintaining academic data in a clean, responsive interface
+* 📊 Viewing and managing grades
+* 👤 Managing user accounts and profiles
+* 🔐 Enforcing password-change flows
+* 🏫 Organizing academic data in a clean, responsive interface
 
-This project is built with **Next.js**, **Supabase**, **TypeScript**, and **Tailwind CSS**.
+Built with modern technologies like **Next.js, Supabase, TypeScript, and Tailwind CSS**, the system is scalable, secure, and production-ready.
 
 ---
 
 ## ✨ Key Features
 
 ### 🔐 Authentication & Security
-- Secure login using **Supabase Auth**
-- Role-based authentication
-- Password visibility toggles
-- Forced password change for newly created accounts
-- Forgot password and account recovery flow
-- Active/inactive account enforcement
+
+* Secure login using **Supabase Auth**
+* Role-based authentication (Admin / Teacher / Student)
+* Forced password change for new users
+* Forgot password & recovery system
+* Account activation control (`is_active`)
+* Session-based redirection
 
 ### 👥 Role-Based Access
-- **Admin Dashboard**
-- **Teacher Dashboard**
-- **Student Dashboard**
 
-Each role is redirected automatically after login.
+* 🧑‍💼 Admin Dashboard
+* 👨‍🏫 Teacher Dashboard
+* 🎓 Student Dashboard
+
+Each role is automatically redirected after login.
+
+---
 
 ### 🧾 User Management
-- Centralized profile storage in Supabase
-- `must_change_password` support
-- `is_active` account status support
-- Profile-linked access control
+
+* Centralized **profiles table (Supabase)**
+* Linked with `auth.users`
+* Supports:
+
+  * `must_change_password`
+  * `is_active`
+  * role-based access control
+
+---
 
 ### 🎨 User Experience
-- Clean green-and-gold Qorban Portal branding
-- Responsive layouts
-- Modern form styling
-- Smooth transitions and polished interfaces
+
+* Clean **green & gold Qorban branding**
+* Fully responsive design
+* Modern UI components
+* Smooth transitions and clean layouts
+
+---
 
 ### 🌐 SEO & Search Visibility
-- Google Search Console verified
-- Sitemap support
-- Metadata optimization
-- Public-facing homepage for indexing
+
+* Google Search Console verified ✅
+* Sitemap configured
+* Metadata optimized
+* Public homepage for indexing (SEO-friendly)
+
+---
 
 ### 📈 Analytics
-- Vercel Analytics integration ready
+
+* Vercel Analytics ready
+* Track page visits and user activity
 
 ---
 
 ## 🛠 Tech Stack
 
-| Category | Technology |
-|---|---|
-| Framework | Next.js (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS |
-| Backend | Supabase |
-| Authentication | Supabase Auth |
-| Database | PostgreSQL via Supabase |
-| Deployment | Vercel |
+| Category       | Technology           |
+| -------------- | -------------------- |
+| Framework      | Next.js (App Router) |
+| Language       | TypeScript           |
+| Styling        | Tailwind CSS         |
+| Backend        | Supabase             |
+| Authentication | Supabase Auth        |
+| Database       | PostgreSQL           |
+| Deployment     | Vercel               |
 
 ---
 
@@ -117,30 +135,87 @@ Each role is redirected automatically after login.
 ├── .env.local
 ├── package.json
 └── README.md
+```
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Install dependencies
+
+```bash
+npm install
+```
+
+### 2️⃣ Run development server
+
+```bash
+npm run dev
+```
+
+Open:
+👉 http://localhost:3000
+
+---
+
+### 3️⃣ Environment Setup
+
+Create `.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-key
+```
+
+---
+
+## 🔐 Authentication Flow
+
+* Users are created via admin
+* Profiles stored in `profiles` table
+* Logic:
+
+  * `must_change_password = true` → redirect to change password
+  * `is_active = false` → block login
+* Forgot password:
+
+  * Checks if email exists in profiles
+  * Sends reset link via Supabase
+  * Redirects to `/reset-password`
+
+---
+
+## 📌 Deployment
+
+This project is deployed using **Vercel**
+
+Steps:
+
+1. Push to GitHub
+2. Import to Vercel
+3. Add environment variables
+4. Deploy 🚀
 
 ---
 
 ## 👤 Author
 
-**<span style="color:#16a34a;">Jaym Maruji</span>**  
-Developer of <span style="color:#16a34a;">Qorban Portal</span>
+**🟢 Jaym Maruji**
+Developer of **Qorban Portal**
 
-- GitHub: <span style="color:#16a34a;">@buildwithjaym</span>  
-- Email: <span style="color:#16a34a;">jaymmaruji@gmail.com</span>  
+* GitHub: **@buildwithjaym**
+* Email: **[jaymmaruji@gmail.com](mailto:jaymmaruji@gmail.com)**
 
 ---
 
 ## 💚 Support
 
-If you like this project, consider giving it a  
-<span style="color:#22c55e; font-weight:600;">⭐ star on GitHub</span>.  
+If you like this project, consider giving it a ⭐ on GitHub
 
 Your support keeps this project growing 🚀
 
 <div align="center">
 
-<span style="color:#16a34a; font-weight:600;">
-⭐ Built with care by Jaym Maruji
-</span>
+🟢 **Built with care by Jaym Maruji**
 
 </div>
