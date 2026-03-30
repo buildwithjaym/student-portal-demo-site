@@ -212,7 +212,6 @@ export default function LoginPage() {
           <p className="mt-1 text-sm font-medium text-yellow-600">
             Online Grade Management System
           </p>
-         
         </div>
 
         {error && (
@@ -293,7 +292,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 text-center text-xs text-gray-500">
-          Powered by Qorban Portal
+          Powered by Jaymmaruji
         </div>
       </div>
     </div>
