@@ -117,20 +117,30 @@ Each role is redirected automatically after login.
 ├── .env.local
 ├── package.json
 └── README.md
+
 ---
 
-## 👨‍💻 Author
+## 👤 Author
 
-Jaym Maruji
-Developer of Qorban Portal
+**<span style="color:#16a34a;">Jaym Maruji</span>**  
+Developer of <span style="color:#16a34a;">Qorban Portal</span>
 
-GitHub: @buildwithjaym
-Email: jaymmaruji@gmail.com
+- GitHub: <span style="color:#16a34a;">@buildwithjaym</span>  
+- Email: <span style="color:#16a34a;">jaymmaruji@gmail.com</span>  
 
-💚 Support
+---
 
-If you like this project, consider giving it a star on GitHub.
+## 💚 Support
+
+If you like this project, consider giving it a  
+<span style="color:#22c55e; font-weight:600;">⭐ star on GitHub</span>.  
+
+Your support keeps this project growing 🚀
 
 <div align="center">
+
+<span style="color:#16a34a; font-weight:600;">
 ⭐ Built with care by Jaym Maruji
-</div> ```
+</span>
+
+</div>
