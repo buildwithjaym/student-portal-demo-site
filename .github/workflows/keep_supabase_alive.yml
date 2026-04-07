@@ -2,8 +2,8 @@ name: Keep Supabase Alive
 
 on:
 schedule:
-- cron: '0 16 * * 1'  # Tuesday (UTC → 12AM PH time)
-- cron: '0 16 * * 4'  # Friday (UTC → 12AM PH time)
+- cron: '0 16 * * 1'
+- cron: '0 16 * * 4'
 workflow_dispatch:
 
 jobs:
@@ -20,5 +20,5 @@ curl --fail --silent --show-error
 -d '[{"value":1}]'
 
 ```
-      echo "✅ Supabase keep-alive ping inserted"
+      echo "Supabase keep-alive ping inserted"
 ```
