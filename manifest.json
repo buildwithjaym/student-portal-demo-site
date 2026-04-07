@@ -1,0 +1,27 @@
+{
+  "name": "Qorban Portal",
+  "short_name": "Qorban",
+  "description": "Qorban Portal is an online grade management system for students, teachers, and school administrators.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#005A2B",
+  "theme_color": "#005A2B",
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
