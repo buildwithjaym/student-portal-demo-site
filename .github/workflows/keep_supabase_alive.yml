@@ -14,8 +14,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
-          curl -X POST "${SUPABASE_URL}/rest/v1/pings" \
+          curl --fail --silent --show-error \
+            -X POST "${SUPABASE_URL}/rest/v1/pings" \
             -H "apikey: ${SUPABASE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_KEY}" \
             -H "Content-Type: application/json" \
             -d '[{"value":1}]'
+          echo "Supabase ping successful"
