@@ -1,17 +1,24 @@
 name: Keep Supabase Alive
 
 on:
-  schedule:
-    - cron: '0 16 * * 1'  # Tuesday in local time (UTC+8)
-    - cron: '0 16 * * 4'  # Friday in local time (UTC+8)
-  workflow_dispatch:
+schedule:
+- cron: '0 16 * * 1'  # Tuesday (UTC → 12AM PH time)
+- cron: '0 16 * * 4'  # Friday (UTC → 12AM PH time)
+workflow_dispatch:
 
 jobs:
-  ping:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Supabase Database
-        run: |
-          curl -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/pings?select=id&limit=1" \
-          -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
-          -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}"
+ping:
+runs-on: ubuntu-latest
+steps:
+- name: Insert Ping into Supabase
+run: |
+curl --fail --silent --show-error 
+-X POST "${{ secrets.SUPABASE_URL }}/rest/v1/pings" 
+-H "apikey: ${{ secrets.SUPABASE_KEY }}" 
+-H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" 
+-H "Content-Type: application/json" 
+-d '[{"value":1}]'
+
+```
+      echo "✅ Supabase keep-alive ping inserted"
+```
