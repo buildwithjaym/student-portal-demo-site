@@ -11,14 +11,4 @@ ping:
 runs-on: ubuntu-latest
 steps:
 - name: Insert Ping into Supabase
-run: |
-curl --fail --silent --show-error 
--X POST "${{ secrets.SUPABASE_URL }}/rest/v1/pings" 
--H "apikey: ${{ secrets.SUPABASE_KEY }}" 
--H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" 
--H "Content-Type: application/json" 
--d '[{"value":1}]'
-
-```
-      echo "Supabase keep-alive ping inserted"
-```
+run: curl --fail --silent --show-error -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/pings" -H "apikey: ${{ secrets.SUPABASE_KEY }}" -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" -H "Content-Type: application/json" -d '[{"value":1}]'
