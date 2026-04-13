@@ -15,6 +15,8 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import { supabase } from '@/lib/supabase'
 
 type Semester = '1st Semester' | '2nd Semester'
@@ -212,6 +214,14 @@ function normalizeEnrollmentRow(row: RawEnrollmentQueryRow): EnrollmentQueryRow 
     student_id: row.student_id,
     students: getSingleRelation(row.students),
   }
+}
+
+function formatDateOnly(value: Date) {
+  return value.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
 }
 
 function StatCard({
@@ -1102,47 +1112,307 @@ function TeacherReportsPageContent() {
     }, 250)
   }
 
- //const handleQuickDownload = async (classId: string) => {
-  //  await openPreview(classId)
-    //toast.success('Preparing print-friendly report...')
-    //setTimeout(() => {
-    //  window.print()
-   // }, 350)
-  //}
-
   const handleDownloadPdf = async (classId: string) => {
-  try {
-    if (!selectedSchoolYear) {
-      toast.error('Please select an academic year first.')
-      return
-    }
+    try {
+      if (!teacher?.id || !selectedSchoolYear) {
+        toast.error('Missing report details.')
+        return
+      }
 
-    const params = new URLSearchParams({
-      classId,
-      schoolYear: selectedSchoolYear,
-      gradingPeriod: selectedGradingPeriod,
-      reportType: selectedReportType,
-    })
+      const semester = getSemesterFromPeriod(selectedGradingPeriod)
 
-    const url = `/api/export-report?${params.toString()}`
-    const w = window as any
+      const { data: classData, error: classError } = await supabase
+        .from('classes')
+        .select(`
+          id,
+          subject_id,
+          teacher_id,
+          grade_level,
+          section,
+          school_year,
+          semester,
+          is_active,
+          subjects:subject_id (
+            id,
+            subject_code,
+            subject_name
+          )
+        `)
+        .eq('id', classId)
+        .eq('teacher_id', teacher.id)
+        .eq('school_year', selectedSchoolYear)
+        .eq('semester', semester)
+        .maybeSingle()
 
-    if (w?.median?.share?.downloadFile) {
-      await w.median.share.downloadFile({
-        url,
-        open: true,
+      if (classError || !classData) {
+        toast.error('Class not found.')
+        return
+      }
+
+      const normalizedClass = normalizeClassRow(classData as RawClassRow)
+
+      const [enrollmentsResult, gradesResult] = await Promise.all([
+        supabase
+          .from('enrollments')
+          .select(`
+            student_id,
+            students:student_id (
+              id,
+              first_name,
+              middle_name,
+              last_name,
+              suffix,
+              gender,
+              grade_level,
+              section
+            )
+          `)
+          .eq('class_id', classId)
+          .eq('school_year', selectedSchoolYear)
+          .eq('semester', semester),
+        supabase
+          .from('grades')
+          .select('student_id, grade, remarks')
+          .eq('class_id', classId)
+          .eq('school_year', selectedSchoolYear)
+          .eq('semester', semester)
+          .eq('grading_period', selectedGradingPeriod),
+      ])
+
+      if (enrollmentsResult.error) {
+        toast.error(enrollmentsResult.error.message)
+        return
+      }
+
+      if (gradesResult.error) {
+        toast.error(gradesResult.error.message)
+        return
+      }
+
+      const enrollments = ((enrollmentsResult.data ?? []) as RawEnrollmentQueryRow[]).map(
+        normalizeEnrollmentRow
+      )
+      const grades = (gradesResult.data ?? []) as GradeRow[]
+
+      const gradeMap = new Map<string, GradeRow>()
+      grades.forEach((item) => {
+        gradeMap.set(item.student_id, item)
       })
-      toast.success('Downloading report...')
-      return
-    }
 
-    window.open(url, '_blank', 'noopener,noreferrer')
-    toast.success('Opening PDF...')
-  } catch (error) {
-    console.error(error)
-    toast.error('Failed to download report.')
+      const exportRows: ReportRow[] = enrollments
+        .filter((item) => item.students)
+        .map((item) => {
+          const student = item.students as StudentRow
+          const gradeRow = gradeMap.get(student.id)
+
+          const numericGrade =
+            gradeRow?.grade !== undefined && gradeRow?.grade !== null
+              ? Number(gradeRow.grade)
+              : null
+
+          return {
+            student_id: student.id,
+            full_name: getFullName(
+              student.last_name,
+              student.first_name,
+              student.middle_name,
+              student.suffix
+            ),
+            gender: student.gender ?? '—',
+            grade: numericGrade !== null ? String(numericGrade) : '',
+            remarks: gradeRow?.remarks?.trim() || getHonorLabel(numericGrade),
+            last_name_sort: (student.last_name ?? '').trim().toLowerCase(),
+            first_name_sort: (student.first_name ?? '').trim().toLowerCase(),
+          }
+        })
+        .sort((a, b) => {
+          const genderCompare = getGenderSortValue(a.gender) - getGenderSortValue(b.gender)
+          if (genderCompare !== 0) return genderCompare
+
+          const lastNameCompare = a.last_name_sort.localeCompare(b.last_name_sort)
+          if (lastNameCompare !== 0) return lastNameCompare
+
+          return a.first_name_sort.localeCompare(b.first_name_sort)
+        })
+
+      const numericGrades = exportRows
+        .map((row) => Number(row.grade))
+        .filter((value) => !Number.isNaN(value))
+
+      const exportAverageGrade =
+        numericGrades.length > 0
+          ? (numericGrades.reduce((sum, value) => sum + value, 0) / numericGrades.length).toFixed(2)
+          : '—'
+
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      })
+
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const marginX = 15
+      let cursorY = 15
+
+      const logoBase64 = await fetch('/logo.jpg')
+        .then((res) => res.blob())
+        .then(
+          (blob) =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onloadend = () => resolve(reader.result as string)
+              reader.onerror = reject
+              reader.readAsDataURL(blob)
+            })
+        )
+        .catch(() => null)
+
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'JPG', marginX, cursorY, 20, 20)
+      }
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(13)
+      doc.text('Qorban Institute of Technology Training and Assessment Center, Inc', marginX + 24, cursorY + 6)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text('Republic of the Philippines', marginX + 24, cursorY + 12)
+      doc.text('Department of Education', marginX + 24, cursorY + 18)
+
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.text(getReportTitle(selectedReportType), marginX, cursorY + 30)
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(`Teacher: ${getTeacherName(teacher)}`, marginX, cursorY + 38)
+      doc.text(`Teacher No: ${teacher?.teacher_no ?? '—'}`, marginX + 95, cursorY + 38)
+      doc.text(`Academic Year: ${selectedSchoolYear || '—'}`, marginX, cursorY + 44)
+      doc.text(`Grading Period: ${selectedGradingPeriod}`, marginX + 95, cursorY + 44)
+      doc.text(
+        `Subject: ${normalizedClass.subjects?.subject_code ?? '—'} - ${normalizedClass.subjects?.subject_name ?? 'Unnamed Subject'}`,
+        marginX,
+        cursorY + 50
+      )
+      doc.text(
+        `Grade / Section: ${normalizedClass.grade_level} / ${normalizedClass.section}`,
+        marginX,
+        cursorY + 56
+      )
+      doc.text(`Semester: ${semester}`, marginX + 95, cursorY + 56)
+      doc.text(`Generated: ${formatDateOnly(new Date())}`, marginX, cursorY + 62)
+
+      if (selectedReportType === 'class_list_with_grades') {
+        doc.text(`Average Grade: ${exportAverageGrade}`, marginX + 95, cursorY + 62)
+      }
+
+      cursorY += 72
+
+      if (selectedReportType === 'class_list_only') {
+        autoTable(doc, {
+          startY: cursorY,
+          theme: 'grid',
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+          },
+          head: [['No.', 'Full Name', 'Gender']],
+          body: exportRows.map((row, index) => [
+            String(index + 1),
+            row.full_name,
+            row.gender || '—',
+          ]),
+          margin: { left: marginX, right: marginX },
+          headStyles: {
+            fillColor: [22, 101, 52],
+          },
+        })
+      } else if (selectedReportType === 'class_list_with_grades') {
+        autoTable(doc, {
+          startY: cursorY,
+          theme: 'grid',
+          styles: {
+            fontSize: 8.5,
+            cellPadding: 3,
+          },
+          head: [['No.', 'Full Name', 'Gender', 'Grade', 'Remarks']],
+          body: exportRows.map((row, index) => [
+            String(index + 1),
+            row.full_name,
+            row.gender || '—',
+            row.grade || '—',
+            row.remarks || '—',
+          ]),
+          margin: { left: marginX, right: marginX },
+          headStyles: {
+            fillColor: [22, 101, 52],
+          },
+        })
+      } else {
+        autoTable(doc, {
+          startY: cursorY,
+          theme: 'grid',
+          head: [[
+            'No.',
+            'Full Name',
+            'Day 1',
+            'Day 2',
+            'Day 3',
+            'Day 4',
+            'Day 5',
+            'Day 6',
+            'Day 7',
+            'Day 8',
+            'Day 9',
+            'Day 10',
+          ]],
+          body: exportRows.map((row, index) => [
+            String(index + 1),
+            row.full_name,
+            '', '', '', '', '', '', '', '', '', '',
+          ]),
+          margin: { left: marginX, right: marginX },
+          headStyles: {
+            fillColor: [22, 101, 52],
+          },
+          styles: {
+            fontSize: 7.5,
+            cellPadding: 2.5,
+          },
+        })
+      }
+
+      const finalY = Math.min(
+        ((doc as any).lastAutoTable?.finalY ?? cursorY) + 18,
+        pageHeight - 30
+      )
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text('Prepared by:', marginX, finalY)
+      doc.text('Generated by:', marginX + 95, finalY)
+
+      doc.line(marginX, finalY + 16, marginX + 70, finalY + 16)
+      doc.line(marginX + 95, finalY + 16, marginX + 165, finalY + 16)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text(getTeacherName(teacher), marginX, finalY + 22)
+      doc.text(getTeacherName(teacher), marginX + 95, finalY + 22)
+
+      doc.setFont('helvetica', 'normal')
+      doc.text('Subject Teacher', marginX, finalY + 27)
+      doc.text(formatDateOnly(new Date()), marginX + 95, finalY + 27)
+
+      const fileName = `${normalizedClass.subjects?.subject_code ?? 'report'}-${selectedReportType}-${selectedSchoolYear}.pdf`
+
+      doc.save(fileName)
+      toast.success('PDF report exported successfully.')
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to export PDF report.')
+    }
   }
-}
 
   if (loading) {
     return (
@@ -1457,13 +1727,13 @@ function TeacherReportsPageContent() {
                     </button>
 
                     <button
-  type="button"
-  onClick={() => handleDownloadPdf(item.id)}
-  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
->
-  <Download className="h-4 w-4" />
-  Download PDF
-</button>
+                      type="button"
+                      onClick={() => handleDownloadPdf(item.id)}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
+                    >
+                      <Download className="h-4 w-4" />
+                      Download PDF
+                    </button>
                   </div>
                 </div>
               )
