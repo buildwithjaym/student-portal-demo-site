@@ -1102,13 +1102,47 @@ function TeacherReportsPageContent() {
     }, 250)
   }
 
-  const handleQuickDownload = async (classId: string) => {
-    await openPreview(classId)
-    toast.success('Preparing print-friendly report...')
-    setTimeout(() => {
-      window.print()
-    }, 350)
+ //const handleQuickDownload = async (classId: string) => {
+  //  await openPreview(classId)
+    //toast.success('Preparing print-friendly report...')
+    //setTimeout(() => {
+    //  window.print()
+   // }, 350)
+  //}
+
+  const handleDownloadPdf = async (classId: string) => {
+  try {
+    if (!selectedSchoolYear) {
+      toast.error('Please select an academic year first.')
+      return
+    }
+
+    const params = new URLSearchParams({
+      classId,
+      schoolYear: selectedSchoolYear,
+      gradingPeriod: selectedGradingPeriod,
+      reportType: selectedReportType,
+    })
+
+    const url = `/api/export-report?${params.toString()}`
+    const w = window as any
+
+    if (w?.median?.share?.downloadFile) {
+      await w.median.share.downloadFile({
+        url,
+        open: true,
+      })
+      toast.success('Downloading report...')
+      return
+    }
+
+    window.open(url, '_blank', 'noopener,noreferrer')
+    toast.success('Opening PDF...')
+  } catch (error) {
+    console.error(error)
+    toast.error('Failed to download report.')
   }
+}
 
   if (loading) {
     return (
@@ -1423,13 +1457,13 @@ function TeacherReportsPageContent() {
                     </button>
 
                     <button
-                      type="button"
-                      onClick={() => handleQuickDownload(item.id)}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
-                    >
-                      <Download className="h-4 w-4" />
-                      Print / Save PDF
-                    </button>
+  type="button"
+  onClick={() => handleDownloadPdf(item.id)}
+  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900"
+>
+  <Download className="h-4 w-4" />
+  Download PDF
+</button>
                   </div>
                 </div>
               )
