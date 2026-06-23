@@ -1,4 +1,4 @@
-# <div align="center">🟢🟡 Qorban Portal</div>
+# <div align="center">🟢🟡 Student Portal</div>
 
 <div align="center">
 
@@ -28,7 +28,7 @@
 
 ## 📚 Overview
 
-**Qorban Portal** is a modern **Online Grade Management System** built to streamline academic workflows for **students, teachers, and administrators**.
+**Student Portal** is a modern **Online Grade Management System** built to streamline academic workflows for **students, teachers, and administrators**.
 
 It provides a secure, role-based platform for:
 
