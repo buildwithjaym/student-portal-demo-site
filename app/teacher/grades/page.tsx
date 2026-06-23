@@ -199,35 +199,34 @@ function getReadableError(error: unknown, fallback: string) {
   return fallback
 }
 
+function safeStringify(value: unknown) {
+  try {
+    return typeof value === 'string'
+      ? value
+      : JSON.stringify(value, null, 2)
+  } catch {
+    return '[unserializable]'
+  }
+}
+
 function debugDbError(
   label: string,
   error: unknown,
   extra?: Record<string, unknown>
 ) {
-  const err = (error ?? {}) as SupabaseLikeError
-
-  // Safe extraction (prevents undefined crashes in strict environments)
-  const message = typeof err?.message === 'string' ? err.message : null
-  const details = typeof err?.details === 'string' ? err.details : null
-  const hint = typeof err?.hint === 'string' ? err.hint : null
-  const code = typeof err?.code === 'string' ? err.code : null
+  const err = error as any
 
   console.error(`\n[${label}]`)
+
   console.error({
-    message,
-    details,
-    hint,
-    code,
+    message: err?.message ?? null,
+    details: err?.details ?? null,
+    hint: err?.hint ?? null,
+    code: err?.code ?? null,
   })
 
-  if (extra && typeof extra === 'object') {
-    Object.entries(extra).forEach(([key, value]) => {
-      try {
-        console.error(`${key}:`, value)
-      } catch {
-        console.error(`${key}: [unserializable value]`)
-      }
-    })
+  if (extra) {
+    console.error('extra:', safeStringify(extra))
   }
 
   console.error(`[/${label}]\n`)

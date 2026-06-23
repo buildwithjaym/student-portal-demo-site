@@ -259,64 +259,60 @@ export default function StudentGradesPage() {
     )
   )
 
-const filteredGrades =
-  selectedSchoolYear === 'All'
-    ? grades
-    : grades.filter((item) => {
-        const matchYear = item.school_year === selectedSchoolYear
+  const filteredGrades = grades.filter((item) => {
+    const matchYear =
+      selectedSchoolYear === 'All' || item.school_year === selectedSchoolYear
 
-        const validForSelectedPeriod =
-          (selectedPeriod === '1st' && item.semester === '1st Semester' && (item.grading_period === '1st' || item.grading_period === '2nd')) ||
-          (selectedPeriod === '2nd' && item.semester === '1st Semester' && (item.grading_period === '1st' || item.grading_period === '2nd')) ||
-          (selectedPeriod === '3rd' && item.semester === '2nd Semester' && (item.grading_period === '3rd' || item.grading_period === '4th')) ||
-          (selectedPeriod === '4th' && item.semester === '2nd Semester' && (item.grading_period === '3rd' || item.grading_period === '4th'))
+    // STRICT SEMESTER → PERIOD MAPPING
+    const validPeriod =
+      (item.semester === '1st Semester' &&
+        (item.grading_period === '1st' || item.grading_period === '2nd')) ||
+      (item.semester === '2nd Semester' &&
+        (item.grading_period === '3rd' || item.grading_period === '4th'))
 
-        return matchYear && validForSelectedPeriod
-      })
+    // STRICT UI PERIOD FILTER (IMPORTANT FIX)
+    const matchesSelectedPeriod =
+      (selectedPeriod === '1st' &&
+        item.semester === '1st Semester' &&
+        item.grading_period === '1st') ||
+      (selectedPeriod === '2nd' &&
+        item.semester === '1st Semester' &&
+        item.grading_period === '2nd') ||
+      (selectedPeriod === '3rd' &&
+        item.semester === '2nd Semester' &&
+        item.grading_period === '3rd') ||
+      (selectedPeriod === '4th' &&
+        item.semester === '2nd Semester' &&
+        item.grading_period === '4th')
+
+    return matchYear && validPeriod && matchesSelectedPeriod
+  })
 
   const map = new Map<string, TableRow>()
 
   for (const item of filteredGrades) {
-    const semester = item.semester
-    const period = item.grading_period
+    const key = `${item.class_id}|${item.school_year}|${item.grading_period}`
 
- 
-    const isValidPeriod =
-      (semester === '1st Semester' && (period === '1st' || period === '2nd')) ||
-      (semester === '2nd Semester' && (period === '3rd' || period === '4th'))
-
-    if (!isValidPeriod) {
-      continue
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        classId: item.class_id,
+        schoolYear: item.school_year,
+        semester: item.semester,
+        subjectCode: item.classes?.subjects?.subject_code || '—',
+        subjectName: item.classes?.subjects?.subject_name || 'Unnamed Subject',
+        year: item.classes?.grade_level || '—',
+        section: item.classes?.section || '—',
+        grade: null,
+        remarks: 'Pending',
+        teacherRemark: null,
+      })
     }
 
-    // One row per class per semester ONLY
-   const rowKey = `${item.class_id}|${item.school_year}|${semester}|${period}`
+    const submissionKey = `${item.class_id}|${item.school_year}|${item.semester}|${item.grading_period}`
+    if (!submittedSet.has(submissionKey)) continue
 
-    if (!map.has(rowKey)) {
-  map.set(rowKey, {
-    key: rowKey,
-    classId: item.class_id,
-    schoolYear: item.school_year,
-    semester,
-    subjectCode: item.classes?.subjects?.subject_code || '—',
-    subjectName: item.classes?.subjects?.subject_name || 'Unnamed Subject',
-    year: item.classes?.grade_level || '—',
-    section: item.classes?.section || '—',
-    grade: item.grade ?? null,
-    remarks: item.grade ? getComputedRemarks(item.grade) : 'Pending',
-    teacherRemark: item.remarks ?? null,
-  })
-}
-
-    const submissionKey =
-      `${item.class_id}|${item.school_year}|${semester}|${period}`
-
-    const isSubmitted = submittedSet.has(submissionKey)
-
-    if (!isSubmitted) continue
-
-    const row = map.get(rowKey)!
-
+    const row = map.get(key)!
     row.grade = item.grade
     row.teacherRemark = item.remarks
     row.remarks = getComputedRemarks(item.grade)
@@ -329,10 +325,6 @@ const filteredGrades =
 
     if (a.year !== b.year) {
       return a.year.localeCompare(b.year)
-    }
-
-    if (a.section !== b.section) {
-      return a.section.localeCompare(b.section)
     }
 
     return a.subjectName.localeCompare(b.subjectName)
