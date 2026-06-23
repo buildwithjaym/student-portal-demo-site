@@ -503,6 +503,7 @@ export default function AdminGradesPage() {
   const canRestoreAccess =
     !!selectedWindow && selectedWindow.is_open && !selectedWindow.is_locked
 
+  
   return (
     <>
       <div className="space-y-6">
@@ -511,9 +512,9 @@ export default function AdminGradesPage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex flex-col gap-2"
         >
-          <p className="text-sm font-medium text-yellow-600">Administration</p>
-          <h1 className="text-3xl font-bold text-green-900">Grades</h1>
-          <p className="text-gray-600">
+          <p className="text-xs font-medium text-cyan-600 sm:text-sm">Administration</p>
+          <h1 className="text-3xl font-bold text-slate-900">Grades</h1>
+          <p className="text-slate-600">
             View submission records and reopen submitted grades when teachers need to make corrections.
           </p>
         </motion.div>
@@ -521,17 +522,17 @@ export default function AdminGradesPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+          className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm"
         >
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[220px_220px_minmax(0,1fr)_auto]">
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Academic Year
               </label>
               <select
                 value={selectedSchoolYear}
                 onChange={(e) => setSelectedSchoolYear(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-green-200"
               >
                 <option value="">Select academic year</option>
                 {academicYears.map((year) => (
@@ -544,13 +545,13 @@ export default function AdminGradesPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Grading Period
               </label>
               <select
                 value={selectedGradingPeriod}
                 onChange={(e) => setSelectedGradingPeriod(e.target.value as GradingPeriod)}
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-green-200"
               >
                 {ALL_PERIODS.map((period) => (
                   <option key={period} value={period}>
@@ -561,16 +562,16 @@ export default function AdminGradesPage() {
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+              <label className="mb-1.5 block text-sm font-medium text-slate-700">
                 Search
               </label>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search teacher, subject, grade level, or section"
-                  className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-4 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                  className="w-full rounded-xl border border-slate-300 py-3 pl-10 pr-4 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-green-200"
                 />
               </div>
             </div>
@@ -580,7 +581,7 @@ export default function AdminGradesPage() {
                 type="button"
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:opacity-60 xl:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-900 disabled:opacity-60 xl:w-auto"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
@@ -589,7 +590,7 @@ export default function AdminGradesPage() {
           </div>
 
           <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-slate-600">
               {selectedSemester} • {selectedGradingPeriod} Grading Period
             </div>
 
@@ -597,8 +598,8 @@ export default function AdminGradesPage() {
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   selectedWindow?.is_open
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-gray-200 text-gray-700'
+                    ? 'bg-cyan-100 text-cyan-700'
+                    : 'bg-slate-200 text-slate-700'
                 }`}
               >
                 {selectedWindow?.is_open ? 'Window Open' : 'Window Closed'}
@@ -620,28 +621,28 @@ export default function AdminGradesPage() {
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+          className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm"
         >
           <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-green-900">Submission Records</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-xl font-bold text-slate-900">Submission Records</h2>
+              <p className="text-sm text-slate-600">
                 Read submission status and restore grade access when needed.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-700">
               <UserCheck className="h-4 w-4" />
               {filteredRows.length} record{filteredRows.length !== 1 ? 's' : ''}
             </div>
           </div>
 
           {loading ? (
-            <div className="rounded-xl bg-green-50 p-5 text-gray-500">
+            <div className="rounded-xl bg-cyan-50 p-5 text-slate-500">
               Loading submission records...
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-gray-300 p-8 text-center text-gray-500">
+            <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
               No submission records were found for this academic year and grading period.
             </div>
           ) : (
@@ -649,41 +650,41 @@ export default function AdminGradesPage() {
               {filteredRows.map((row) => (
                 <div
                   key={row.key}
-                  className="rounded-2xl border border-green-100 bg-green-50 p-5"
+                  className="rounded-2xl border border-cyan-100 bg-cyan-50 p-5"
                 >
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-lg font-bold text-green-900">
+                        <h3 className="text-lg font-bold text-slate-900">
                           {row.subjectName}
                         </h3>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-800">
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-cyan-700">
                           {row.subjectCode}
                         </span>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                           {row.gradeLevel}
                         </span>
-                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">
                           Section {row.section}
                         </span>
                       </div>
 
-                      <div className="mt-4 grid gap-3 text-sm text-gray-600 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
                         <p>
                           Teacher:{' '}
-                          <span className="font-medium text-gray-900">{row.teacherName}</span>
+                          <span className="font-medium text-slate-900">{row.teacherName}</span>
                         </p>
                         <p>
                           Teacher No:{' '}
-                          <span className="font-medium text-gray-900">{row.teacherNo}</span>
+                          <span className="font-medium text-slate-900">{row.teacherNo}</span>
                         </p>
                         <p>
                           Academic Year:{' '}
-                          <span className="font-medium text-gray-900">{row.schoolYear}</span>
+                          <span className="font-medium text-slate-900">{row.schoolYear}</span>
                         </p>
                         <p>
                           Submitted At:{' '}
-                          <span className="font-medium text-gray-900">
+                          <span className="font-medium text-slate-900">
                             {formatDateTime(row.submittedAt)}
                           </span>
                         </p>
@@ -693,8 +694,8 @@ export default function AdminGradesPage() {
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             row.isSubmitted
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-900'
+                              ? 'bg-cyan-100 text-cyan-700'
+                              : 'bg-cyan-100 text-cyan-800'
                           }`}
                         >
                           {row.isSubmitted ? 'Submitted' : 'Editable'}
@@ -727,7 +728,7 @@ export default function AdminGradesPage() {
                             : 'Allow Teacher to Edit'}
                         </button>
                       ) : (
-                        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-900">
+                        <div className="rounded-xl border border-yellow-200 bg-cyan-50 p-4 text-sm text-cyan-800">
                           This class is already open for teacher editing.
                         </div>
                       )}
@@ -760,7 +761,7 @@ export default function AdminGradesPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.18 }}
-              className="w-full max-w-md rounded-2xl border border-green-100 bg-white p-6 shadow-2xl"
+              className="w-full max-w-md rounded-2xl border border-cyan-100 bg-white p-6 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between gap-4">
@@ -769,10 +770,10 @@ export default function AdminGradesPage() {
                     <AlertTriangle className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-green-900">
+                    <h3 className="text-lg font-bold text-slate-900">
                       Allow teacher to edit again?
                     </h3>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p className="mt-1 text-sm text-slate-600">
                       This will reopen the submitted record and allow the teacher to update grades again.
                     </p>
                   </div>
@@ -782,36 +783,36 @@ export default function AdminGradesPage() {
                   type="button"
                   onClick={closeConfirmation}
                   disabled={!!reopeningId}
-                  className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+                  className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm">
-                <p className="font-semibold text-gray-900">{selectedSubmission.subjectName}</p>
-                <div className="mt-2 space-y-1 text-gray-600">
+              <div className="mt-5 rounded-xl border border-slate-200 bg-gray-50 p-4 text-sm">
+                <p className="font-semibold text-slate-900">{selectedSubmission.subjectName}</p>
+                <div className="mt-2 space-y-1 text-slate-600">
                   <p>
                     Teacher:{' '}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-slate-900">
                       {selectedSubmission.teacherName}
                     </span>
                   </p>
                   <p>
                     Section:{' '}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-slate-900">
                       {selectedSubmission.gradeLevel} • Section {selectedSubmission.section}
                     </span>
                   </p>
                   <p>
                     Academic Year:{' '}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-slate-900">
                       {selectedSubmission.schoolYear}
                     </span>
                   </p>
                   <p>
                     Grading Period:{' '}
-                    <span className="font-medium text-gray-900">
+                    <span className="font-medium text-slate-900">
                       {selectedSubmission.gradingPeriod} Grading Period
                     </span>
                   </p>
@@ -823,7 +824,7 @@ export default function AdminGradesPage() {
                   type="button"
                   onClick={closeConfirmation}
                   disabled={!!reopeningId}
-                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-gray-50 disabled:opacity-60"
                 >
                   Cancel
                 </button>

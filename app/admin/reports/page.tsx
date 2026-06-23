@@ -750,7 +750,7 @@ export default function AdminReportsPage() {
           ],
           margin: { left: marginX, right: marginX },
           headStyles: {
-            fillColor: [22, 101, 52],
+            fillColor: [21, 94, 117],
           },
         })
 
@@ -776,7 +776,7 @@ export default function AdminReportsPage() {
           ]),
           margin: { left: marginX, right: marginX },
           headStyles: {
-            fillColor: [22, 101, 52],
+            fillColor: [21, 94, 117],
           },
         })
       } else {
@@ -801,7 +801,7 @@ export default function AdminReportsPage() {
           ],
           margin: { left: marginX, right: marginX },
           headStyles: {
-            fillColor: [22, 101, 52],
+            fillColor: [21, 94, 117],
           },
         })
 
@@ -839,7 +839,7 @@ export default function AdminReportsPage() {
           ]),
           margin: { left: marginX, right: marginX },
           headStyles: {
-            fillColor: [22, 101, 52],
+            fillColor: [21, 94, 117],
           },
           didDrawPage: () => {
             const pageNumber = doc.getCurrentPageInfo().pageNumber
@@ -895,8 +895,8 @@ export default function AdminReportsPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col gap-2"
       >
-        <p className="text-sm font-medium text-yellow-600">Administration</p>
-        <h1 className="text-3xl font-bold text-green-900">Reports</h1>
+        <p className="text-xs font-medium text-cyan-600 sm:text-sm">Administration</p>
+        <h1 className="text-2xl font-bold text-cyan-900 sm:text-3xl">Reports</h1>
         <p className="text-gray-600">
           View database-driven reports and export structured PDF documents for official use.
         </p>
@@ -905,7 +905,7 @@ export default function AdminReportsPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm"
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[220px_220px_220px_minmax(0,1fr)]">
           <div>
@@ -915,7 +915,7 @@ export default function AdminReportsPage() {
             <select
               value={selectedSchoolYear}
               onChange={(e) => setSelectedSchoolYear(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value="">Select academic year</option>
               {academicYears.map((year) => (
@@ -936,7 +936,7 @@ export default function AdminReportsPage() {
               onChange={(e) =>
                 setSelectedGradingPeriod(e.target.value as GradingPeriod)
               }
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               {GRADING_PERIODS.map((period) => (
                 <option key={period} value={period}>
@@ -953,7 +953,7 @@ export default function AdminReportsPage() {
             <select
               value={selectedGradeLevel}
               onChange={(e) => setSelectedGradeLevel(e.target.value as GradeLevel)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value="All">All Grade Levels</option>
               <option value="Grade 11">Grade 11</option>
@@ -968,7 +968,7 @@ export default function AdminReportsPage() {
             <select
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value="All">All Sections</option>
               {availableSections.map((section) => (
@@ -987,8 +987,8 @@ export default function AdminReportsPage() {
               onClick={() => setActiveTab('enrollment')}
               className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                 activeTab === 'enrollment'
-                  ? 'bg-green-800 text-white'
-                  : 'bg-green-50 text-green-800 hover:bg-green-100'
+                  ? 'bg-cyan-800 text-white'
+                  : 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100'
               }`}
             >
               Enrollment Summary
@@ -999,8 +999,8 @@ export default function AdminReportsPage() {
               onClick={() => setActiveTab('risk')}
               className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                 activeTab === 'risk'
-                  ? 'bg-green-800 text-white'
-                  : 'bg-green-50 text-green-800 hover:bg-green-100'
+                  ? 'bg-cyan-800 text-white'
+                  : 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100'
               }`}
             >
               At-Risk Students
@@ -1011,7 +1011,7 @@ export default function AdminReportsPage() {
             type="button"
             onClick={exportPdf}
             disabled={loading || exporting}
-            className="inline-flex items-center gap-2 rounded-xl bg-green-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-900 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-900 sm:w-auto"
           >
             <FileDown className="h-4 w-4" />
             {exporting ? 'Exporting PDF...' : 'Export PDF'}
@@ -1022,13 +1022,13 @@ export default function AdminReportsPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm"
       >
         <div className="mb-4 flex flex-col gap-2">
-          <p className="text-sm font-medium text-yellow-600">
+          <p className="text-xs font-medium text-cyan-600 sm:text-sm">
             {activeTab === 'enrollment' ? 'Enrollment Report' : 'Risk Monitoring Report'}
           </p>
-          <h2 className="text-2xl font-bold text-green-900">
+          <h2 className="text-2xl font-bold text-cyan-900">
             {activeTab === 'enrollment'
               ? 'Student Enrollment Summary'
               : 'At-Risk Students'}
@@ -1041,18 +1041,18 @@ export default function AdminReportsPage() {
         </div>
 
         {loading ? (
-          <div className="rounded-2xl bg-green-50 p-8 text-center text-gray-500">
+          <div className="rounded-2xl bg-cyan-50 p-8 text-center text-gray-500">
             Loading report data...
           </div>
         ) : activeTab === 'enrollment' ? (
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl bg-green-50 p-5">
+              <div className="rounded-2xl bg-cyan-50 p-5">
                 <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-green-700" />
-                  <p className="text-sm font-medium text-green-700">Total Enrolled</p>
+                  <Users className="h-5 w-5 text-cyan-700" />
+                  <p className="text-sm font-medium text-cyan-700">Total Enrolled</p>
                 </div>
-                <p className="mt-3 text-3xl font-bold text-green-900">
+                <p className="mt-3 text-3xl font-bold text-cyan-900">
                   {enrollmentSummary.totalStudents}
                 </p>
               </div>
@@ -1088,9 +1088,9 @@ export default function AdminReportsPage() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-green-100">
-              <div className="border-b border-green-100 px-5 py-4">
-                <h3 className="text-lg font-bold text-green-900">Enrollment by Section</h3>
+            <div className="overflow-hidden rounded-2xl border border-cyan-100">
+              <div className="border-b border-cyan-100 px-5 py-4">
+                <h3 className="text-lg font-bold text-cyan-900">Enrollment by Section</h3>
                 <p className="text-sm text-gray-600">
                   Detailed section count for the selected semester and filters.
                 </p>
@@ -1103,18 +1103,18 @@ export default function AdminReportsPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
-                    <thead className="bg-green-50">
+                    <thead className="bg-cyan-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Grade Level
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Section
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Semester
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Total Students
                         </th>
                       </tr>
@@ -1134,7 +1134,7 @@ export default function AdminReportsPage() {
                           <td className="px-4 py-3 text-sm text-gray-800">
                             {row.semester}
                           </td>
-                          <td className="px-4 py-3 text-sm font-semibold text-green-900">
+                          <td className="px-4 py-3 text-sm font-semibold text-cyan-900">
                             {row.totalStudents}
                           </td>
                         </tr>
@@ -1168,20 +1168,20 @@ export default function AdminReportsPage() {
                 </p>
               </div>
 
-              <div className="rounded-2xl bg-green-50 p-5">
+              <div className="rounded-2xl bg-cyan-50 p-5">
                 <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-green-700" />
-                  <p className="text-sm font-medium text-green-700">Total Flagged</p>
+                  <Users className="h-5 w-5 text-cyan-700" />
+                  <p className="text-sm font-medium text-cyan-700">Total Flagged</p>
                 </div>
-                <p className="mt-3 text-3xl font-bold text-green-900">
+                <p className="mt-3 text-3xl font-bold text-cyan-900">
                   {riskSummary.total}
                 </p>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-green-100">
-              <div className="border-b border-green-100 px-5 py-4">
-                <h3 className="text-lg font-bold text-green-900">At-Risk Students</h3>
+            <div className="overflow-hidden rounded-2xl border border-cyan-100">
+              <div className="border-b border-cyan-100 px-5 py-4">
+                <h3 className="text-lg font-bold text-cyan-900">At-Risk Students</h3>
                 <p className="text-sm text-gray-600">
                   Database-driven student risk evaluation for the selected grading period.
                 </p>
@@ -1194,21 +1194,21 @@ export default function AdminReportsPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full">
-                    <thead className="bg-green-50">
+                    <thead className="bg-cyan-50">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Student
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Class
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Average
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Failing Subjects
                         </th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-cyan-900">
                           Status
                         </th>
                       </tr>
@@ -1217,7 +1217,7 @@ export default function AdminReportsPage() {
                       {atRiskStudents.map((row) => (
                         <tr key={row.studentId} className="border-t border-gray-100 align-top">
                           <td className="px-4 py-4">
-                            <div className="font-semibold text-green-950">{row.fullName}</div>
+                            <div className="font-semibold text-cyan-950">{row.fullName}</div>
                             <div className="text-sm text-gray-600">{row.studentNo}</div>
                           </td>
                           <td className="px-4 py-4 text-sm text-gray-800">
@@ -1237,7 +1237,7 @@ export default function AdminReportsPage() {
                               className={`rounded-full px-3 py-1 text-xs font-semibold ${
                                 row.status === 'Critical'
                                   ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-900'
+                                  : 'bg-cyan-100 text-cyan-900'
                               }`}
                             >
                               {row.status}

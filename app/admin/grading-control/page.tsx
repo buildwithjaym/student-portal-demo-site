@@ -173,21 +173,39 @@ export default function GradingControlPage() {
 
   const initialize = async () => {
     setLoading(true)
-
     try {
-      const selectedYear = await loadAcademicYears()
+      const { data: years, error: yErr } = await supabase
+        .from('academic_years')
+        .select('id, school_year, is_active')
+        .order('school_year', { ascending: false })
 
-      if (!selectedYear) {
-        return
-      }
+      if (yErr) throw yErr
 
-      const autoSemester = await detectCurrentOpenSemester(selectedYear)
-      const nextSemester = autoSemester ?? '1st Semester'
+      const list = (years ?? []) as AcademicYear[]
+      setAcademicYears(list)
 
-      setSemester(nextSemester)
+      const active = list.find(y => y.is_active)?.school_year || list[0]?.school_year
+      if (!active) return
+
+      setSchoolYear(active)
+
+      const { data: all, error: wErr } = await supabase
+        .from('grading_windows')
+        .select('*')
+        .eq('school_year', active)
+
+      if (wErr) throw wErr
+
+      const allWindows = (all ?? []) as GradingWindow[]
+      setWindows(allWindows)
+
+      const open = allWindows.find(w => w.is_open && !w.is_locked)
+      const resolved: Semester = open?.semester || '1st Semester'
+
+      setSemester(resolved)
       initializedRef.current = true
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to initialize grading control.')
+    } catch (e: any) {
+      toast.error(e.message || 'Initialization failed')
     } finally {
       setLoading(false)
     }
@@ -335,9 +353,9 @@ export default function GradingControlPage() {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col gap-2"
       >
-        <p className="text-sm font-medium text-yellow-600">Administration</p>
-        <h1 className="text-3xl font-bold text-green-900">Grading Control</h1>
-        <p className="text-gray-600">
+        <p className="text-xs font-medium text-cyan-600 sm:text-sm">Administration</p>
+        <h1 className="text-3xl font-bold text-cyan-900">Grading Control</h1>
+        <p className="text-slate-600">
           Open, close, and lock grading per grading period for the selected school year.
         </p>
       </motion.div>
@@ -345,17 +363,17 @@ export default function GradingControlPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-green-100 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm"
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Academic Year
             </label>
             <select
               value={schoolYear}
               onChange={(e) => setSchoolYear(e.target.value)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value="">Select academic year</option>
               {academicYears.map((year) => (
@@ -368,13 +386,13 @@ export default function GradingControlPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">
               Semester
             </label>
             <select
               value={semester}
               onChange={(e) => setSemester(e.target.value as Semester)}
-              className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value="1st Semester">1st Semester</option>
               <option value="2nd Semester">2nd Semester</option>
@@ -383,11 +401,11 @@ export default function GradingControlPage() {
         </div>
 
         {!schoolYear ? (
-          <div className="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
+          <div className="mt-6 rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-cyan-800">
             No academic year available. Please create an academic year first.
           </div>
         ) : loading ? (
-          <div className="mt-6 rounded-xl bg-green-50 p-5 text-gray-500">
+          <div className="mt-6 rounded-xl bg-cyan-50 p-5 text-slate-500">
             Loading grading windows...
           </div>
         ) : (
@@ -402,12 +420,12 @@ export default function GradingControlPage() {
               return (
                 <div
                   key={period}
-                  className="rounded-2xl border border-green-100 bg-green-50 p-5"
+                  className="rounded-2xl border border-cyan-100 bg-cyan-50 p-5"
                 >
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-sm text-gray-500">Grading Period</p>
-                      <h2 className="text-xl font-bold text-green-900">
+                      <p className="text-sm text-slate-500">Grading Period</p>
+                      <h2 className="text-xl font-bold text-cyan-900">
                         {period} Grading Period
                       </h2>
 
@@ -415,8 +433,8 @@ export default function GradingControlPage() {
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             isOpen
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-200 text-gray-700'
+                              ? 'bg-cyan-100 text-cyan-800'
+                              : 'bg-slate-200 text-slate-700'
                           }`}
                         >
                           {isOpen ? 'Open' : 'Closed'}
@@ -425,15 +443,15 @@ export default function GradingControlPage() {
                         <span
                           className={`rounded-full px-3 py-1 text-xs font-semibold ${
                             isLocked
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-blue-100 text-blue-700'
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'bg-cyan-100 text-cyan-700'
                           }`}
                         >
                           {isLocked ? 'Locked' : 'Unlocked'}
                         </span>
                       </div>
 
-                      <div className="mt-3 space-y-1 text-sm text-gray-600">
+                      <div className="mt-3 space-y-1 text-sm text-slate-600">
                         <p>
                           Opened At:{' '}
                           {item?.opened_at
@@ -453,7 +471,7 @@ export default function GradingControlPage() {
                       <button
                         onClick={() => handleToggleOpen(period)}
                         disabled={openSaving || lockSaving || isLocked}
-                        className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:opacity-60"
+                        className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:opacity-60"
                       >
                         {openSaving
                           ? 'Saving...'
@@ -467,8 +485,8 @@ export default function GradingControlPage() {
                         disabled={openSaving || lockSaving}
                         className={`rounded-xl px-5 py-3 font-semibold text-white transition disabled:opacity-60 ${
                           isLocked
-                            ? 'bg-blue-700 hover:bg-blue-800'
-                            : 'bg-red-700 hover:bg-red-800'
+                            ? 'bg-cyan-700 hover:bg-cyan-800'
+                            : 'bg-rose-700 hover:bg-rose-800'
                         }`}
                       >
                         {lockSaving ? 'Saving...' : isLocked ? 'Unlock' : 'Lock'}

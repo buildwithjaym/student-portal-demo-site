@@ -51,7 +51,6 @@ export default function ProfilePage() {
   const [showModal, setShowModal] = useState(false)
   const [step, setStep] = useState(0)
 
-  // 🔥 Load profile
   useEffect(() => {
     const loadProfile = async () => {
       const {
@@ -69,9 +68,7 @@ export default function ProfilePage() {
         .eq('profile_id', user.id)
         .single()
 
-      if (data) {
-        setTeacher(data)
-      }
+      if (data) setTeacher(data)
 
       setLoading(false)
     }
@@ -79,7 +76,6 @@ export default function ProfilePage() {
     loadProfile()
   }, [])
 
-  // 🔥 Motivation logic
   useEffect(() => {
     const lastShown = localStorage.getItem('motivation_last_shown')
     const now = Date.now()
@@ -99,17 +95,11 @@ export default function ProfilePage() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-gray-500">Loading profile...</p>
-      </div>
-    )
+    return <div className="flex min-h-[60vh] items-center justify-center text-gray-500">Loading profile...</div>
   }
 
   if (!teacher) {
-    return (
-      <div className="text-center text-red-500">Profile not found</div>
-    )
+    return <div className="text-center text-red-500">Profile not found</div>
   }
 
   const fullName = formatFullName(teacher)
@@ -117,32 +107,24 @@ export default function ProfilePage() {
   return (
     <>
       <div className="space-y-6">
-        {/* HEADER */}
-        <div className="rounded-3xl bg-gradient-to-r from-green-900 to-green-700 p-6 text-white shadow-xl">
+
+        <div className="rounded-3xl bg-gradient-to-r from-cyan-900 to-cyan-700 p-6 text-white shadow-xl">
           <h1 className="text-2xl font-bold">My Profile</h1>
-          <p className="text-sm text-green-100">
-            Manage your teacher information
-          </p>
+          <p className="text-sm text-cyan-100">Manage your teacher information</p>
         </div>
 
-        {/* PROFILE CARD */}
-        <div className="rounded-3xl bg-white p-6 shadow-md border">
+        <div className="rounded-3xl bg-white p-6 shadow-md border border-cyan-100">
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 flex items-center justify-center rounded-full bg-green-100">
-              <UserRound className="h-8 w-8 text-green-800" />
+            <div className="h-16 w-16 flex items-center justify-center rounded-full bg-cyan-100">
+              <UserRound className="h-8 w-8 text-cyan-800" />
             </div>
 
             <div>
-              <h2 className="text-xl font-bold text-green-900">
-                {fullName}
-              </h2>
-              <p className="text-sm text-gray-600">
-                Teacher No: {teacher.teacher_no}
-              </p>
+              <h2 className="text-xl font-bold text-cyan-900">{fullName}</h2>
+              <p className="text-sm text-gray-600">Teacher No: {teacher.teacher_no}</p>
             </div>
           </div>
 
-          {/* DETAILS */}
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Info icon={<Mail />} label="Email" value={teacher.email} />
             <Info icon={<Phone />} label="Phone" value={teacher.contact} />
@@ -151,9 +133,8 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* SOCIAL */}
-        <div className="rounded-3xl bg-white p-6 shadow-md border">
-          <h3 className="mb-4 font-bold text-green-900">Social</h3>
+        <div className="rounded-3xl bg-white p-6 shadow-md border border-cyan-100">
+          <h3 className="mb-4 font-bold text-cyan-900">Social</h3>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Info icon={<Globe />} label="Website" value="Not set" />
@@ -162,69 +143,41 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 🎉 MOTIVATION MODAL */}
       <AnimatePresence>
         {showModal && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div
-              className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-            >
-              <div className="flex justify-between">
-                <h2 className="font-bold text-green-900">
-                  💚 For You, Teacher
-                </h2>
+          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
 
-                <button onClick={() => setShowModal(false)}>
-                  <X />
-                </button>
+            <motion.div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl"
+              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}>
+
+              <div className="flex justify-between">
+                <h2 className="font-bold text-cyan-900">For You, Teacher</h2>
+                <button onClick={() => setShowModal(false)}><X /></button>
               </div>
 
               <div className="mt-6 text-center">
                 <p className="text-lg font-semibold text-gray-800">
                   {PRAISES[(step + Math.floor(Math.random() * PRAISES.length)) % PRAISES.length]}
                 </p>
-
                 <p className="mt-2 text-sm text-gray-500">
-                  You did a very good job,Teacher  {teacher.first_name}!
+                  You did a very good job, Teacher {teacher.first_name}!
                 </p>
               </div>
 
               <div className="mt-6 flex justify-between">
-                <button
-                  disabled={step === 0}
-                  onClick={() => setStep((s) => s - 1)}
-                  className="text-sm text-gray-500 disabled:opacity-30"
-                >
-                  Back
-                </button>
+                <button disabled={step === 0} onClick={() => setStep(s => s - 1)}
+                  className="text-sm text-gray-500 disabled:opacity-30">Back</button>
 
                 {step < 2 ? (
-                  <button
-                    onClick={() => setStep((s) => s + 1)}
-                    className="rounded-xl bg-green-800 px-4 py-2 text-white"
-                  >
-                    Next
-                  </button>
+                  <button onClick={() => setStep(s => s + 1)}
+                    className="rounded-xl bg-cyan-800 px-4 py-2 text-white">Next</button>
                 ) : (
-                  <button
-                    onClick={() => {
-                      setShowModal(false)
-                      toast.success('Keep inspiring your students!')
-                    }}
-                    className="rounded-xl bg-green-800 px-4 py-2 text-white"
-                  >
-                    Finish
-                  </button>
+                  <button onClick={() => { setShowModal(false); toast.success('Keep inspiring your students!') }}
+                    className="rounded-xl bg-cyan-800 px-4 py-2 text-white">Finish</button>
                 )}
               </div>
+
             </motion.div>
           </motion.div>
         )}
@@ -233,24 +186,13 @@ export default function ProfilePage() {
   )
 }
 
-// 🔹 Reusable component
-function Info({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode
-  label: string
-  value?: string | null
-}) {
+function Info({ icon, label, value }: any) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border p-3">
-      <div className="text-green-800">{icon}</div>
+    <div className="flex items-center gap-3 rounded-xl border border-cyan-100 p-3">
+      <div className="text-cyan-800">{icon}</div>
       <div>
         <p className="text-xs text-gray-500">{label}</p>
-        <p className="text-sm font-medium text-gray-800">
-          {value || 'Not provided'}
-        </p>
+        <p className="text-sm font-medium text-gray-800">{value || 'Not provided'}</p>
       </div>
     </div>
   )

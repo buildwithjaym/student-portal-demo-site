@@ -203,7 +203,7 @@ export default function StudentSubjectsPage() {
   if (loading) {
     return (
       <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <p className="font-medium text-green-900">Loading subjects...</p>
+        <p className="font-medium text-cyan-900">Loading subjects...</p>
       </div>
     )
   }
@@ -219,11 +219,11 @@ export default function StudentSubjectsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 px-6 py-7 text-white shadow-lg">
+      <section className="rounded-3xl bg-gradient-to-r from-cyan-950 via-cyan-900 to-cyan-800 px-6 py-7 text-white shadow-lg">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-2xl font-extrabold md:text-3xl">My Subjects</h1>
-            <p className="mt-2 text-sm text-green-100 md:text-base">
+            <p className="mt-2 text-sm text-cyan-100 md:text-base">
               View all your enrolled subjects and assigned teachers.
             </p>
           </div>
@@ -241,7 +241,7 @@ export default function StudentSubjectsPage() {
       </section>
 
       {subjectCards.length === 0 ? (
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">No enrolled subjects found.</p>
         </div>
       ) : (
@@ -249,54 +249,54 @@ export default function StudentSubjectsPage() {
           {subjectCards.map((item) => (
             <div
               key={item.id}
-              className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm"
+              className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-lg font-bold text-green-900">
+                  <p className="text-lg font-bold text-cyan-900">
                     {item.classes?.subjects?.subject_name || 'Unknown Subject'}
                   </p>
-                  <p className="mt-1 text-sm font-medium text-yellow-700">
+                  <p className="mt-1 text-sm font-medium text-cyan-700">
                     {item.classes?.subjects?.subject_code || '—'}
                   </p>
                 </div>
 
-                <div className="rounded-xl bg-green-50 p-2 text-green-700">
+                <div className="rounded-xl bg-cyan-50 p-2 text-cyan-700">
                   <BookOpen className="h-5 w-5" />
                 </div>
               </div>
 
               <div className="mt-4 space-y-3 text-sm text-gray-700">
                 <p className="flex items-start gap-2">
-                  <UserRound className="mt-0.5 h-4 w-4 text-green-700" />
+                  <UserRound className="mt-0.5 h-4 w-4 text-cyan-700" />
                   <span>
-                    <span className="font-semibold text-green-900">Teacher:</span>{' '}
+                    <span className="font-semibold text-cyan-900">Teacher:</span>{' '}
                     {getTeacherName(item.classes?.teachers ?? null)}
                   </span>
                 </p>
 
                 <p>
-                  <span className="font-semibold text-green-900">Semester:</span>{' '}
+                  <span className="font-semibold text-cyan-900">Semester:</span>{' '}
                   {item.semester}
                 </p>
 
                 <p>
-                  <span className="font-semibold text-green-900">School Year:</span>{' '}
+                  <span className="font-semibold text-cyan-900">School Year:</span>{' '}
                   {item.school_year}
                 </p>
 
                 <p>
-                  <span className="font-semibold text-green-900">Grade Level:</span>{' '}
+                  <span className="font-semibold text-cyan-900">Grade Level:</span>{' '}
                   {item.classes?.grade_level || '—'}
                 </p>
 
                 <p>
-                  <span className="font-semibold text-green-900">Section:</span>{' '}
+                  <span className="font-semibold text-cyan-900">Section:</span>{' '}
                   {item.classes?.section || '—'}
                 </p>
 
                 <p>
-                  <span className="font-semibold text-green-900">Description:</span>{' '}
+                  <span className="font-semibold text-cyan-900">Description:</span>{' '}
                   {item.classes?.subjects?.description || 'No description available.'}
                 </p>
               </div>

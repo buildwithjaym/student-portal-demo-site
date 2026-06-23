@@ -132,14 +132,14 @@ function SummaryCard({
   icon: React.ComponentType<{ className?: string }>
 }) {
   return (
-    <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-gray-500">{title}</p>
           <p className="mt-2 text-3xl font-bold text-green-950">{value}</p>
           <p className="mt-2 text-xs text-gray-500">{subtitle}</p>
         </div>
-        <div className="rounded-2xl bg-green-100 p-3 text-green-800">
+        <div className="rounded-2xl bg-cyan-100 p-3 text-cyan-800">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -442,18 +442,18 @@ export default function TeacherClassesPage() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-[28px] bg-gradient-to-r from-green-950 via-green-900 to-green-800 p-5 text-white shadow-xl sm:p-6"
+        className="overflow-hidden rounded-3xl bg-gradient-to-r from-cyan-900 via-cyan-800 to-cyan-700 p-5 text-white shadow-xl sm:p-6"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-green-50 ring-1 ring-white/10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-cyan-50 ring-1 ring-white/10">
               <BookOpen className="h-3.5 w-3.5" />
               My Classes
             </div>
             <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
               {teacher ? formatFullName(teacher) : 'Teacher'}'s Classes
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-green-50/90 sm:text-base">
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-cyan-50/90 sm:text-base">
               A teacher view focused on assigned subjects, student count, semester,
               section strand, and period grouping.
             </p>
@@ -500,11 +500,11 @@ export default function TeacherClassesPage() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm"
       >
         <div className="mb-4 flex items-center gap-2">
-          <Filter className="h-4 w-4 text-green-800" />
-          <h2 className="text-lg font-bold text-green-900">Filters</h2>
+          <Filter className="h-4 w-4 text-cyan-800" />
+          <h2 className="text-lg font-bold text-cyan-900">Filters</h2>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[220px_220px_220px_1fr]">
@@ -515,7 +515,7 @@ export default function TeacherClassesPage() {
             <select
               value={selectedSchoolYear}
               onChange={(e) => setSelectedSchoolYear(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value="">Select academic year</option>
               {academicYears.map((year) => (
@@ -534,7 +534,7 @@ export default function TeacherClassesPage() {
             <select
               value={selectedSemester}
               onChange={(e) => setSelectedSemester(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               <option value={ALL_SEMESTERS}>{ALL_SEMESTERS}</option>
               <option value="1st Semester">1st Semester</option>
@@ -549,7 +549,7 @@ export default function TeacherClassesPage() {
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             >
               {periodOptions.map((period) => (
                 <option key={period} value={period}>
@@ -569,7 +569,7 @@ export default function TeacherClassesPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search subject, code, grade, section, strand, or period"
-                className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
               />
             </div>
           </div>
@@ -579,14 +579,14 @@ export default function TeacherClassesPage() {
       <motion.section
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+        className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm"
       >
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-green-900">Assigned Classes</h2>
+            <h2 className="text-xl font-bold text-cyan-900">Assigned Classes</h2>
             <p className="text-sm text-gray-600">Based on the assigned subjects.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+          <div className="inline-flex items-center gap-2 rounded-2xl bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-800">
             <Users className="h-4 w-4" />
             {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
           </div>
@@ -601,14 +601,14 @@ export default function TeacherClassesPage() {
             {filteredClasses.map((item) => (
               <div
                 key={item.classId}
-                className="rounded-3xl border border-green-100 bg-gradient-to-b from-white to-green-50/40 p-5 shadow-sm"
+                className="rounded-3xl border border-cyan-100 bg-gradient-to-b from-white to-cyan-50/40 p-5 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="text-lg font-bold text-green-950">{item.subjectName}</h3>
                     <p className="mt-1 text-sm font-medium text-gray-500">{item.subjectCode}</p>
                   </div>
-                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                  <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800">
                     {item.gradeLevel}
                   </span>
                 </div>
@@ -626,9 +626,9 @@ export default function TeacherClassesPage() {
                 </div>
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
+                  <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-100">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-2xl bg-green-100 p-2 text-green-800">
+                      <div className="rounded-2xl bg-cyan-100 p-2 text-cyan-800">
                         <Users className="h-5 w-5" />
                       </div>
                       <div>
@@ -640,9 +640,9 @@ export default function TeacherClassesPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-white p-4 ring-1 ring-green-100">
+                  <div className="rounded-2xl bg-white p-4 ring-1 ring-cyan-100">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-2xl bg-green-100 p-2 text-green-800">
+                      <div className="rounded-2xl bg-cyan-100 p-2 text-cyan-800">
                         <Clock3 className="h-5 w-5" />
                       </div>
                       <div>
@@ -655,9 +655,9 @@ export default function TeacherClassesPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-green-100 bg-white p-4">
+                <div className="mt-5 rounded-2xl border border-cyan-100 bg-white p-4">
                   <div className="mb-2 flex items-center gap-2">
-                    <CalendarRange className="h-4 w-4 text-green-800" />
+                    <CalendarRange className="h-4 w-4 text-cyan-800" />
                     <p className="text-sm font-semibold text-gray-800">Section Details</p>
                   </div>
                   <div className="grid gap-2 text-sm text-gray-600">

@@ -1,0 +1,24 @@
+🎨 FINAL COLOR TRANSFORMATION RULE
+PRIMARY MIGRATION
+green-50 → cyan-50
+green-100 → cyan-100
+green-200 → cyan-200
+green-300 → cyan-300
+green-400 → cyan-400
+green-500 → cyan-500
+green-600 → cyan-600
+green-700 → cyan-700
+green-800 → cyan-800
+green-900 → cyan-900
+BORDER / FOCUS
+border-green-* → border-cyan-*
+focus:ring-green-* → focus:ring-cyan-*
+focus:border-green-* → focus:border-cyan-*
+STATUS COLORS (UNCHANGED LOGIC)
+red = critical
+yellow = warning
+purple = secondary analytics
+blue = comparison metrics
+
+
+text-xs font-medium text-cyan-600 sm:text-sm

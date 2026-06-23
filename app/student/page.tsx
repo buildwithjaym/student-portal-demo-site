@@ -329,7 +329,7 @@ export default function StudentDashboardPage() {
   if (loading) {
     return (
       <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <p className="font-medium text-green-900">Loading dashboard...</p>
+        <p className="font-medium text-green-950">Loading dashboard...</p>
       </div>
     )
   }
@@ -345,8 +345,8 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 px-6 py-7 text-white shadow-lg">
-        <p className="text-sm font-medium text-yellow-300">Welcome back</p>
+      <section className="overflow-hidden rounded-3xl bg-gradient-to-r from-cyan-900 via-cyan-800 to-cyan-700 p-5 text-white shadow-xl sm:p-6">
+        <p className="text-sm font-medium text-cyan-200">Welcome back</p>
         <h1 className="mt-2 text-2xl font-extrabold md:text-3xl">
           {student?.first_name} {student?.last_name}
         </h1>
@@ -377,10 +377,10 @@ export default function StudentDashboardPage() {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-green-900">My Subjects</h2>
-            <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-700">
+            <h2 className="text-lg font-bold text-green-950">My Subjects</h2>
+            <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-700">
               Current Enrollments
             </span>
           </div>
@@ -397,11 +397,11 @@ export default function StudentDashboardPage() {
                 return (
                   <div
                     key={enrollment.id}
-                    className="rounded-xl border border-green-100 bg-green-50/50 p-4"
+                    className="rounded-xl border border-cyan-100 bg-green-50/50 p-4"
                   >
                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                       <div>
-                        <p className="font-bold text-green-900">
+                        <p className="font-bold text-green-950">
                           {subject?.subject_name || 'Unknown Subject'}
                         </p>
                         <p className="text-sm text-gray-600">
@@ -423,9 +423,9 @@ export default function StudentDashboardPage() {
           )}
         </div>
 
-        <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+        <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-green-900">Latest Grades</h2>
+            <h2 className="text-lg font-bold text-green-950">Latest Grades</h2>
             <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
               Updated
             </span>
@@ -438,10 +438,10 @@ export default function StudentDashboardPage() {
               {latestGrades.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between rounded-xl border border-yellow-100 bg-yellow-50 p-4"
+                  className="flex items-center justify-between rounded-xl border border-yellow-100 bg-cyan-50 p-4"
                 >
                   <div>
-                    <p className="font-semibold text-green-900">
+                    <p className="font-semibold text-green-950">
                       {item.classes?.subjects?.subject_name || 'Unknown Subject'}
                     </p>
                     <p className="text-sm text-gray-600">
@@ -450,7 +450,7 @@ export default function StudentDashboardPage() {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xl font-extrabold text-yellow-700">
+                    <p className="text-xl font-extrabold text-cyan-700">
                       {item.grade}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -477,11 +477,11 @@ function DashboardCard({
   highlight?: boolean
 }) {
   return (
-    <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
       <p className="text-sm font-medium text-gray-500">{label}</p>
       <p
         className={`mt-2 text-xl font-bold ${
-          highlight ? 'text-yellow-600' : 'text-green-900'
+          highlight ? 'text-cyan-700' : 'text-green-950'
         }`}
       >
         {value}

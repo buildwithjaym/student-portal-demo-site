@@ -14,6 +14,9 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
+
+const LOGO_PATH = '/logo.jpg'
 
 type TeacherInfo = {
   fullName?: string
@@ -78,38 +81,56 @@ function TeacherShell({
     <div
       className={`flex h-full flex-col ${
         mobile ? 'overflow-y-auto overscroll-contain' : 'overflow-hidden'
-      }`}
+      } bg-gradient-to-b from-slate-950 via-cyan-950 to-slate-900 text-white`}
     >
-      <div className="border-b border-yellow-400/10 px-3 py-4">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-bold tracking-wide text-yellow-300 xl:text-base">
-            QORBAN PORTAL
-          </p>
-          <p className="text-[11px] text-white/80">Teacher Portal</p>
-          <p className="mt-1 text-[11px] text-green-200">
-            Online Grade Management System
-          </p>
+      {/* HEADER */}
+      <div className="border-b border-cyan-500/15 px-3 py-4">
+
+        <div className="mb-3 flex items-center gap-2.5">
+          <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-cyan-400 bg-white shadow-lg">
+            <Image
+              src={LOGO_PATH}
+              alt="logo"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+          </div>
+
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold tracking-wide text-white">
+              STUDENT PORTAL
+            </p>
+            <p className="text-[11px] text-cyan-300">Teacher Portal</p>
+            <p className="text-[11px] text-slate-300">
+              Online Grade Management System
+            </p>
+          </div>
         </div>
 
-        <div className="mt-3 rounded-xl bg-green-900/60 p-2.5">
-          <p className="text-[10px] uppercase tracking-wide text-yellow-300">
+        {/* ACCOUNT */}
+        <div className="rounded-xl border border-cyan-400/10 bg-white/[0.06] p-2.5 shadow-inner">
+          <p className="text-[10px] uppercase tracking-wide text-cyan-300">
             Account
           </p>
-          <p className="truncate text-sm font-semibold">
+
+          <p className="truncate text-sm font-semibold text-white">
             {teacher?.fullName ?? 'Teacher'}
           </p>
-          <p className="truncate text-[11px] text-green-200">
+
+          <p className="truncate text-[11px] text-slate-300">
             {teacher?.teacherNo ? `Teacher No: ${teacher.teacherNo}` : 'Teacher account'}
           </p>
 
-          <span className="mt-2 inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold uppercase text-green-950">
+          <span className="mt-2 inline-block rounded-full bg-gradient-to-r from-cyan-700 to-cyan-500 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
             Teacher
           </span>
         </div>
       </div>
 
-      <div className="border-b border-yellow-400/10 px-3 py-2.5">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
+      {/* NAV */}
+      <div className="border-b border-cyan-500/10 px-3 py-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300/90">
           Navigation
         </p>
       </div>
@@ -127,11 +148,16 @@ function TeacherShell({
                 onClick={closeMenu}
                 className={`flex min-w-0 items-center gap-2.5 rounded-lg px-2.5 py-2.5 transition ${
                   active
-                    ? 'bg-green-900 text-yellow-300'
-                    : 'text-white hover:bg-green-900/60 hover:text-yellow-300'
+                    ? 'bg-cyan-700/60 text-white'
+                    : 'text-slate-200 hover:bg-white/[0.07] hover:text-cyan-300'
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${
+                    active ? 'text-cyan-200' : 'text-slate-400'
+                  }`}
+                />
+
                 <span className="truncate text-[13px] font-medium sm:text-sm">
                   {item.label}
                 </span>
@@ -141,13 +167,14 @@ function TeacherShell({
         </div>
       </nav>
 
-      <div className="mt-auto border-t border-yellow-400/10 p-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+      {/* LOGOUT */}
+      <div className="mt-auto border-t border-cyan-500/15 p-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-3 text-left text-white transition hover:bg-green-900/60 hover:text-yellow-300"
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-3 text-left text-slate-200 transition hover:bg-red-500/10 hover:text-red-200"
         >
-          <LogOut className="h-4 w-4 shrink-0 text-yellow-300" />
+          <LogOut className="h-4 w-4 shrink-0 text-cyan-300" />
           <span className="truncate text-[13px] font-medium sm:text-sm">
             Logout
           </span>
@@ -157,118 +184,73 @@ function TeacherShell({
   )
 
   return (
-    <div className="min-h-screen bg-green-50">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-yellow-400/10 bg-green-950 px-3 text-white lg:hidden">
-        <div className="min-w-0">
-          <p className="truncate text-xs font-bold tracking-wide sm:text-sm">
-            QORBAN PORTAL
-          </p>
-          <p className="text-[10px] text-yellow-300">{pageTitle}</p>
-        </div>
+    <div className="min-h-screen bg-cyan-50">
 
-        <button
-          type="button"
-          onClick={() => setMobileOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
-          aria-label="Open menu"
-          aria-expanded={mobileOpen}
-          aria-controls="mobile-teacher-sidebar"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+      {/* MOBILE HEADER (IMPROVED RESPONSIVE CARD STYLE) */}
+      <header className="lg:hidden sticky top-0 z-30 border-b border-cyan-100 bg-white px-4 py-3">
+        <div className="flex items-center justify-between">
+
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-cyan-600">Overview</p>
+            <h1 className="truncate text-lg font-bold text-slate-900">
+              {pageTitle}
+            </h1>
+            <p className="text-[11px] text-slate-500">
+              Teacher Portal Dashboard
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-50 text-cyan-700 transition active:scale-95"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
-      <div
-        onClick={closeMenu}
-        aria-hidden="true"
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden ${
-          mobileOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
-        }`}
-      />
-
       <div className="flex min-h-[calc(100vh-56px)] lg:min-h-screen">
-        <aside className="hidden h-screen w-[240px] shrink-0 border-r border-yellow-400/10 bg-green-950 text-white lg:sticky lg:top-0 lg:flex lg:flex-col xl:w-[252px]">
+
+        {/* SIDEBAR */}
+        <aside className="hidden h-screen w-[240px] shrink-0 border-r border-cyan-500/10 bg-cyan-950 text-white lg:sticky lg:top-0 lg:flex lg:flex-col xl:w-[252px]">
           <SidebarInner />
         </aside>
 
-        <aside
-          id="mobile-teacher-sidebar"
-          className={`fixed inset-y-0 right-0 z-50 w-[82vw] max-w-[280px] min-w-[220px] border-l border-yellow-400/10 bg-green-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
-            mobileOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-          aria-hidden={!mobileOpen}
-        >
-          <div className="flex h-[100dvh] max-h-[100dvh] flex-col overflow-y-auto overscroll-contain">
-            <div className="border-b border-yellow-400/10 px-3 py-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold tracking-wide sm:text-sm">
-                    QORBAN PORTAL
-                  </p>
-                  <p className="text-[10px] text-yellow-300">Teacher Portal</p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={closeMenu}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-yellow-300 transition hover:bg-green-900/70 active:scale-95"
-                  aria-label="Close menu"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="mt-3 rounded-xl bg-green-900/60 p-2.5">
-                <p className="text-[10px] uppercase tracking-wide text-yellow-300">
-                  Account
-                </p>
-                <p className="truncate text-sm font-semibold">
-                  {teacher?.fullName ?? 'Teacher'}
-                </p>
-                <p className="truncate text-[11px] text-green-200">
-                  {teacher?.teacherNo ? `Teacher No: ${teacher.teacherNo}` : 'Teacher account'}
-                </p>
-
-                <span className="mt-2 inline-block rounded-full bg-yellow-400 px-2 py-0.5 text-[10px] font-bold uppercase text-green-950">
-                  Teacher
-                </span>
-              </div>
-            </div>
-
-            <div className="border-b border-yellow-400/10 px-3 py-2.5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-yellow-300/90">
-                Navigation
-              </p>
-            </div>
-
-            <SidebarInner mobile />
-          </div>
-        </aside>
-
+        {/* CONTENT */}
         <div className="min-w-0 flex-1">
-          <header className="sticky top-14 z-20 hidden border-b border-green-100 bg-white/95 backdrop-blur lg:block lg:top-0">
-            <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-yellow-700">Teacher Portal</p>
-                <h1 className="truncate text-base font-semibold text-green-950">
-                  {pageTitle}
-                </h1>
-              </div>
-
-              <div className="hidden text-right sm:block">
-                <p className="text-sm font-medium text-green-950">
-                  {teacher?.fullName ?? 'Teacher'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {teacher?.teacherNo ? `#${teacher.teacherNo}` : ''}
-                </p>
-              </div>
-            </div>
-          </header>
-
-          <main className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <main className="px-4 py-6 sm:px-6 lg:px-8">
+            {children}
+          </main>
         </div>
+
       </div>
+
+      {/* MOBILE DRAWER */}
+      <aside
+        className={`fixed inset-y-0 right-0 z-50 w-[82vw] max-w-[280px] min-w-[220px] border-l border-cyan-500/10 bg-cyan-950 text-white shadow-2xl transition-transform duration-300 ease-out lg:hidden ${
+          mobileOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="flex h-full flex-col overflow-y-auto">
+          <button
+            onClick={closeMenu}
+            className="absolute right-3 top-3 rounded-lg p-2 text-cyan-300"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <SidebarInner mobile />
+        </div>
+      </aside>
+
+      {/* BACKDROP */}
+      {mobileOpen && (
+        <div
+          onClick={closeMenu}
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        />
+      )}
     </div>
   )
 }

@@ -14,12 +14,15 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { supabaseStudent } from '@/lib/supabase-student'
+import Image from 'next/image'
 
 type StudentSidebarProps = {
   studentName?: string
   studentNo?: string | null
   section?: string | null
 }
+
+const LOGO_PATH = '/logo.jpg'
 
 export default function StudentSidebar({
   studentName,
@@ -45,101 +48,53 @@ export default function StudentSidebar({
     setOpen(false)
   }, [pathname])
 
-  useEffect(() => {
-    if (!open) return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [open])
-
   const handleLogout = async () => {
-    try {
-      setLoggingOut(true)
-      await supabaseStudent.auth.signOut()
-      router.replace('/login')
-    } finally {
-      setLoggingOut(false)
-    }
+    setLoggingOut(true)
+    await supabaseStudent.auth.signOut()
+    router.replace('/login')
+    setLoggingOut(false)
   }
 
-  const isActive = (href: string) => {
-    if (href === '/student') return pathname === '/student'
-    return pathname.startsWith(href)
-  }
-
-  const pageTitle =
-    pathname === '/student'
-      ? 'Dashboard'
-      : pathname.startsWith('/student/grades')
-        ? 'My Grades'
-        : pathname.startsWith('/student/subjects')
-          ? 'My Subjects'
-          : pathname.startsWith('/student/profile')
-            ? 'My Profile'
-            : 'Student Portal'
+  const isActive = (href: string) =>
+    href === '/student' ? pathname === '/student' : pathname.startsWith(href)
 
   const SidebarContent = ({ mobile = false }: { mobile?: boolean }) => (
-    <div className="flex h-full flex-col bg-gradient-to-b from-green-950 via-green-900 to-green-950 text-white">
-      <div className="border-b border-white/10 px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-400 sm:text-xs">
-              Qorban Portal
-            </p>
-            <h1 className="mt-1 text-lg font-extrabold sm:text-xl">
-              {mobile ? 'Student Menu' : 'Student Portal'}
-            </h1>
-            {!mobile && (
-              <p className="mt-1 text-xs text-green-100/80 sm:text-sm">
-                Online Grade Management System
-              </p>
-            )}
+    <div className="flex h-full flex-col bg-gradient-to-b from-slate-950 via-blue-950 to-cyan-950 text-white">
+
+      {/* BRAND */}
+      <div className="border-b border-cyan-400/15 px-4 py-4">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 overflow-hidden rounded-full border-2 border-cyan-400 bg-white shadow-lg">
+            <Image src={LOGO_PATH} alt="logo" width={40} height={40} />
           </div>
 
-          {mobile && (
-            <button
-              onClick={() => setOpen(false)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-white/10"
-              aria-label="Close menu"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white">STUDENT PORTAL</p>
+            <p className="text-[11px] text-cyan-300">Student Panel</p>
+          </div>
         </div>
       </div>
 
-      <div className="border-b border-white/10 p-3 sm:p-4">
-        <div className="rounded-2xl bg-white/10 p-4">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-widest text-yellow-400 sm:text-xs">
-            Student
+      {/* INFO */}
+      <div className="border-b border-cyan-400/15 p-3">
+        <div className="rounded-xl border border-cyan-400/10 bg-white/[0.06] p-3">
+          <p className="text-[10px] uppercase tracking-wide text-cyan-300">
+            Account
           </p>
-          <p className="truncate text-sm font-bold sm:text-base">
-            {studentName || 'Student'}
-          </p>
-          <p className="mt-2 break-words text-xs text-green-100 sm:text-sm">
-            Student No: {studentNo || '—'}
-          </p>
-          <p className="break-words text-xs text-green-100 sm:text-sm">
-            Section: {section || '—'}
-          </p>
+
+          <p className="text-sm font-semibold">{studentName || 'Student'}</p>
+          <p className="text-xs text-slate-300">No: {studentNo || '—'}</p>
+          <p className="text-xs text-slate-300">Section: {section || '—'}</p>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-4">
-        <p className="mb-3 px-2 text-[11px] font-bold uppercase tracking-[0.25em] text-yellow-400 sm:text-xs">
+      {/* NAV */}
+      <div className="flex-1 overflow-y-auto px-2 py-3">
+        <p className="px-2 text-[10px] uppercase tracking-[0.18em] text-cyan-300">
           Navigation
         </p>
 
-        <nav className="space-y-2">
+        <div className="mt-2 space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.href)
@@ -148,30 +103,38 @@ export default function StudentSidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => mobile && setOpen(false)}
+                onClick={() => setOpen(false)}
                 className={clsx(
-                  'flex min-h-[52px] items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition sm:min-h-[56px] sm:text-base',
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition',
                   active
-                    ? 'bg-white text-green-900 shadow-lg'
-                    : 'text-white hover:bg-white/10 hover:text-yellow-300'
+                    ? 'bg-gradient-to-r from-blue-900/90 to-cyan-700/80 text-white ring-1 ring-cyan-300/20'
+                    : 'text-slate-200 hover:bg-white/10 hover:text-cyan-300'
                 )}
               >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="truncate">{item.label}</span>
+                <Icon
+                  className={clsx(
+                    'h-4 w-4',
+                    active ? 'text-cyan-200' : 'text-slate-400'
+                  )}
+                />
+                <span className="font-medium">{item.label}</span>
               </Link>
             )
           })}
-        </nav>
+        </div>
       </div>
 
-      <div className="border-t border-white/10 p-3 sm:p-4">
+      {/* LOGOUT */}
+      <div className="border-t border-cyan-400/15 p-3">
         <button
           onClick={handleLogout}
           disabled={loggingOut}
-          className="flex min-h-[52px] w-full items-center justify-center gap-3 rounded-2xl bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-500/15 hover:text-red-100 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[56px] sm:text-base"
+          className="flex w-full items-center gap-2 rounded-xl bg-white/5 px-3 py-2.5 text-slate-200 hover:bg-red-500/10 hover:text-red-200"
         >
-          <LogOut className="h-5 w-5 shrink-0" />
-          <span>{loggingOut ? 'Logging out...' : 'Logout'}</span>
+          <LogOut className="h-4 w-4 text-cyan-300" />
+          <span className="text-sm">
+            {loggingOut ? 'Logging out...' : 'Logout'}
+          </span>
         </button>
       </div>
     </div>
@@ -179,63 +142,41 @@ export default function StudentSidebar({
 
   return (
     <>
-      {/* Desktop / Tablet Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 overflow-hidden border-r border-white/10 shadow-2xl md:block lg:w-72 xl:w-80">
+      {/* DESKTOP */}
+      <aside className="hidden h-screen w-[240px] lg:fixed lg:left-0 lg:top-0 lg:flex">
         <SidebarContent />
       </aside>
 
-      {/* Mobile Header */}
-      <header className="sticky top-0 z-20 border-b border-green-100 bg-white/95 backdrop-blur md:hidden">
-        <div className="flex min-h-16 items-center justify-between px-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <button
-              onClick={() => setOpen(true)}
-              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-green-200 text-green-900 transition hover:bg-green-50"
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+      {/* MOBILE HEADER */}
+      <header className="flex h-14 items-center justify-between border-b border-cyan-400/15 bg-gradient-to-r from-slate-950 via-blue-950 to-cyan-950 px-3 text-white lg:hidden">
+        <h2 className="text-sm font-semibold">Student Portal</h2>
 
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-yellow-700">
-                Student Portal
-              </p>
-              <h2 className="truncate text-sm font-semibold text-green-950">
-                {pageTitle}
-              </h2>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setOpen(true)}
+          className="rounded-lg p-2 text-cyan-300 hover:bg-white/10"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
       </header>
 
-      {/* Mobile Drawer */}
+      {/* OVERLAY */}
       <div
+        onClick={() => setOpen(false)}
         className={clsx(
-          'fixed inset-0 z-40 md:hidden',
-          open ? 'pointer-events-auto' : 'pointer-events-none'
+          'fixed inset-0 z-40 bg-black/60 transition-opacity lg:hidden',
+          open ? 'opacity-100' : 'pointer-events-none opacity-0'
         )}
-        aria-hidden={!open}
-      >
-        <div
-          onClick={() => setOpen(false)}
-          className={clsx(
-            'absolute inset-0 bg-black/50 transition-opacity duration-300',
-            open ? 'opacity-100' : 'opacity-0'
-          )}
-        />
+      />
 
-        <aside
-          className={clsx(
-            'absolute inset-y-0 left-0 z-50 flex h-dvh w-[82vw] max-w-[320px] flex-col overflow-hidden shadow-2xl transition-transform duration-300 xs:w-[78vw] sm:max-w-sm',
-            open ? 'translate-x-0' : '-translate-x-full'
-          )}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Student navigation menu"
-        >
-          <SidebarContent mobile />
-        </aside>
-      </div>
+     
+      <aside
+        className={clsx(
+          'fixed right-0 top-0 z-50 h-full w-[82%] max-w-[320px] transform bg-gradient-to-b from-slate-950 via-blue-950 to-cyan-950 text-white shadow-2xl transition-transform duration-300 lg:hidden',
+          open ? 'translate-x-0' : 'translate-x-full'
+        )}
+      >
+        <SidebarContent mobile />
+      </aside>
     </>
   )
 }

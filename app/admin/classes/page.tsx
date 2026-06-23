@@ -625,16 +625,16 @@ export default function ClassesPage() {
         className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
       >
         <div>
-          <p className="text-sm font-medium text-yellow-600">Administration</p>
-          <h1 className="text-3xl font-bold text-green-900">Classes</h1>
-          <p className="mt-1 text-gray-600">
+          <p className="text-sm font-medium text-cyan-600">Administration</p>
+          <h1 className="text-3xl font-bold text-cyan-900">Classes</h1>
+          <p className="mt-1 text-slate-600">
             Manage class offerings by subject, teacher, section, school year, and semester.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-2xl bg-green-800 px-4 py-3 font-semibold text-white transition hover:bg-green-900"
+          className="inline-flex items-center gap-2 rounded-2xl bg-cyan-800 px-4 py-3 font-semibold text-white transition hover:bg-cyan-900"
         >
           <Plus className="h-5 w-5" />
           Add Class
@@ -645,17 +645,17 @@ export default function ClassesPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm"
+        className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search by subject, teacher, grade level, section, school year, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-slate-300 py-3 pl-10 pr-4 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             />
           </div>
 
@@ -664,7 +664,7 @@ export default function ClassesPage() {
               Active SY: {activeSchoolYear || 'Not Set'}
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800">
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-800">
               <School className="h-4 w-4" />
               {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
             </div>
@@ -676,34 +676,34 @@ export default function ClassesPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm"
+        className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm"
       >
         <div className="overflow-x-auto">
           <table className="min-w-full">
-            <thead className="bg-green-50">
+            <thead className="bg-cyan-50">
               <tr>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Subject
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Teacher
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Grade Level
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Section
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   School Year
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Semester
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Status
                 </th>
-                <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-right text-sm font-semibold text-cyan-900">
                   Actions
                 </th>
               </tr>
@@ -712,13 +712,13 @@ export default function ClassesPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
                     Loading classes...
                   </td>
                 </tr>
               ) : paginatedClasses.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
                     No classes found.
                   </td>
                 </tr>
@@ -729,32 +729,32 @@ export default function ClassesPage() {
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2, delay: index * 0.03 }}
-                    className="border-t border-gray-100"
+                    className="border-t border-slate-100"
                   >
                     <td className="px-4 py-4">
-                      <div className="font-semibold text-green-950">
+                      <div className="font-semibold text-cyan-950">
                         {item.subjects
                           ? `${item.subjects.subject_code} - ${item.subjects.subject_name}`
                           : '—'}
                       </div>
                     </td>
 
-                    <td className="px-4 py-4 text-sm text-gray-700">
+                    <td className="px-4 py-4 text-sm text-slate-700">
                       {item.teachers ? formatFullName(item.teachers) : 'Unassigned'}
                     </td>
 
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.grade_level}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.section}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.school_year}</td>
-                    <td className="px-4 py-4 text-sm text-gray-700">{item.semester}</td>
+                    <td className="px-4 py-4 text-sm text-slate-700">{item.grade_level}</td>
+                    <td className="px-4 py-4 text-sm text-slate-700">{item.section}</td>
+                    <td className="px-4 py-4 text-sm text-slate-700">{item.school_year}</td>
+                    <td className="px-4 py-4 text-sm text-slate-700">{item.semester}</td>
 
                     <td className="px-4 py-4">
                       {item.is_active ? (
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                        <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800">
                           Active
                         </span>
                       ) : (
-                        <span className="rounded-full bg-gray-200 px-3 py-1 text-xs font-semibold text-gray-700">
+                        <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
                           Inactive
                         </span>
                       )}
@@ -764,7 +764,7 @@ export default function ClassesPage() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openEditModal(item)}
-                          className="rounded-xl bg-yellow-50 p-2 text-yellow-700 transition hover:bg-yellow-100"
+                          className="rounded-xl bg-cyan-50 p-2 text-cyan-700 transition hover:bg-cyan-100"
                           title="Edit class"
                         >
                           <Pencil className="h-4 w-4" />
@@ -781,7 +781,7 @@ export default function ClassesPage() {
                         ) : (
                           <button
                             onClick={() => handleReactivate(item)}
-                            className="rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
+                            className="rounded-xl bg-cyan-50 px-3 py-2 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100"
                             title="Reactivate class"
                           >
                             Restore
@@ -796,8 +796,8 @@ export default function ClassesPage() {
           </table>
         </div>
 
-        <div className="flex flex-col gap-4 border-t border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-500">
+        <div className="flex flex-col gap-4 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
             Page {currentPage} of {totalPages}
           </p>
 
@@ -805,7 +805,7 @@ export default function ClassesPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Previous
             </button>
@@ -813,7 +813,7 @@ export default function ClassesPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Next
             </button>
@@ -838,17 +838,17 @@ export default function ClassesPage() {
             >
               <div className="mb-6 flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-yellow-600">
+                  <p className="text-sm font-medium text-cyan-600">
                     {editingClass ? 'Update Record' : 'New Class'}
                   </p>
-                  <h2 className="text-2xl font-bold text-green-900">
+                  <h2 className="text-2xl font-bold text-cyan-900">
                     {editingClass ? 'Edit Class' : 'Add Class'}
                   </h2>
                 </div>
 
                 <button
                   onClick={closeModal}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100"
+                  className="rounded-xl px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100"
                 >
                   Close
                 </button>
@@ -861,7 +861,7 @@ export default function ClassesPage() {
               )}
 
               {duplicateAssignment && (
-                <div className="mb-5 flex items-start gap-3 rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                <div className="mb-5 flex items-start gap-3 rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
                   <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
                   <div>
                     <p className="font-semibold">Duplicate class assignment</p>
@@ -880,14 +880,14 @@ export default function ClassesPage() {
               <form onSubmit={handleSave} className="space-y-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Subject *
                     </label>
                     <select
                       name="subject_id"
                       value={form.subject_id}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       required
                     >
                       <option value="">Select subject</option>
@@ -898,19 +898,19 @@ export default function ClassesPage() {
                       ))}
                     </select>
                     {checkingDuplicate && (
-                      <p className="mt-2 text-xs text-gray-500">Checking assignment...</p>
+                      <p className="mt-2 text-xs text-slate-500">Checking assignment...</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Teacher
                     </label>
                     <select
                       name="teacher_id"
                       value={form.teacher_id}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                     >
                       <option value="">Unassigned</option>
                       {teachers.map((teacher) => (
@@ -922,26 +922,26 @@ export default function ClassesPage() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Grade Level *
                     </label>
                     <input
                       value={form.grade_level}
                       readOnly
-                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-700 outline-none"
                       placeholder="Auto-filled from subject"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Section *
                     </label>
                     <select
                       name="section"
                       value={form.section}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       required
                       disabled={!form.grade_level}
                     >
@@ -958,37 +958,37 @@ export default function ClassesPage() {
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       School Year *
                     </label>
                     <input
                       value={activeSchoolYear}
                       readOnly
-                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-700 outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Semester *
                     </label>
                     <input
                       value={form.semester}
                       readOnly
-                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-700 outline-none"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-700 outline-none"
                       placeholder="Auto-filled from subject"
                     />
                   </div>
 
                   <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    <label className="mb-1.5 block text-sm font-medium text-slate-700">
                       Status
                     </label>
                     <select
                       name="is_active"
                       value={String(form.is_active)}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
@@ -1000,7 +1000,7 @@ export default function ClassesPage() {
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+                    className="rounded-xl border border-slate-300 px-5 py-3 font-medium text-slate-700 transition hover:bg-slate-50"
                   >
                     Cancel
                   </button>
@@ -1008,7 +1008,7 @@ export default function ClassesPage() {
                   <button
                     type="submit"
                     disabled={saving || !activeSchoolYear || !!duplicateAssignment}
-                    className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving
                       ? editingClass

@@ -92,11 +92,11 @@ function getRemarksClass(remarks: string) {
     remarks === 'With High Honors' ||
     remarks === 'With Honors'
   ) {
-    return 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+    return 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200'
   }
 
   if (remarks === 'Passed') {
-    return 'bg-green-100 text-green-700 ring-1 ring-green-200'
+    return 'bg-cyan-100 text-cyan-700 ring-1 ring-cyan-200'
   }
 
   if (remarks === 'Pending') {
@@ -252,72 +252,97 @@ export default function StudentGradesPage() {
   }, [grades])
 
   const tableRows = useMemo(() => {
-    const submittedSet = new Set(
-      submissions.map(
-        (item) => `${item.class_id}|${item.school_year}|${item.term}|${item.grading_period}`
-      )
+  const submittedSet = new Set(
+    submissions.map(
+      (item) =>
+        `${item.class_id}|${item.school_year}|${item.term}|${item.grading_period}`
     )
+  )
 
-    const filteredGrades =
-      selectedSchoolYear === 'All'
-        ? grades
-        : grades.filter((item) => item.school_year === selectedSchoolYear)
+const filteredGrades =
+  selectedSchoolYear === 'All'
+    ? grades
+    : grades.filter((item) => {
+        const matchYear = item.school_year === selectedSchoolYear
 
-    const map = new Map<string, TableRow>()
+        const validForSelectedPeriod =
+          (selectedPeriod === '1st' && item.semester === '1st Semester' && (item.grading_period === '1st' || item.grading_period === '2nd')) ||
+          (selectedPeriod === '2nd' && item.semester === '1st Semester' && (item.grading_period === '1st' || item.grading_period === '2nd')) ||
+          (selectedPeriod === '3rd' && item.semester === '2nd Semester' && (item.grading_period === '3rd' || item.grading_period === '4th')) ||
+          (selectedPeriod === '4th' && item.semester === '2nd Semester' && (item.grading_period === '3rd' || item.grading_period === '4th'))
 
-    for (const item of filteredGrades) {
-      const key = `${item.class_id}|${item.school_year}|${item.semester}`
+        return matchYear && validForSelectedPeriod
+      })
 
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          classId: item.class_id,
-          schoolYear: item.school_year,
-          semester: item.semester,
-          subjectCode: item.classes?.subjects?.subject_code || '—',
-          subjectName: item.classes?.subjects?.subject_name || 'Unnamed Subject',
-          year: item.classes?.grade_level || '—',
-          section: item.classes?.section || '—',
-          grade: null,
-          remarks: 'Pending',
-          teacherRemark: null,
-        })
-      }
+  const map = new Map<string, TableRow>()
 
-      if (item.grading_period !== selectedPeriod) continue
+  for (const item of filteredGrades) {
+    const semester = item.semester
+    const period = item.grading_period
 
-      const submissionKey = `${item.class_id}|${item.school_year}|${item.semester}|${item.grading_period}`
-      const isSubmitted = submittedSet.has(submissionKey)
+ 
+    const isValidPeriod =
+      (semester === '1st Semester' && (period === '1st' || period === '2nd')) ||
+      (semester === '2nd Semester' && (period === '3rd' || period === '4th'))
 
-      if (!isSubmitted) continue
-
-      const row = map.get(key)!
-      row.grade = item.grade
-      row.teacherRemark = item.remarks
-      row.remarks = getComputedRemarks(item.grade)
+    if (!isValidPeriod) {
+      continue
     }
 
-    return Array.from(map.values()).sort((a, b) => {
-      if (a.schoolYear !== b.schoolYear) {
-        return b.schoolYear.localeCompare(a.schoolYear)
-      }
+    // One row per class per semester ONLY
+   const rowKey = `${item.class_id}|${item.school_year}|${semester}|${period}`
 
-      if (a.year !== b.year) {
-        return a.year.localeCompare(b.year)
-      }
+    if (!map.has(rowKey)) {
+  map.set(rowKey, {
+    key: rowKey,
+    classId: item.class_id,
+    schoolYear: item.school_year,
+    semester,
+    subjectCode: item.classes?.subjects?.subject_code || '—',
+    subjectName: item.classes?.subjects?.subject_name || 'Unnamed Subject',
+    year: item.classes?.grade_level || '—',
+    section: item.classes?.section || '—',
+    grade: item.grade ?? null,
+    remarks: item.grade ? getComputedRemarks(item.grade) : 'Pending',
+    teacherRemark: item.remarks ?? null,
+  })
+}
 
-      if (a.section !== b.section) {
-        return a.section.localeCompare(b.section)
-      }
+    const submissionKey =
+      `${item.class_id}|${item.school_year}|${semester}|${period}`
 
-      return a.subjectName.localeCompare(b.subjectName)
-    })
-  }, [grades, submissions, selectedSchoolYear, selectedPeriod])
+    const isSubmitted = submittedSet.has(submissionKey)
+
+    if (!isSubmitted) continue
+
+    const row = map.get(rowKey)!
+
+    row.grade = item.grade
+    row.teacherRemark = item.remarks
+    row.remarks = getComputedRemarks(item.grade)
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.schoolYear !== b.schoolYear) {
+      return b.schoolYear.localeCompare(a.schoolYear)
+    }
+
+    if (a.year !== b.year) {
+      return a.year.localeCompare(b.year)
+    }
+
+    if (a.section !== b.section) {
+      return a.section.localeCompare(b.section)
+    }
+
+    return a.subjectName.localeCompare(b.subjectName)
+  })
+}, [grades, submissions, selectedSchoolYear, selectedPeriod])
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold text-emerald-900">Loading grades...</p>
+      <div className="rounded-3xl border border-cyan-100 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold text-cyan-900">Loading grades...</p>
       </div>
     )
   }
@@ -333,10 +358,10 @@ export default function StudentGradesPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[28px] border border-emerald-100 bg-white p-6 shadow-sm">
+      <section className="rounded-[28px] border border-cyan-100 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-emerald-700">Qorban Portal</p>
+            <p className="text-sm font-medium text-cyan-700">Qorban Portal</p>
             <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">
               Report of Grades
             </h1>
@@ -349,7 +374,7 @@ export default function StudentGradesPage() {
             <select
               value={selectedSchoolYear}
               onChange={(e) => setSelectedSchoolYear(e.target.value)}
-              className="h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500"
+              className="h-11 rounded-2xl border border-cyan-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-cyan-500"
             >
               {schoolYears.map((year) => (
                 <option key={year} value={year}>
@@ -361,7 +386,7 @@ export default function StudentGradesPage() {
             <select
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value as GradingPeriod)}
-              className="h-11 rounded-2xl border border-emerald-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-emerald-500"
+              className="h-11 rounded-2xl border border-cyan-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-cyan-500"
             >
               {PERIODS.map((period) => (
                 <option key={period} value={period}>
@@ -373,7 +398,7 @@ export default function StudentGradesPage() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-emerald-200 bg-white text-emerald-700 transition hover:bg-emerald-50"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-200 bg-white text-cyan-700 transition hover:bg-cyan-50"
             >
               <RefreshCw className="h-4 w-4" />
             </button>
@@ -409,7 +434,7 @@ export default function StudentGradesPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[30px] border border-emerald-100 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-[30px] border border-cyan-100 bg-white shadow-sm">
         <div className="border-b border-slate-200 px-6 py-5">
           <h2 className="text-xl font-bold text-slate-900">
             {selectedPeriod} Period Grade Report
@@ -440,7 +465,7 @@ export default function StudentGradesPage() {
                 {tableRows.map((row, index) => (
                   <tr
                     key={row.key}
-                    className="border-b border-slate-100 transition hover:bg-emerald-50/40"
+                    className="border-b border-slate-100 transition hover:bg-cyan-50/40"
                   >
                     <td className="px-4 py-4 align-top text-slate-500">{index + 1}.</td>
 
@@ -468,7 +493,7 @@ export default function StudentGradesPage() {
                       {row.section}
                     </td>
 
-                    <td className="px-4 py-4 text-center font-extrabold text-emerald-700">
+                    <td className="px-4 py-4 text-center font-extrabold text-cyan-700">
                       {formatGrade(row.grade)}
                     </td>
 

@@ -485,7 +485,7 @@ export default function TeacherPage() {
   return (
     <div className="space-y-6">
       <div className="rounded-3xl bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-bold text-green-950">
+        <h1 className="text-2xl font-bold text-cyan-950">
           Welcome back, Teacher {teacher ? formatFullName(teacher) : 'Teacher'}
         </h1>
         <p className="mt-2 text-sm text-gray-600">
@@ -497,26 +497,26 @@ export default function TeacherPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Assigned Classes</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">
+          <p className="mt-2 text-2xl font-bold text-cyan-950">
             {summary.assignedClasses}
           </p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Total Students</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">{summary.totalStudents}</p>
+          <p className="mt-2 text-2xl font-bold text-cyan-950">{summary.totalStudents}</p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Submitted Classes</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">
+          <p className="mt-2 text-2xl font-bold text-cyan-950">
             {summary.submittedClasses}
           </p>
         </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <p className="text-sm text-gray-500">Average Progress</p>
-          <p className="mt-2 text-2xl font-bold text-green-950">
+          <p className="mt-2 text-2xl font-bold text-cyan-950">
             {summary.averageProgress}%
           </p>
         </div>
@@ -549,10 +549,10 @@ export default function TeacherPage() {
             ))}
           </select>
 
-          <div className="rounded-2xl bg-green-50 p-4 text-sm">
+          <div className="rounded-2xl bg-cyan-50 p-4 text-sm">
             <div>Window: {gradingWindow?.is_open ? 'Open' : 'Closed'}</div>
             <div>Lock: {gradingWindow?.is_locked ? 'Locked' : 'Unlocked'}</div>
-            <div className="mt-1 font-semibold text-green-900">
+            <div className="mt-1 font-semibold text-cyan-900">
               Encoding: {canEncodeGrades ? 'Available' : 'Unavailable'}
             </div>
           </div>
@@ -560,7 +560,7 @@ export default function TeacherPage() {
       </div>
 
       <div className="rounded-3xl bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-bold text-green-950">My Classes</h2>
+        <h2 className="text-lg font-bold text-cyan-950">My Classes</h2>
 
         {dataLoading ? (
           <div className="mt-4 text-sm text-gray-500">Loading class progress...</div>
@@ -573,11 +573,11 @@ export default function TeacherPage() {
             {classProgressRows.map((row) => (
               <div
                 key={row.classId}
-                className="rounded-2xl border border-green-100 bg-green-50/60 p-4"
+                className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4"
               >
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                   <div>
-                    <h3 className="font-bold text-green-950">
+                    <h3 className="font-bold text-cyan-950">
                       {row.subjectName} ({row.subjectCode})
                     </h3>
                     <p className="text-sm text-gray-600">
@@ -602,7 +602,7 @@ export default function TeacherPage() {
                           )}&gradingPeriod=${encodeURIComponent(selectedGradingPeriod)}`
                         )
                       }
-                      className="w-full rounded-xl bg-green-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
+                      className="w-full rounded-xl bg-cyan-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
                     >
                       Open Grade Encoding
                     </button>

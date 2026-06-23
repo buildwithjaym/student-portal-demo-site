@@ -6,7 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.qorbanportal.online'),
   title: {
-    default: 'Qorban Portal',
+    default: 'Student Portal',
     template: '%s | Qorban Portal',
   },
   description:

@@ -73,7 +73,7 @@ export default function StudentProfilePage() {
   if (loading) {
     return (
       <div className="rounded-2xl bg-white p-6 shadow-sm">
-        <p className="font-medium text-green-900">Loading profile...</p>
+        <p className="font-medium text-cyan-900">Loading profile...</p>
       </div>
     )
   }
@@ -89,14 +89,14 @@ export default function StudentProfilePage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 px-6 py-7 text-white shadow-lg">
+      <section className="rounded-3xl bg-gradient-to-r from-cyan-950 via-cyan-900 to-cyan-800 px-6 py-7 text-white shadow-lg">
         <h1 className="text-2xl font-extrabold md:text-3xl">My Profile</h1>
-        <p className="mt-2 text-sm text-green-100 md:text-base">
+        <p className="mt-2 text-sm text-cyan-100 md:text-base">
           View your personal and academic information.
         </p>
       </section>
 
-      <div className="rounded-2xl border border-green-100 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-cyan-100 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <InfoCard label="Student No." value={student?.student_no || '—'} />
           <InfoCard label="First Name" value={student?.first_name || '—'} />
@@ -115,9 +115,9 @@ export default function StudentProfilePage() {
 
 function InfoCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-green-100 bg-green-50/40 p-4">
+    <div className="rounded-xl border border-cyan-100 bg-cyan-50/40 p-4">
       <p className="text-sm text-gray-500">{label}</p>
-      <p className="mt-1 font-semibold text-green-950">{value}</p>
+      <p className="mt-1 font-semibold text-cyan-950">{value}</p>
     </div>
   )
 }

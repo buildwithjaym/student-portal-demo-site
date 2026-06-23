@@ -206,16 +206,28 @@ function debugDbError(
 ) {
   const err = (error ?? {}) as SupabaseLikeError
 
-  console.error(`\n[${label}]`)
-  console.error('message:', err.message ?? null)
-  console.error('details:', err.details ?? null)
-  console.error('hint:', err.hint ?? null)
-  console.error('code:', err.code ?? null)
+  // Safe extraction (prevents undefined crashes in strict environments)
+  const message = typeof err?.message === 'string' ? err.message : null
+  const details = typeof err?.details === 'string' ? err.details : null
+  const hint = typeof err?.hint === 'string' ? err.hint : null
+  const code = typeof err?.code === 'string' ? err.code : null
 
-  if (extra) {
-    for (const [key, value] of Object.entries(extra)) {
-      console.error(`${key}:`, value)
-    }
+  console.error(`\n[${label}]`)
+  console.error({
+    message,
+    details,
+    hint,
+    code,
+  })
+
+  if (extra && typeof extra === 'object') {
+    Object.entries(extra).forEach(([key, value]) => {
+      try {
+        console.error(`${key}:`, value)
+      } catch {
+        console.error(`${key}: [unserializable value]`)
+      }
+    })
   }
 
   console.error(`[/${label}]\n`)
@@ -260,7 +272,7 @@ function getHonorLabel(grade?: number | null) {
 }
 
 function getStatusToneClasses(tone: 'success' | 'warning' | 'danger' | 'info') {
-  if (tone === 'success') return 'border-green-200 bg-green-50 text-green-800'
+  if (tone === 'success') return 'border-cyan-200 bg-cyan-50 text-cyan-800'
   if (tone === 'danger') return 'border-red-200 bg-red-50 text-red-700'
   if (tone === 'warning') return 'border-yellow-200 bg-yellow-50 text-yellow-900'
   return 'border-blue-200 bg-blue-50 text-blue-800'
@@ -271,7 +283,7 @@ function getInputToneClasses(hasError: boolean) {
     return 'border-red-300 bg-red-50 text-red-700 focus:border-red-500 focus:ring-red-100'
   }
 
-  return 'border-gray-300 focus:border-green-700 focus:ring-green-200'
+  return 'border-gray-300 focus:border-cyan-700 focus:ring-cyan-200'
 }
 
 function TeacherGradesContent() {
@@ -1376,13 +1388,13 @@ function TeacherGradesContent() {
         <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-3xl bg-gradient-to-r from-green-900 via-green-800 to-green-700 p-5 text-white shadow-xl sm:p-6"
+          className="overflow-hidden rounded-3xl bg-gradient-to-r from-cyan-900 via-cyan-800 to-cyan-700 p-5 text-white shadow-xl sm:p-6"
         >
           <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <p className="text-sm font-medium text-yellow-300">Teacher Grades</p>
               <h1 className="mt-1 text-2xl font-bold sm:text-3xl">Grade Encoding</h1>
-              <p className="mt-2 max-w-2xl text-sm text-green-50/90">
+              <p className="mt-2 max-w-2xl text-sm text-cyan-50/90">
                 Encode, save, preview, and submit grades with fewer clicks and clearer status.
               </p>
             </div>
@@ -1404,7 +1416,7 @@ function TeacherGradesContent() {
         <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+          className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm"
         >
           <div className="grid gap-4 xl:grid-cols-[220px_220px_1fr]">
             <div>
@@ -1417,7 +1429,7 @@ function TeacherGradesContent() {
                   setSelectedSchoolYear(e.target.value)
                   toast.success('Academic year updated.')
                 }}
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
               >
                 <option value="">Select academic year</option>
                 {academicYears.map((year) => (
@@ -1440,7 +1452,7 @@ function TeacherGradesContent() {
                   setSelectedGradingPeriod(value)
                   toast.success(`${value} period selected.`)
                 }}
-                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
               >
                 {availablePeriods.map((period) => (
                   <option key={period} value={period}>
@@ -1460,7 +1472,7 @@ function TeacherGradesContent() {
                   value={classSearch}
                   onChange={(e) => setClassSearch(e.target.value)}
                   placeholder="Search subject code, name, grade, or section"
-                  className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                  className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                 />
               </div>
             </div>
@@ -1494,17 +1506,17 @@ function TeacherGradesContent() {
         <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+          className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm"
         >
           <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-green-900">Your Classes</h2>
+              <h2 className="text-xl font-bold text-cyan-900">Your Classes</h2>
               <p className="text-sm text-gray-600">
                 Pick a class once and start entering grades right away.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-800">
               <Users className="h-4 w-4" />
               {filteredClasses.length} class{filteredClasses.length !== 1 ? 'es' : ''}
             </div>
@@ -1526,12 +1538,12 @@ function TeacherGradesContent() {
                     onClick={() => handleClassSelect(item.id)}
                     className={`rounded-2xl border p-5 text-left transition ${
                       isSelected
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-green-100 bg-white hover:border-green-200 hover:bg-green-50/50'
+                        ? 'border-cyan-300 bg-cyan-50'
+                        : 'border-cyan-100 bg-white hover:border-cyan-200 hover:bg-cyan-50/50'
                     }`}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-bold text-green-900">
+                      <h3 className="text-lg font-bold text-cyan-900">
                         {item.subjects?.subject_name ?? 'Unnamed Subject'}
                       </h3>
                       <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">
@@ -1563,11 +1575,11 @@ function TeacherGradesContent() {
         <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+          className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm"
         >
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
-              <h2 className="text-xl font-bold text-green-900">{selectedClassLabel}</h2>
+              <h2 className="text-xl font-bold text-cyan-900">{selectedClassLabel}</h2>
               <p className="text-sm text-gray-600">
                 {selectedClass
                   ? `${selectedClass.grade_level} • Section ${selectedClass.section} • ${selectedSemester}`
@@ -1576,21 +1588,21 @@ function TeacherGradesContent() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm">
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50 px-4 py-3 text-sm">
                 <p className="text-gray-500">Students</p>
-                <p className="font-bold text-green-900">{previewSummary.total}</p>
+                <p className="font-bold text-cyan-900">{previewSummary.total}</p>
               </div>
-              <div className="rounded-2xl border border-green-100 bg-white px-4 py-3 text-sm">
+              <div className="rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-sm">
                 <p className="text-gray-500">Completed</p>
-                <p className="font-bold text-green-900">{previewSummary.completed}</p>
+                <p className="font-bold text-cyan-900">{previewSummary.completed}</p>
               </div>
-              <div className="rounded-2xl border border-green-100 bg-white px-4 py-3 text-sm">
+              <div className="rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-sm">
                 <p className="text-gray-500">Invalid</p>
-                <p className="font-bold text-green-900">{previewSummary.invalid}</p>
+                <p className="font-bold text-cyan-900">{previewSummary.invalid}</p>
               </div>
-              <div className="rounded-2xl border border-green-100 bg-white px-4 py-3 text-sm">
+              <div className="rounded-2xl border border-cyan-100 bg-white px-4 py-3 text-sm">
                 <p className="text-gray-500">Average</p>
-                <p className="font-bold text-green-900">{previewSummary.average}</p>
+                <p className="font-bold text-cyan-900">{previewSummary.average}</p>
               </div>
             </div>
           </div>
@@ -1603,7 +1615,7 @@ function TeacherGradesContent() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search student number, name, gender, grade, or remarks"
-                  className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                  className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                 />
               </div>
 
@@ -1612,7 +1624,7 @@ function TeacherGradesContent() {
                   type="button"
                   onClick={applyAutomaticRemarks}
                   disabled={!canEncodeGrades}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-green-700 bg-white px-4 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-700 bg-white px-4 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Sparkles className="h-4 w-4" />
                   Auto Remarks
@@ -1632,7 +1644,7 @@ function TeacherGradesContent() {
                   type="button"
                   onClick={openPreviewModal}
                   disabled={submitting || !canEncodeGrades}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Send className="h-4 w-4" />
                   Review & Submit
@@ -1646,23 +1658,23 @@ function TeacherGradesContent() {
               No enrolled students found for this class.
             </div>
           ) : (
-            <div className="mt-5 overflow-x-auto rounded-2xl border border-green-100">
+            <div className="mt-5 overflow-x-auto rounded-2xl border border-cyan-100">
               <table className="min-w-full">
-                <thead className="bg-green-50">
+                <thead className="bg-cyan-50">
                   <tr>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                       Student No
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                       Student Name
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                       Gender
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                       Grade
                     </th>
-                    <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                    <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                       Remarks
                     </th>
                   </tr>
@@ -1728,7 +1740,7 @@ function TeacherGradesContent() {
                               const reason = getBlockedReason()
                               if (reason) toast.warning(reason)
                             }}
-                            className="w-full min-w-[180px] rounded-xl border border-gray-300 px-3 py-2 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+                            className="w-full min-w-[180px] rounded-xl border border-gray-300 px-3 py-2 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 disabled:cursor-not-allowed disabled:bg-gray-100"
                             placeholder="Optional remarks"
                           />
                         </td>
@@ -1742,30 +1754,30 @@ function TeacherGradesContent() {
         </motion.section>
 
         <section className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-green-800" />
-              <h3 className="font-bold text-green-900">Fast Flow</h3>
+              <GraduationCap className="h-5 w-5 text-cyan-800" />
+              <h3 className="font-bold text-cyan-900">Fast Flow</h3>
             </div>
             <p className="text-sm text-gray-600">
               Select class, encode grades, then submit. Draft save is available anytime.
             </p>
           </div>
 
-          <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
-              <Lock className="h-5 w-5 text-green-800" />
-              <h3 className="font-bold text-green-900">Safe Rules</h3>
+              <Lock className="h-5 w-5 text-cyan-800" />
+              <h3 className="font-bold text-cyan-900">Safe Rules</h3>
             </div>
             <p className="text-sm text-gray-600">
               Editing is blocked only when grading is closed, locked, or already submitted.
             </p>
           </div>
 
-          <div className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border border-cyan-100 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
-              <FileWarning className="h-5 w-5 text-green-800" />
-              <h3 className="font-bold text-green-900">Clean Save Logic</h3>
+              <FileWarning className="h-5 w-5 text-cyan-800" />
+              <h3 className="font-bold text-cyan-900">Clean Save Logic</h3>
             </div>
             <p className="text-sm text-gray-600">
               Grades are saved first, verified, then marked as submitted in grade submissions.
@@ -1790,7 +1802,7 @@ function TeacherGradesContent() {
             >
               <div className="border-b border-gray-100 px-6 py-4">
                 <p className="text-sm font-medium text-yellow-600">Submission Preview</p>
-                <h2 className="text-2xl font-bold text-green-900">
+                <h2 className="text-2xl font-bold text-cyan-900">
                   Review Before Final Submit
                 </h2>
                 <p className="mt-1 text-sm text-gray-600">
@@ -1800,68 +1812,68 @@ function TeacherGradesContent() {
 
               <div className="px-6 py-5">
                 <div className="grid gap-4 md:grid-cols-4">
-                  <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50 p-4">
                     <p className="text-sm text-gray-500">Total Students</p>
-                    <p className="mt-1 text-2xl font-bold text-green-900">
+                    <p className="mt-1 text-2xl font-bold text-cyan-900">
                       {previewSummary.total}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-green-100 bg-white p-4">
+                  <div className="rounded-2xl border border-cyan-100 bg-white p-4">
                     <p className="text-sm text-gray-500">Completed</p>
-                    <p className="mt-1 text-2xl font-bold text-green-900">
+                    <p className="mt-1 text-2xl font-bold text-cyan-900">
                       {previewSummary.completed}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-green-100 bg-white p-4">
+                  <div className="rounded-2xl border border-cyan-100 bg-white p-4">
                     <p className="text-sm text-gray-500">Average</p>
-                    <p className="mt-1 text-2xl font-bold text-green-900">
+                    <p className="mt-1 text-2xl font-bold text-cyan-900">
                       {previewSummary.average}
                     </p>
                   </div>
 
-                  <div className="rounded-2xl border border-green-100 bg-white p-4">
+                  <div className="rounded-2xl border border-cyan-100 bg-white p-4">
                     <p className="text-sm text-gray-500">Invalid Rows</p>
-                    <p className="mt-1 text-2xl font-bold text-green-900">
+                    <p className="mt-1 text-2xl font-bold text-cyan-900">
                       {previewSummary.invalid}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-5 rounded-2xl border border-green-100 bg-green-50 p-4 text-sm text-gray-700">
+                <div className="mt-5 rounded-2xl border border-cyan-100 bg-cyan-50 p-4 text-sm text-gray-700">
                   <p>
-                    <span className="font-semibold text-green-900">Class:</span>{' '}
+                    <span className="font-semibold text-cyan-900">Class:</span>{' '}
                     {selectedClassLabel}
                   </p>
                   <p className="mt-1">
-                    <span className="font-semibold text-green-900">Academic Year:</span>{' '}
+                    <span className="font-semibold text-cyan-900">Academic Year:</span>{' '}
                     {selectedSchoolYear}
                   </p>
                   <p className="mt-1">
-                    <span className="font-semibold text-green-900">Semester:</span>{' '}
+                    <span className="font-semibold text-cyan-900">Semester:</span>{' '}
                     {selectedSemester}
                   </p>
                   <p className="mt-1">
-                    <span className="font-semibold text-green-900">Grading Period:</span>{' '}
+                    <span className="font-semibold text-cyan-900">Grading Period:</span>{' '}
                     {selectedGradingPeriod}
                   </p>
                 </div>
 
-                <div className="mt-5 max-h-[420px] overflow-auto rounded-2xl border border-green-100">
+                <div className="mt-5 max-h-[420px] overflow-auto rounded-2xl border border-cyan-100">
                   <table className="min-w-full">
-                    <thead className="bg-green-50">
+                    <thead className="bg-cyan-50">
                       <tr>
-                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                           Student No
                         </th>
-                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                           Student Name
                         </th>
-                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                           Grade
                         </th>
-                        <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                        <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                           Remarks
                         </th>
                       </tr>
@@ -1907,7 +1919,7 @@ function TeacherGradesContent() {
                   type="button"
                   onClick={handleFinalSubmit}
                   disabled={submitting || previewSummary.invalid > 0}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {submitting ? 'Submitting...' : 'Confirm and Submit'}

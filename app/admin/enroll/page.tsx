@@ -594,13 +594,13 @@ export default function EnrollPage() {
         className="flex flex-col gap-3 md:gap-4 xl:flex-row xl:items-center xl:justify-between"
       >
         <div className="min-w-0">
-          <p className="text-xs font-medium text-yellow-600 sm:text-sm">
+          <p className="text-xs font-medium text-cyan-600 sm:text-sm">
             Administration
           </p>
-          <h1 className="text-2xl font-bold text-green-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-cyan-900 sm:text-3xl">
             Enrollments
           </h1>
-          <p className="mt-1 max-w-2xl text-sm text-gray-600 sm:text-base">
+          <p className="mt-1 max-w-2xl text-sm text-slate-600 sm:text-base">
             Automatically enroll a student into all matching classes with only a
             few clicks.
           </p>
@@ -608,7 +608,7 @@ export default function EnrollPage() {
 
         <button
           onClick={openAddModal}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-green-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-900 sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-cyan-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-cyan-900 sm:w-auto"
         >
           <Plus className="h-5 w-5" />
           Enroll Student
@@ -618,24 +618,24 @@ export default function EnrollPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-green-100 bg-white p-3 shadow-sm sm:p-4"
+        className="rounded-2xl border border-cyan-100 bg-white p-3 shadow-sm sm:p-4"
       >
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_220px_220px_auto] xl:items-center">
           <div className="relative md:col-span-2 xl:col-span-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search student, subject, teacher, school year, or semester"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
+              className="w-full rounded-2xl border border-slate-300 py-3 pl-10 pr-4 text-sm outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 sm:text-base"
             />
           </div>
 
           <select
             value={schoolYearFilter}
             onChange={(e) => setSchoolYearFilter(e.target.value)}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 sm:text-base"
           >
             <option value="">All School Years</option>
             {availableSchoolYears.map((sy) => (
@@ -648,14 +648,14 @@ export default function EnrollPage() {
           <select
             value={semesterFilter}
             onChange={(e) => setSemesterFilter(e.target.value as 'All' | Semester)}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
+            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 sm:text-base"
           >
             <option value="All">All Semesters</option>
             <option value="1st Semester">1st Semester</option>
             <option value="2nd Semester">2nd Semester</option>
           </select>
 
-          <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-yellow-50 px-4 py-3 text-sm font-medium text-yellow-800 xl:justify-start">
+          <div className="inline-flex items-center justify-center gap-2 rounded-2xl bg-cyan-50 px-4 py-3 text-sm font-medium text-cyan-800 xl:justify-start">
             <Users className="h-4 w-4" />
             {filteredEnrollments.length} enrollment
             {filteredEnrollments.length !== 1 ? 's' : ''}
@@ -666,32 +666,32 @@ export default function EnrollPage() {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm"
+        className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm"
       >
         <div className="hidden xl:block">
           <div className="overflow-x-auto">
             <table className="min-w-full">
-              <thead className="bg-green-50">
+              <thead className="bg-cyan-50">
                 <tr>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                     Student
                   </th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                     Subject
                   </th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                     Teacher
                   </th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                     School Year
                   </th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                     Semester
                   </th>
-                  <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                     Enrolled At
                   </th>
-                  <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
+                  <th className="px-4 py-4 text-right text-sm font-semibold text-cyan-900">
                     Actions
                   </th>
                 </tr>
@@ -700,13 +700,13 @@ export default function EnrollPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                       Loading enrollments...
                     </td>
                   </tr>
                 ) : paginatedEnrollments.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
                       No enrollments found.
                     </td>
                   </tr>
@@ -717,13 +717,13 @@ export default function EnrollPage() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.2, delay: index * 0.03 }}
-                      className="border-t border-gray-100"
+                      className="border-t border-slate-100"
                     >
                       <td className="px-4 py-4">
-                        <div className="font-semibold text-green-950">
+                        <div className="font-semibold text-cyan-950">
                           {item.students ? formatFullName(item.students) : '—'}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-slate-700">
                           {item.students?.student_no || 'No Student No.'}
                           {item.students?.grade_level
                             ? ` • ${item.students.grade_level}`
@@ -735,30 +735,30 @@ export default function EnrollPage() {
                       </td>
 
                       <td className="px-4 py-4">
-                        <div className="font-medium text-gray-800">
+                        <div className="font-medium text-cyan-950">
                           {item.classes?.subjects
                             ? `${item.classes.subjects.subject_code} - ${item.classes.subjects.subject_name}`
                             : '—'}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-slate-700">
                           {item.classes?.grade_level} • {item.classes?.section} •{' '}
                           {item.classes?.semester}
                         </div>
                       </td>
 
-                      <td className="px-4 py-4 text-sm text-gray-700">
+                      <td className="px-4 py-4 text-sm text-slate-700">
                         {item.classes?.teachers
                           ? formatFullName(item.classes.teachers)
                           : 'Unassigned'}
                       </td>
 
-                      <td className="px-4 py-4 text-sm text-gray-700">
+                      <td className="px-4 py-4 text-sm text-slate-700">
                         {item.school_year}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-700">
+                      <td className="px-4 py-4 text-sm text-slate-700">
                         {item.semester}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-700">
+                      <td className="px-4 py-4 text-sm text-slate-700">
                         {new Date(item.enrolled_at).toLocaleString()}
                       </td>
 
@@ -783,15 +783,15 @@ export default function EnrollPage() {
 
         <div className="xl:hidden">
           {loading ? (
-            <div className="px-4 py-10 text-center text-sm text-gray-500">
+            <div className="px-4 py-10 text-center text-sm text-slate-500">
               Loading enrollments...
             </div>
           ) : paginatedEnrollments.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-gray-500">
+            <div className="px-4 py-10 text-center text-sm text-slate-500">
               No enrollments found.
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-100">
               {paginatedEnrollments.map((item, index) => (
                 <motion.div
                   key={item.id}
@@ -802,13 +802,13 @@ export default function EnrollPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                      <p className="text-xs font-medium uppercase tracking-wide text-cyan-600">
                         Student
                       </p>
-                      <p className="truncate font-semibold text-green-950">
+                      <p className="truncate font-semibold text-cyan-950">
                         {item.students ? formatFullName(item.students) : '—'}
                       </p>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-700">
                         {item.students?.student_no || 'No Student No.'}
                         {item.students?.grade_level
                           ? ` • ${item.students.grade_level}`
@@ -816,6 +816,7 @@ export default function EnrollPage() {
                         {item.students?.section ? ` • ${item.students.section}` : ''}
                       </p>
                     </div>
+                  
 
                     <button
                       onClick={() => handleDelete(item)}
@@ -827,52 +828,52 @@ export default function EnrollPage() {
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                         Subject
                       </p>
-                      <p className="mt-1 text-sm font-medium text-gray-900">
+                      <p className="mt-1 text-sm font-medium text-cyan-950">
                         {item.classes?.subjects
                           ? `${item.classes.subjects.subject_code} - ${item.classes.subjects.subject_name}`
                           : '—'}
                       </p>
-                      <p className="mt-1 text-sm text-gray-600">
+                      <p className="mt-1 text-sm text-slate-700">
                         {item.classes?.grade_level} • {item.classes?.section} •{' '}
                         {item.classes?.semester}
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                         Teacher
                       </p>
-                      <p className="mt-1 text-sm text-gray-900">
+                      <p className="mt-1 text-sm text-slate-700">
                         {item.classes?.teachers
                           ? formatFullName(item.classes.teachers)
                           : 'Unassigned'}
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                         School Year
                       </p>
-                      <p className="mt-1 text-sm text-gray-900">{item.school_year}</p>
+                      <p className="mt-1 text-sm text-slate-700">{item.school_year}</p>
                     </div>
 
-                    <div className="rounded-xl bg-gray-50 p-3">
-                      <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                         Semester
                       </p>
-                      <p className="mt-1 text-sm text-gray-900">{item.semester}</p>
+                      <p className="mt-1 text-sm text-slate-700">{item.semester}</p>
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-gray-50 p-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       Enrolled At
                     </p>
-                    <p className="mt-1 text-sm text-gray-900">
+                    <p className="mt-1 text-sm text-slate-700">
                       {new Date(item.enrolled_at).toLocaleString()}
                     </p>
                   </div>
@@ -882,8 +883,8 @@ export default function EnrollPage() {
           )}
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-500">
+        <div className="flex flex-col gap-3 border-t border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-slate-500">
             Page {currentPage} of {totalPages}
           </p>
 
@@ -891,7 +892,7 @@ export default function EnrollPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:flex-none"
+              className="flex-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
             >
               Previous
             </button>
@@ -899,7 +900,7 @@ export default function EnrollPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages}
-              className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 sm:flex-none"
+              className="flex-1 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:flex-none"
             >
               Next
             </button>
@@ -922,19 +923,19 @@ export default function EnrollPage() {
               transition={{ duration: 0.2 }}
               className="mx-auto flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:rounded-3xl"
             >
-              <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div>
-                  <p className="text-sm font-medium text-yellow-600">
+                  <p className="text-sm font-medium text-cyan-600">
                     Automatic Enrollment
                   </p>
-                  <h2 className="text-xl font-bold text-green-900 sm:text-2xl">
+                  <h2 className="text-xl font-bold text-cyan-900 sm:text-2xl">
                     Enroll Student
                   </h2>
                 </div>
 
                 <button
                   onClick={closeModal}
-                  className="rounded-xl px-3 py-2 text-left text-sm font-medium text-gray-500 transition hover:bg-gray-100 sm:text-center"
+                  className="rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-500 transition hover:bg-slate-100 sm:text-center"
                 >
                   Close
                 </button>
@@ -948,26 +949,26 @@ export default function EnrollPage() {
                   <div className="space-y-5">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
                           School Year *
                         </label>
                         <input
                           name="school_year"
                           value={form.school_year}
                           readOnly
-                          className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-700 outline-none sm:text-base"
+                          className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none sm:text-base"
                         />
                       </div>
 
                       <div>
-                        <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                        <label className="mb-1.5 block text-sm font-medium text-slate-700">
                           Semester *
                         </label>
                         <select
                           name="semester"
                           value={form.semester}
                           onChange={handleChange}
-                          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 sm:text-base"
                         >
                           <option value="1st Semester">1st Semester</option>
                           <option value="2nd Semester">2nd Semester</option>
@@ -975,10 +976,10 @@ export default function EnrollPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-gray-200 p-4">
+                    <div className="rounded-2xl border border-cyan-100 p-4">
                       <div className="mb-3 flex items-center gap-2">
-                        <UserPlus className="h-4 w-4 text-green-800" />
-                        <h3 className="font-semibold text-green-900">Student</h3>
+                        <UserPlus className="h-4 w-4 text-cyan-700" />
+                        <h3 className="font-semibold text-cyan-900">Student</h3>
                       </div>
 
                       <div className="mb-3">
@@ -987,7 +988,7 @@ export default function EnrollPage() {
                           placeholder="Search and select student"
                           value={studentDropdownSearch}
                           onChange={(e) => setStudentDropdownSearch(e.target.value)}
-                          className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
+                          className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 sm:text-base"
                         />
                       </div>
 
@@ -999,7 +1000,7 @@ export default function EnrollPage() {
                             student_id: e.target.value,
                           }))
                         }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-green-700 focus:ring-2 focus:ring-green-200 sm:text-base"
+                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200 sm:text-base"
                       >
                         <option value="">Select student</option>
                         {studentOptions.map((student) => (
@@ -1013,11 +1014,11 @@ export default function EnrollPage() {
                       </select>
 
                       {selectedStudent && (
-                        <div className="mt-3 rounded-xl bg-green-50 p-3">
-                          <p className="text-sm font-semibold text-green-900">
+                        <div className="mt-3 rounded-xl bg-cyan-50 p-3">
+                          <p className="text-sm font-semibold text-cyan-950">
                             {formatFullName(selectedStudent)}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-slate-700">
                             {selectedStudent.student_no || 'No Student No.'}
                             {selectedStudent.grade_level
                               ? ` • ${selectedStudent.grade_level}`
@@ -1027,7 +1028,7 @@ export default function EnrollPage() {
                               : ''}
                           </p>
                           {selectedSectionInfo && (
-                            <p className="mt-1 text-sm text-gray-600">
+                            <p className="mt-1 text-sm text-slate-700">
                               Section Info: {selectedSectionInfo.section_name}
                               {selectedSectionInfo.strand
                                 ? ` • ${selectedSectionInfo.strand}`
@@ -1038,61 +1039,61 @@ export default function EnrollPage() {
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-gray-200 p-4">
+                    <div className="rounded-2xl border border-cyan-100 p-4">
                       <div className="mb-3 flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-green-800" />
-                        <h3 className="font-semibold text-green-900">
+                        <Sparkles className="h-4 w-4 text-cyan-700" />
+                        <h3 className="font-semibold text-cyan-900">
                           Automatic Subject Matching
                         </h3>
                       </div>
 
                       {!selectedStudent ? (
-                        <div className="rounded-xl border border-dashed border-gray-300 px-4 py-5 text-sm text-gray-500">
+                        <div className="rounded-xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500">
                           Select a student and semester to automatically load
                           matching classes.
                         </div>
                       ) : matchedClasses.length === 0 ? (
-                        <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                        <div className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900">
                           No matching classes found for this student based on
                           school year, semester, grade level, and section.
                         </div>
                       ) : (
                         <div className="space-y-4">
                           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            <div className="rounded-2xl bg-green-50 p-4">
-                              <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                            <div className="rounded-2xl bg-cyan-50 p-4">
+                              <p className="text-xs font-medium uppercase tracking-wide text-cyan-800">
                                 Matching Classes
                               </p>
-                              <p className="mt-1 text-2xl font-bold text-green-900">
+                              <p className="mt-1 text-2xl font-bold text-cyan-900">
                                 {matchedClasses.length}
                               </p>
                             </div>
 
                             <div className="rounded-2xl bg-blue-50 p-4">
-                              <p className="text-xs font-medium uppercase tracking-wide text-blue-700">
+                              <p className="text-xs font-medium uppercase tracking-wide text-blue-800">
                                 Ready to Enroll
                               </p>
-                              <p className="mt-1 text-2xl font-bold text-blue-900">
+                              <p className="mt-1 text-2xl font-bold text-blue-800">
                                 {classesToEnroll.length}
                               </p>
                             </div>
 
-                            <div className="rounded-2xl bg-gray-100 p-4 sm:col-span-2 xl:col-span-1">
-                              <p className="text-xs font-medium uppercase tracking-wide text-gray-700">
+                            <div className="rounded-2xl bg-slate-50 p-4 sm:col-span-2 xl:col-span-1">
+                              <p className="text-xs font-medium uppercase tracking-wide text-slate-600">
                                 Already Enrolled
                               </p>
-                              <p className="mt-1 text-2xl font-bold text-gray-900">
+                              <p className="mt-1 text-2xl font-bold text-slate-700">
                                 {alreadyEnrolledClasses.length}
                               </p>
                             </div>
                           </div>
 
-                          <div className="rounded-2xl border border-gray-200">
-                            <div className="border-b border-gray-100 px-4 py-3">
-                              <p className="font-semibold text-green-900">
+                          <div className="rounded-2xl border border-cyan-100">
+                            <div className="border-b border-slate-100 px-4 py-3">
+                              <p className="font-semibold text-cyan-900">
                                 Classes that will be processed
                               </p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-sm text-slate-600">
                                 The system automatically matches classes using
                                 the student’s grade level and section.
                               </p>
@@ -1106,19 +1107,19 @@ export default function EnrollPage() {
                                 return (
                                   <div
                                     key={item.id}
-                                    className="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 first:border-t-0 sm:flex-row sm:items-start sm:justify-between"
+                                    className="flex flex-col gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0 sm:flex-row sm:items-start sm:justify-between"
                                   >
                                     <div className="min-w-0">
-                                      <p className="font-medium text-gray-900">
+                                      <p className="font-medium text-cyan-950">
                                         {item.subjects
                                           ? `${item.subjects.subject_code} - ${item.subjects.subject_name}`
                                           : 'Unnamed Subject'}
                                       </p>
-                                      <p className="text-sm text-gray-500">
+                                      <p className="text-sm text-slate-600">
                                         {item.grade_level} • {item.section} •{' '}
                                         {item.semester}
                                       </p>
-                                      <p className="text-sm text-gray-500">
+                                      <p className="text-sm text-slate-600">
                                         Teacher:{' '}
                                         {item.teachers
                                           ? formatFullName(item.teachers)
@@ -1129,8 +1130,8 @@ export default function EnrollPage() {
                                     <span
                                       className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${
                                         isAlreadyEnrolled
-                                          ? 'bg-gray-200 text-gray-700'
-                                          : 'bg-green-100 text-green-800'
+                                          ? 'bg-slate-200 text-slate-700'
+                                          : 'bg-cyan-100 text-cyan-800'
                                       }`}
                                     >
                                       {isAlreadyEnrolled
@@ -1148,11 +1149,11 @@ export default function EnrollPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+                <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="w-full rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50 sm:w-auto"
+                    className="w-full rounded-xl border border-slate-300 px-5 py-3 font-medium text-slate-700 transition hover:bg-slate-50 sm:w-auto"
                   >
                     Cancel
                   </button>
@@ -1160,7 +1161,7 @@ export default function EnrollPage() {
                   <button
                     type="submit"
                     disabled={saving || !selectedStudent || classesToEnroll.length === 0}
-                    className="w-full rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:opacity-60 sm:w-auto"
+                    className="w-full rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                   >
                     {saving
                       ? 'Enrolling...'

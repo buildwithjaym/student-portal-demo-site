@@ -265,8 +265,8 @@ export default function TeachersPage() {
         className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
       >
         <div>
-          <p className="text-sm font-medium text-yellow-600">Administration</p>
-          <h1 className="text-3xl font-bold text-green-900">Teachers</h1>
+          <p className="text-xs font-medium text-cyan-600 sm:text-sm">Administration</p>
+          <h1 className="text-3xl font-bold text-cyan-900">Teachers</h1>
           <p className="mt-1 text-gray-600">
             Manage teacher records and create teacher login accounts.
           </p>
@@ -274,7 +274,7 @@ export default function TeachersPage() {
 
         <button
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 rounded-2xl bg-green-800 px-4 py-3 font-semibold text-white transition hover:bg-green-900"
+          className="inline-flex items-center gap-2 rounded-2xl bg-cyan-800 px-4 py-3 font-semibold text-white transition hover:bg-cyan-900"
         >
           <Plus className="h-5 w-5" />
           Add Teacher
@@ -285,7 +285,7 @@ export default function TeachersPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="rounded-2xl border border-green-100 bg-white p-4 shadow-sm"
+        className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative w-full max-w-md">
@@ -295,7 +295,7 @@ export default function TeachersPage() {
               placeholder="Search by teacher no, name, email, or contact"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-2xl border border-gray-300 py-3 pl-10 pr-4 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
             />
           </div>
 
@@ -310,31 +310,31 @@ export default function TeachersPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="overflow-hidden rounded-2xl border border-green-100 bg-white shadow-sm"
+        className="overflow-hidden rounded-2xl border border-cyan-100 bg-white shadow-sm"
       >
         <div className="overflow-x-auto">
           <table className="min-w-full">
-            <thead className="bg-green-50">
+            <thead className="bg-cyan-50">
               <tr>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Teacher No
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Name
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Email
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Contact
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Address
                 </th>
-                <th className="px-4 py-4 text-left text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-left text-sm font-semibold text-cyan-900">
                   Status
                 </th>
-                <th className="px-4 py-4 text-right text-sm font-semibold text-green-900">
+                <th className="px-4 py-4 text-right text-sm font-semibold text-cyan-900">
                   Actions
                 </th>
               </tr>
@@ -366,7 +366,7 @@ export default function TeachersPage() {
                       {teacher.teacher_no}
                     </td>
                     <td className="px-4 py-4">
-                      <div className="font-semibold text-green-950">
+                      <div className="font-semibold text-cyan-950">
                         {formatFullName(teacher)}
                       </div>
                     </td>
@@ -381,7 +381,7 @@ export default function TeachersPage() {
                     </td>
                     <td className="px-4 py-4">
                       {teacher.is_active ? (
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
+                        <span className="rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-800">
                           Active
                         </span>
                       ) : (
@@ -411,7 +411,7 @@ export default function TeachersPage() {
                         ) : (
                           <button
                             onClick={() => handleReactivate(teacher)}
-                            className="rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-700 transition hover:bg-green-100"
+                            className="rounded-xl bg-cyan-50 px-3 py-2 text-sm font-medium text-cyan-700 transition hover:bg-cyan-100"
                             title="Reactivate teacher"
                           >
                             Restore
@@ -471,7 +471,7 @@ export default function TeachersPage() {
                   <p className="text-sm font-medium text-yellow-600">
                     {editingTeacher ? 'Update Record' : 'New Teacher'}
                   </p>
-                  <h2 className="text-2xl font-bold text-green-900">
+                  <h2 className="text-2xl font-bold text-cyan-900">
                     {editingTeacher ? 'Edit Teacher' : 'Add Teacher'}
                   </h2>
                 </div>
@@ -494,7 +494,7 @@ export default function TeachersPage() {
                       name="teacher_no"
                       value={form.teacher_no}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       required
                       disabled={saving}
                     />
@@ -509,7 +509,7 @@ export default function TeachersPage() {
                       type="email"
                       value={form.email}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       required={!editingTeacher}
                       disabled={saving}
                     />
@@ -523,7 +523,7 @@ export default function TeachersPage() {
                       name="first_name"
                       value={form.first_name}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       required
                       disabled={saving}
                     />
@@ -537,7 +537,7 @@ export default function TeachersPage() {
                       name="middle_name"
                       value={form.middle_name}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       disabled={saving}
                     />
                   </div>
@@ -550,7 +550,7 @@ export default function TeachersPage() {
                       name="last_name"
                       value={form.last_name}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       required
                       disabled={saving}
                     />
@@ -564,7 +564,7 @@ export default function TeachersPage() {
                       name="suffix"
                       value={form.suffix}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       disabled={saving}
                     />
                   </div>
@@ -579,7 +579,7 @@ export default function TeachersPage() {
                       value={form.contact}
                       onChange={handleChange}
                       placeholder="09xxxxxxxxx"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       disabled={saving}
                     />
                   </div>
@@ -593,7 +593,7 @@ export default function TeachersPage() {
                       value={form.address}
                       onChange={handleChange}
                       placeholder="Enter address"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       disabled={saving}
                     />
                   </div>
@@ -605,7 +605,7 @@ export default function TeachersPage() {
                       name="is_active"
                       value={String(form.is_active)}
                       onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-green-700 focus:ring-2 focus:ring-green-200"
+                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
                       disabled={saving}
                     >
                       <option value="true">Active</option>
@@ -634,7 +634,7 @@ export default function TeachersPage() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="rounded-xl bg-green-800 px-5 py-3 font-semibold text-white transition hover:bg-green-900 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {saving
                       ? editingTeacher

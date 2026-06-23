@@ -67,7 +67,7 @@ export default function AdminLayout({
 
   if (loading || !profile) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-100 text-green-900">
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 text-slate-700">
         Loading admin panel...
       </div>
     )
@@ -75,14 +75,14 @@ export default function AdminLayout({
 
   return (
     <>
-      <div className="min-h-screen bg-gray-100 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+      <div className="min-h-screen bg-slate-100 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
         <AdminSidebar
           fullName={formatFullName(profile)}
           email={profile.email}
           role={profile.role}
         />
 
-        <main className="min-w-0 bg-gradient-to-br from-yellow-50 via-white to-green-50 p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 bg-gradient-to-br from-slate-50 via-white to-slate-100 p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

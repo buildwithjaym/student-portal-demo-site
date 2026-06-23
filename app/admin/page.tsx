@@ -41,6 +41,7 @@ export default function AdminDashboardPage() {
     totalSubjects: 0,
     totalClasses: 0,
   })
+
   const [chartData, setChartData] = useState<GradeLevelChartItem[]>([])
   const [topStudents, setTopStudents] = useState<TopStudent[]>([])
   const [error, setError] = useState('')
@@ -83,10 +84,6 @@ export default function AdminDashboardPage() {
         const students = (studentsResult.data ?? []) as StudentRow[]
         const grades = (gradesResult.data ?? []) as GradeRow[]
 
-        console.log('[Dashboard] students count:', studentsResult.count)
-        console.log('[Dashboard] students rows:', students)
-        console.log('[Dashboard] grades rows:', grades)
-
         setStats({
           totalStudents: studentsResult.count ?? 0,
           totalTeachers: teachersResult.count ?? 0,
@@ -95,31 +92,38 @@ export default function AdminDashboardPage() {
         })
 
         const groupedChart: Record<string, number> = {}
+
         for (const student of students) {
           groupedChart[student.grade_level] =
             (groupedChart[student.grade_level] ?? 0) + 1
         }
 
-        const chartItems: GradeLevelChartItem[] = Object.entries(groupedChart).map(
-          ([grade_level, total]) => ({
-            grade_level,
-            total,
-          })
-        )
+        const chartItems: GradeLevelChartItem[] = Object.entries(
+          groupedChart
+        ).map(([grade_level, total]) => ({
+          grade_level,
+          total,
+        }))
 
-        console.log('[Dashboard] chart items:', chartItems)
         setChartData(chartItems)
- 
+
         const studentMap = new Map<string, StudentRow>()
+
         for (const student of students) {
           studentMap.set(student.id, student)
         }
 
         const averageMap = new Map<string, { sum: number; count: number }>()
+
         for (const row of grades) {
-          const current = averageMap.get(row.student_id) ?? { sum: 0, count: 0 }
+          const current = averageMap.get(row.student_id) ?? {
+            sum: 0,
+            count: 0,
+          }
+
           current.sum += Number(row.grade)
           current.count += 1
+
           averageMap.set(row.student_id, current)
         }
 
@@ -142,18 +146,17 @@ export default function AdminDashboardPage() {
           .filter(Boolean) as TopStudent[]
 
         const grade11 = ranked
-          .filter((student) => student.grade_level === 'Grade 11')
+          .filter((s) => s.grade_level === 'Grade 11')
           .sort((a, b) => b.average - a.average)
           .slice(0, 3)
 
         const grade12 = ranked
-          .filter((student) => student.grade_level === 'Grade 12')
+          .filter((s) => s.grade_level === 'Grade 12')
           .sort((a, b) => b.average - a.average)
           .slice(0, 3)
 
         setTopStudents([...grade11, ...grade12])
       } catch (err: any) {
-        console.error('[Dashboard] load error:', err)
         setError(err.message || 'Failed to load dashboard.')
       } finally {
         setLoading(false)
@@ -166,49 +169,31 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     if (loading) return
 
-    let cancelled = false
-    let observer: ResizeObserver | null = null
-    let timer: number | null = null
-
     const updateWidth = () => {
-      if (!chartWrapperRef.current || cancelled) return
+      if (!chartWrapperRef.current) return
 
-      const nextWidth = chartWrapperRef.current.getBoundingClientRect().width
-      console.log('[Dashboard] chart wrapper width:', nextWidth)
+      const w = chartWrapperRef.current.getBoundingClientRect().width
 
-      if (nextWidth > 0) {
-        setChartWidth(Math.floor(nextWidth))
+      if (w > 0) {
+        setChartWidth(Math.floor(w))
         setChartReady(true)
       }
     }
 
-    timer = window.setTimeout(updateWidth, 120)
-
-    if (chartWrapperRef.current) {
-      observer = new ResizeObserver(() => {
-        updateWidth()
-      })
-      observer.observe(chartWrapperRef.current)
-    }
+    const t = window.setTimeout(updateWidth, 100)
 
     window.addEventListener('resize', updateWidth)
 
     return () => {
-      cancelled = true
-      if (timer) window.clearTimeout(timer)
-      if (observer) observer.disconnect()
+      window.clearTimeout(t)
       window.removeEventListener('resize', updateWidth)
     }
   }, [loading])
 
   const groupedTopStudents = useMemo(() => {
     return {
-      'Grade 11': topStudents.filter(
-        (student) => student.grade_level === 'Grade 11'
-      ),
-      'Grade 12': topStudents.filter(
-        (student) => student.grade_level === 'Grade 12'
-      ),
+      'Grade 11': topStudents.filter((s) => s.grade_level === 'Grade 11'),
+      'Grade 12': topStudents.filter((s) => s.grade_level === 'Grade 12'),
     }
   }, [topStudents])
 
@@ -223,7 +208,7 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center text-green-900">
+      <div className="flex min-h-[60vh] items-center justify-center text-slate-600">
         Loading dashboard...
       </div>
     )
@@ -231,22 +216,25 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-w-0 space-y-6">
+      {/* HEADER */}
       <div>
-        <p className="text-sm font-medium text-yellow-600">Overview</p>
-        <h1 className="text-2xl font-bold text-green-900 sm:text-3xl">
+        <p className="text-sm font-medium text-cyan-600">Overview</p>
+        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
           Admin Dashboard
         </h1>
-        <p className="mt-1 text-sm text-gray-600 sm:text-base">
-          Monitor the overall system performance and academic summary.
+        <p className="mt-1 text-sm text-slate-500">
+          Monitor system performance and academic summary.
         </p>
       </div>
 
+      {/* ERROR */}
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
+      {/* STATS */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => {
           const Icon = card.icon
@@ -254,19 +242,18 @@ export default function AdminDashboardPage() {
           return (
             <div
               key={card.title}
-              className="rounded-3xl border border-green-100 bg-white p-5 shadow-sm"
+              className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-500">
-                    {card.title}
-                  </p>
-                  <p className="mt-2 text-3xl font-bold text-green-900">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">{card.title}</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
                     {card.value}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-yellow-100 p-3">
-                  <Icon className="h-5 w-5 text-yellow-700" />
+
+                <div className="rounded-2xl bg-cyan-50 p-3">
+                  <Icon className="h-5 w-5 text-cyan-600" />
                 </div>
               </div>
             </div>
@@ -274,85 +261,82 @@ export default function AdminDashboardPage() {
         })}
       </section>
 
+      {/* CHART + TOP STUDENTS */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="min-w-0 rounded-3xl border border-green-100 bg-white p-6 shadow-sm xl:col-span-2">
+        {/* CHART */}
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm xl:col-span-2">
           <div className="mb-4">
-            <p className="text-sm font-medium text-yellow-600">
+            <p className="text-sm font-medium text-cyan-600">
               System Overview
             </p>
-            <h2 className="text-xl font-bold text-green-900">
+            <h2 className="text-xl font-bold text-slate-900">
               Students by Grade Level
             </h2>
           </div>
 
-          <div
-            ref={chartWrapperRef}
-            className="w-full min-w-0 overflow-hidden rounded-2xl"
-          >
-            <div className="flex h-[360px] w-full items-center justify-center">
-              {chartData.length === 0 ? (
-                <div className="flex h-full w-full items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-400">
-                  No chart data available.
-                </div>
-              ) : !chartReady || chartWidth <= 0 ? (
-                <div className="flex h-full w-full items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-400">
-                  Loading chart...
-                </div>
+          <div ref={chartWrapperRef} className="w-full overflow-hidden">
+            <div className="flex h-[360px] items-center justify-center">
+              {!chartReady || chartWidth <= 0 ? (
+                <div className="text-sm text-slate-400">Loading chart...</div>
               ) : (
                 <BarChart
                   width={Math.max(chartWidth - 24, 260)}
                   height={chartHeight}
                   data={chartData}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="grade_level" />
                   <YAxis allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="total" radius={[8, 8, 0, 0]} />
+                  <Bar
+                    dataKey="total"
+                    radius={[8, 8, 0, 0]}
+                    fill="#06b6d4"
+                  />
                 </BarChart>
               )}
             </div>
           </div>
         </div>
 
-        <div className="min-w-0 rounded-3xl border border-green-100 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-yellow-600">
-            Top Performing Students
+        {/* TOP STUDENTS */}
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-cyan-600">
+            Top Students
           </p>
-          <h2 className="mb-4 text-xl font-bold text-green-900">
+          <h2 className="mb-4 text-xl font-bold text-slate-900">
             By Grade Level
           </h2>
 
           <div className="space-y-5">
-            {Object.entries(groupedTopStudents).map(([gradeLevel, students]) => (
-              <div key={gradeLevel}>
-                <h3 className="mb-2 font-semibold text-green-800">
-                  {gradeLevel}
+            {Object.entries(groupedTopStudents).map(([grade, students]) => (
+              <div key={grade}>
+                <h3 className="mb-2 font-semibold text-slate-700">
+                  {grade}
                 </h3>
 
                 {students.length === 0 ? (
-                  <div className="rounded-xl bg-gray-50 p-3 text-sm text-gray-500">
-                    No grade data yet.
+                  <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-400">
+                    No data yet.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {students.map((student, index) => (
+                    {students.map((student, i) => (
                       <div
-                        key={`${student.student_id}-${index}`}
-                        className="rounded-2xl border border-yellow-200 bg-yellow-50 p-3"
+                        key={student.student_id + i}
+                        className="rounded-2xl border border-slate-100 bg-slate-50 p-3"
                       >
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex justify-between">
                           <div className="min-w-0">
-                            <p className="truncate font-semibold text-green-950">
+                            <p className="truncate font-semibold text-slate-900">
                               {formatFullName(student)}
                             </p>
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-slate-500">
                               {student.section}
                             </p>
                           </div>
 
-                          <div className="shrink-0 rounded-lg bg-green-900 px-3 py-1 text-sm font-bold text-yellow-300">
+                          <div className="rounded-lg bg-cyan-600 px-3 py-1 text-sm font-bold text-white">
                             {student.average.toFixed(2)}
                           </div>
                         </div>
