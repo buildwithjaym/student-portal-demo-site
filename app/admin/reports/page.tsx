@@ -138,7 +138,7 @@ type RawGradeRow = {
 }
 
 const SCHOOL_NAME =
-  'Qorban Institute of Technology Training and Assessment Center, Inc'
+  'Riverside National Senior High School'
 const SCHOOL_ADDRESS = 'Isabela City, Zamboanga Peninsula'
 const GRADING_PERIODS: GradingPeriod[] = ['1st', '2nd', '3rd', '4th']
 

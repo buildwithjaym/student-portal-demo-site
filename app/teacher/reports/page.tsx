@@ -308,7 +308,7 @@ function ReportDocument({
                   Department of Education
                 </p>
                 <p className="mt-2 text-[18px] font-bold tracking-wide text-cyan-900 sm:text-[22px]">
-                  Qorban Institute of Technology Training and Assessment Center, Inc
+                 Riverside National Senior High School
                 </p>
                 <p className="mt-1 text-xs font-medium text-gray-700 sm:text-sm">
                   {getReportTitle(selectedReportType)}
@@ -1273,7 +1273,7 @@ function TeacherReportsPageContent() {
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(13)
-      doc.text('Qorban Institute of Technology Training and Assessment Center, Inc', marginX + 24, cursorY + 6)
+      doc.text('Riverside National Senior High School', marginX + 24, cursorY + 6)
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(10)
