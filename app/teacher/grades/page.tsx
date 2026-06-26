@@ -1282,17 +1282,23 @@ function TeacherGradesContent() {
 
       toast.success(`Verified ${verifiedCount} saved grade row(s).`)
 
-      const submissionPayload = {
-        class_id: selectedClassId,
-        teacher_id: teacher.id,
-        school_year: selectedSchoolYear,
-        term: selectedSemester,
-        grading_period: selectedGradingPeriod,
-        is_submitted: true,
-        submitted_by: profileId,
-        submitted_at: new Date().toISOString(),
-      }
+    const {
+  data: { user },
+} = await supabase.auth.getUser()
 
+const submissionPayload = {
+  class_id: selectedClassId,
+  teacher_id: teacher.id,
+  school_year: selectedSchoolYear,
+  term: selectedClass.semester,
+  grading_period: selectedGradingPeriod,
+  is_submitted: true,
+  submitted_by: user?.id,   // 🔥 THIS IS THE KEY FIX
+  submitted_at: new Date().toISOString(),
+}
+      if (teacher?.profile_id !== profileId) {
+  toast.warning('Teacher identity mismatch (allowed in demo mode)')
+}
       const { error: submissionError } = await supabase
         .from('grade_submissions')
         .upsert(submissionPayload, {

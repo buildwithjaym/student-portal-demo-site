@@ -72,26 +72,21 @@ const DEMO_ACCOUNTS: Record<DemoRole, DemoAccount> = {
 const resolveUserContext = async (userId: string) => {
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, role, is_active, must_change_password')
     .eq('id', userId)
     .maybeSingle()
 
   if (!profile) return null
 
-  let teacher = null
-
-  if (profile.role === 'teacher') {
-    const { data } = await supabase
-      .from('teachers')
-      .select('*')
-      .eq('profile_id', userId)
-      .maybeSingle()
-
-    teacher = data
-  }
+  const { data: teacher } = await supabase
+    .from('teachers')
+    .select('id')
+    .eq('profile_id', userId)
+    .maybeSingle()
 
   return { profile, teacher }
 }
+
 export default function LoginPage() {
   const router = useRouter()
 
@@ -108,125 +103,76 @@ export default function LoginPage() {
   const [demoLoadingRole, setDemoLoadingRole] = useState<DemoRole | null>(null)
   const [error, setError] = useState('')
 
-  /* =========================
-     FIXED SESSION CHECK (SAFE)
-     ========================= */
+
+
+
+  
   useEffect(() => {
-    mountedRef.current = true
+  const checkSession = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
 
-    const checkSession = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-
-        if (!mountedRef.current) return
-
-        if (!user) {
-          setCheckingSession(false)
-          return
-        }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, is_active, must_change_password')
-          .eq('id', user.id)
-          .maybeSingle()
-        const context = await resolveUserContext(user.id)
-
-if (context?.profile?.role === 'teacher' && !context.teacher) {
-  await supabase.auth.signOut()
-  setCheckingSession(false)
-  return
-}
-        if (!mountedRef.current) return
-
-        if (!profile || profile.is_active !== true) {
-          await supabase.auth.signOut()
-          setCheckingSession(false)
-          return
-        }
-
-        const role = profile.role?.toLowerCase() as DemoRole
-
-        if (!ROLE_ROUTES[role]) {
-          await supabase.auth.signOut()
-          setCheckingSession(false)
-          return
-        }
-
-        if (profile.must_change_password) {
-          router.replace('/change-password')
-          return
-        }
-
-        setCheckingSession(false)
-        router.replace(ROLE_ROUTES[role])
-
-      } catch {
-        if (mountedRef.current) setCheckingSession(false)
-      }
+    if (!user) {
+      setCheckingSession(false)
+      return
     }
 
-    checkSession()
+    const ctx = await resolveUserContext(user.id)
 
-    return () => {
-      mountedRef.current = false
+    if (!ctx?.profile || ctx.profile.is_active !== true) {
+      await supabase.auth.signOut()
+      setCheckingSession(false)
+      return
     }
-  }, [router])
 
-  /* =========================
-     AUTH FUNCTION FIXED
-     ========================= */
-  const authenticate = async (
-    loginEmail: string,
-    loginPassword: string,
-  ) => {
-    if (loginLockRef.current) return
-
-    loginLockRef.current = true
-    setLoading(true)
-    setError('')
-
-    try {
-      const { data, error } =
-        await supabase.auth.signInWithPassword({
-          email: loginEmail.trim().toLowerCase(),
-          password: loginPassword,
-        })
-
-      if (error || !data.user) throw new Error('Login failed')
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, is_active, must_change_password')
-        .eq('id', data.user.id)
-        .maybeSingle()
-      
-      if (!profile || profile.is_active !== true) {
-        await supabase.auth.signOut()
-        throw new Error('Inactive or missing profile')
-      }
-
-      const role = profile.role?.toLowerCase() as DemoRole
-
-      if (!ROLE_ROUTES[role]) {
-        await supabase.auth.signOut()
-        throw new Error('Invalid role')
-      }
-
-      if (profile.must_change_password) {
-        router.replace('/change-password')
-        return
-      }
-
-      router.replace(ROLE_ROUTES[role])
-
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Login error')
-    } finally {
-      setLoading(false)
-      loginLockRef.current = false
+    if (ctx.profile.role === 'teacher' && !ctx.teacher) {
+      await supabase.auth.signOut()
+      setCheckingSession(false)
+      return
     }
+
+    setCheckingSession(false)
+    router.replace(ROLE_ROUTES[ctx.profile.role as DemoRole])
   }
+
+  checkSession()
+}, [router])
+  const authenticate = async (email: string, password: string) => {
+  if (loginLockRef.current) return
+
+  loginLockRef.current = true
+  setLoading(true)
+  setError('')
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+
+    if (error || !data.user) throw new Error('Login failed')
+
+    const ctx = await resolveUserContext(data.user.id)
+
+    if (!ctx?.profile || ctx.profile.is_active !== true) {
+      await supabase.auth.signOut()
+      throw new Error('Inactive account')
+    }
+
+    if (ctx.profile.role === 'teacher' && !ctx.teacher) {
+      await supabase.auth.signOut()
+      throw new Error('Teacher profile missing')
+    }
+
+    setLoading(false)
+    loginLockRef.current = false
+
+    router.replace(ROLE_ROUTES[ctx.profile.role as DemoRole])
+  } catch (e) {
+    setError(e instanceof Error ? e.message : 'Login error')
+    setLoading(false)
+    loginLockRef.current = false
+  }
+}
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
