@@ -201,7 +201,7 @@ Steps:
 ## 👤 Author
 
 **🟢 Jaym Maruji**
-Developer of **Qorban Portal**
+Developer of **Student Portal**
 
 * GitHub: **@buildwithjaym**
 * Email: **[jaymmaruji@gmail.com](mailto:jaymmaruji@gmail.com)**

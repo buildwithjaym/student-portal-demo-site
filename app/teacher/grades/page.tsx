@@ -199,34 +199,23 @@ function getReadableError(error: unknown, fallback: string) {
   return fallback
 }
 
-function safeStringify(value: unknown) {
-  try {
-    return typeof value === 'string'
-      ? value
-      : JSON.stringify(value, null, 2)
-  } catch {
-    return '[unserializable]'
-  }
-}
-
 function debugDbError(
   label: string,
   error: unknown,
   extra?: Record<string, unknown>
 ) {
-  const err = error as any
+  const err = (error ?? {}) as SupabaseLikeError
 
   console.error(`\n[${label}]`)
-
-  console.error({
-    message: err?.message ?? null,
-    details: err?.details ?? null,
-    hint: err?.hint ?? null,
-    code: err?.code ?? null,
-  })
+  console.error('message:', err.message ?? null)
+  console.error('details:', err.details ?? null)
+  console.error('hint:', err.hint ?? null)
+  console.error('code:', err.code ?? null)
 
   if (extra) {
-    console.error('extra:', safeStringify(extra))
+    for (const [key, value] of Object.entries(extra)) {
+      console.error(`${key}:`, value)
+    }
   }
 
   console.error(`[/${label}]\n`)
@@ -1690,7 +1679,7 @@ function TeacherGradesContent() {
                           {row.student_no || '—'}
                         </td>
 
-                        <td className="px-4 py-4 text-sm font-medium text-green-950">
+                        <td className="px-4 py-4 text-sm font-medium text-cyan-950">
                           <div className="flex items-center gap-2">
                             <span>{row.full_name}</span>
                             {hasGradeError && (
@@ -1883,7 +1872,7 @@ function TeacherGradesContent() {
                           <td className="px-4 py-3 text-sm text-gray-700">
                             {row.student_no || '—'}
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium text-green-950">
+                          <td className="px-4 py-3 text-sm font-medium text-cyan-950">
                             {row.full_name}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">{row.grade}</td>
