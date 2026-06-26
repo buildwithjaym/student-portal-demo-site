@@ -452,204 +452,249 @@ export default function TeachersPage() {
       </motion.div>
 
       <AnimatePresence>
-        {showModal && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+  {showModal && (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3 sm:px-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.98 }}
+        transition={{ duration: 0.2 }}
+        className="
+          w-full max-w-3xl
+          rounded-3xl bg-white
+          shadow-2xl
+          max-h-[90vh]
+          flex flex-col
+          overflow-hidden
+        "
+      >
+        {/* HEADER (STICKY) */}
+        <div
+          className="
+            sticky top-0 z-10
+            flex flex-col gap-3
+            sm:flex-row sm:items-center sm:justify-between
+            border-b border-gray-100
+            bg-white
+            px-5 sm:px-6 py-4
+          "
+        >
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-yellow-600">
+              {editingTeacher ? 'Update Record' : 'New Teacher'}
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold text-cyan-900 truncate">
+              {editingTeacher ? 'Edit Teacher' : 'Add Teacher'}
+            </h2>
+          </div>
+
+          <button
+            onClick={closeModal}
+            className="
+              self-end sm:self-auto
+              rounded-xl px-3 py-2
+              text-sm font-medium text-gray-500
+              transition hover:bg-gray-100
+            "
           >
-            <motion.div
-              initial={{ opacity: 0, y: 24, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              className="w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl"
+            Close
+          </button>
+        </div>
+
+        {/* FORM (SCROLLABLE AREA) */}
+        <form
+          onSubmit={handleSave}
+          className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-5"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* Teacher No */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Teacher No *
+              </label>
+              <input
+                name="teacher_no"
+                value={form.teacher_no}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                required
+                disabled={saving}
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Email {!editingTeacher ? '*' : ''}
+              </label>
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                required={!editingTeacher}
+                disabled={saving}
+              />
+            </div>
+
+            {/* First Name */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                First Name *
+              </label>
+              <input
+                name="first_name"
+                value={form.first_name}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                required
+                disabled={saving}
+              />
+            </div>
+
+            {/* Middle Name */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Middle Name
+              </label>
+              <input
+                name="middle_name"
+                value={form.middle_name}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                disabled={saving}
+              />
+            </div>
+
+            {/* Last Name */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Last Name *
+              </label>
+              <input
+                name="last_name"
+                value={form.last_name}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                required
+                disabled={saving}
+              />
+            </div>
+
+            {/* Suffix */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Suffix
+              </label>
+              <input
+                name="suffix"
+                value={form.suffix}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                disabled={saving}
+              />
+            </div>
+
+            {/* Contact */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Contact
+              </label>
+              <input
+                name="contact"
+                type="text"
+                value={form.contact}
+                onChange={handleChange}
+                placeholder="09xxxxxxxxx"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                disabled={saving}
+              />
+            </div>
+
+            {/* Address */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Address
+              </label>
+              <input
+                name="address"
+                type="text"
+                value={form.address}
+                onChange={handleChange}
+                placeholder="Enter address"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                disabled={saving}
+              />
+            </div>
+
+            {/* Status */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Status
+              </label>
+              <select
+                name="is_active"
+                value={String(form.is_active)}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                disabled={saving}
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          {!editingTeacher && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              A login account will be created automatically. The teacher&apos;s temporary
+              password will be their teacher number.
+            </div>
+          )}
+
+          {/* FOOTER (STICKY ACTION BAR) */}
+          <div
+            className="
+              sticky bottom-0
+              bg-white border-t border-gray-100
+              px-0 pt-4
+              flex flex-col sm:flex-row sm:justify-end gap-3
+            "
+          >
+            <button
+              type="button"
+              onClick={closeModal}
+              className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
+              disabled={saving}
             >
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-yellow-600">
-                    {editingTeacher ? 'Update Record' : 'New Teacher'}
-                  </p>
-                  <h2 className="text-2xl font-bold text-cyan-900">
-                    {editingTeacher ? 'Edit Teacher' : 'Add Teacher'}
-                  </h2>
-                </div>
+              Cancel
+            </button>
 
-                <button
-                  onClick={closeModal}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100"
-                >
-                  Close
-                </button>
-              </div>
-
-              <form onSubmit={handleSave} className="space-y-5">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Teacher No *
-                    </label>
-                    <input
-                      name="teacher_no"
-                      value={form.teacher_no}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Email {!editingTeacher ? '*' : ''}
-                    </label>
-                    <input
-                      name="email"
-                      type="email"
-                      value={form.email}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required={!editingTeacher}
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      First Name *
-                    </label>
-                    <input
-                      name="first_name"
-                      value={form.first_name}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Middle Name
-                    </label>
-                    <input
-                      name="middle_name"
-                      value={form.middle_name}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Last Name *
-                    </label>
-                    <input
-                      name="last_name"
-                      value={form.last_name}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Suffix
-                    </label>
-                    <input
-                      name="suffix"
-                      value={form.suffix}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Contact
-                    </label>
-                    <input
-                      name="contact"
-                      type="text"
-                      value={form.contact}
-                      onChange={handleChange}
-                      placeholder="09xxxxxxxxx"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    />
-                  </div>
-                  <div>
-                      <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Address
-                    </label>
-                    <input
-                      name="address"
-                      type="text"
-                      value={form.address}
-                      onChange={handleChange}
-                      placeholder="Enter address"
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Status
-                    </label>
-                    <select
-                      name="is_active"
-                      value={String(form.is_active)}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-
-                {!editingTeacher && (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    A login account will be created automatically. The teacher&apos;s temporary
-                    password will be their teacher number.
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {saving
-                      ? editingTeacher
-                        ? 'Updating...'
-                        : 'Saving...'
-                      : editingTeacher
-                        ? 'Update Teacher'
-                        : 'Save Teacher'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:opacity-60"
+            >
+              {saving
+                ? editingTeacher
+                  ? 'Updating...'
+                  : 'Saving...'
+                : editingTeacher
+                ? 'Update Teacher'
+                : 'Save Teacher'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   )
 }

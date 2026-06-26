@@ -391,11 +391,12 @@ export default function StudentsPage() {
   return (
     <div className="space-y-6">
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
-      >
+  initial={{ opacity: 0, y: 24, scale: 0.96 }}
+  animate={{ opacity: 1, y: 0, scale: 1 }}
+  exit={{ opacity: 0, y: 16, scale: 0.98 }}
+  transition={{ duration: 0.2 }}
+  className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+>
         <div>
           <p className="text-xs font-medium text-cyan-600 sm:text-sm">Administration</p>
           <h1 className="text-3xl font-bold text-cyan-900">Students</h1>
@@ -580,242 +581,234 @@ export default function StudentsPage() {
       </motion.div>
 
       <AnimatePresence>
-        {showModal && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+  {showModal && (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-3 sm:px-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.98 }}
+        transition={{ duration: 0.2 }}
+        className="
+          w-full sm:max-w-3xl
+          max-h-[90vh]
+          bg-white
+          rounded-3xl
+          shadow-2xl
+          overflow-hidden
+          flex flex-col
+        "
+      >
+        {/* HEADER (STICKY) */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-4 sm:px-6 py-4">
+          <div>
+            <p className="text-xs sm:text-sm font-medium text-yellow-600">
+              {editingStudent ? 'Update Record' : 'New Student'}
+            </p>
+            <h2 className="text-xl sm:text-2xl font-bold text-cyan-900">
+              {editingStudent ? 'Edit Student' : 'Add Student'}
+            </h2>
+          </div>
+
+          <button
+            onClick={closeModal}
+            className="rounded-xl px-3 py-2 text-sm font-medium text-gray-500 hover:bg-gray-100"
+            disabled={saving}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 24, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 16, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              className="w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl"
+            Close
+          </button>
+        </div>
+
+        {/* BODY (SCROLLABLE) */}
+        <form
+          onSubmit={handleSave}
+          className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-5"
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Student No *
+              </label>
+              <input
+                name="student_no"
+                value={form.student_no}
+                readOnly
+                className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Email {!editingStudent ? '*' : ''}
+              </label>
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                disabled={saving}
+                required={!editingStudent}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                First Name *
+              </label>
+              <input
+                name="first_name"
+                value={form.first_name}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Middle Name
+              </label>
+              <input
+                name="middle_name"
+                value={form.middle_name}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Last Name *
+              </label>
+              <input
+                name="last_name"
+                value={form.last_name}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Suffix
+              </label>
+              <input
+                name="suffix"
+                value={form.suffix}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Gender *
+              </label>
+              <select
+                name="gender"
+                value={form.gender}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+                required
+              >
+                <option value="">Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Grade Level *
+              </label>
+              <select
+                name="grade_level"
+                value={form.grade_level}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+              >
+                <option value="Grade 11">Grade 11</option>
+                <option value="Grade 12">Grade 12</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Section *
+              </label>
+              <select
+                name="section"
+                value={form.section}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+                required
+              >
+                <option value="">
+                  {availableSections.length > 0
+                    ? 'Select section'
+                    : 'No available sections'}
+                </option>
+                {availableSections.map((section) => (
+                  <option key={section} value={section}>
+                    {section}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Status
+              </label>
+              <select
+                name="is_active"
+                value={String(form.is_active)}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                disabled={saving}
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="rounded-xl border border-gray-300 px-5 py-3"
+              disabled={saving}
             >
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-yellow-600">
-                    {editingStudent ? 'Update Record' : 'New Student'}
-                  </p>
-                  <h2 className="text-2xl font-bold text-cyan-900">
-                    {editingStudent ? 'Edit Student' : 'Add Student'}
-                  </h2>
-                </div>
+              Cancel
+            </button>
 
-                <button
-                  onClick={closeModal}
-                  className="rounded-xl px-3 py-2 text-sm font-medium text-gray-500 transition hover:bg-gray-100"
-                  disabled={saving}
-                >
-                  Close
-                </button>
-              </div>
-
-              <form onSubmit={handleSave} className="space-y-5">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Student No *
-                    </label>
-                    <input
-                      name="student_no"
-                      value={form.student_no}
-                      readOnly
-                      className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 outline-none"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Email {!editingStudent ? '*' : ''}
-                    </label>
-                    <input
-                      name="email"
-                      type="email"
-                      value={form.email}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required={!editingStudent}
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      First Name *
-                    </label>
-                    <input
-                      name="first_name"
-                      value={form.first_name}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Middle Name
-                    </label>
-                    <input
-                      name="middle_name"
-                      value={form.middle_name}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Last Name *
-                    </label>
-                    <input
-                      name="last_name"
-                      value={form.last_name}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Suffix
-                    </label>
-                    <input
-                      name="suffix"
-                      value={form.suffix}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Gender *
-                    </label>
-                    <select
-                      name="gender"
-                      value={form.gender}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    >
-                      <option value="">Select gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Grade Level *
-                    </label>
-                    <select
-                      name="grade_level"
-                      value={form.grade_level}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    >
-                      <option value="Grade 11">Grade 11</option>
-                      <option value="Grade 12">Grade 12</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Section *
-                    </label>
-                    <select
-                      name="section"
-                      value={form.section}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      required
-                      disabled={saving}
-                    >
-                      <option value="">
-                        {availableSections.length > 0
-                          ? 'Select section'
-                          : 'No available sections'}
-                      </option>
-                      {availableSections.map((section) => (
-                        <option key={section} value={section}>
-                          {section}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-1.5 block text-sm font-medium text-gray-700">
-                      Status
-                    </label>
-                    <select
-                      name="is_active"
-                      value={String(form.is_active)}
-                      onChange={handleChange}
-                      className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none transition focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      disabled={saving}
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
-                  </div>
-                </div>
-
-                {!editingStudent && (
-                  <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                    A login account will be created automatically. The student&apos;s
-                    temporary password will be their student number.
-                  </div>
-                )}
-
-                {availableSections.length === 0 && (
-                  <div className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
-                    No available sections found for {form.grade_level}. Add an active
-                    section first.
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeModal}
-                    className="rounded-xl border border-gray-300 px-5 py-3 font-medium text-gray-700 transition hover:bg-gray-50"
-                    disabled={saving}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    disabled={saving || availableSections.length === 0}
-                    className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white transition hover:bg-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {saving
-                      ? editingStudent
-                        ? 'Updating...'
-                        : 'Saving...'
-                      : editingStudent
-                        ? 'Update Student'
-                        : 'Save Student'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-xl bg-cyan-800 px-5 py-3 font-semibold text-white"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   )
 }
