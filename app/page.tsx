@@ -11,7 +11,6 @@ export default async function HomePage() {
     userAgent.includes('Bingbot') ||
     userAgent.includes('Slurp')
 
- 
   if (!isBot) {
     redirect('/login')
   }
@@ -22,38 +21,35 @@ export default async function HomePage() {
       {/* Logo */}
       <div style={{ marginBottom: 20 }}>
         <Image
-          src="/logo.jpg" 
-          alt="Qorban Portal Logo"
+          src="/logo.jpg"
+          alt="Riverside National Senior High School Student Portal Logo"
           width={120}
           height={120}
         />
       </div>
 
       {/* Title */}
-      <h1>Qorban Portal - Online Grade Management System</h1>
+      <h1>Student Portal</h1>
 
       {/* Description */}
       <p>
-        Qorban Portal is a modern online student portal designed for schools,
-        teachers, and students. It allows secure access to grades, academic
-        records, and performance tracking.
+        The Riverside National Senior High School Student Portal is a modern online system designed for students,
+        teachers, and school administrators. It provides secure access to academic records, grades, and performance tracking.
       </p>
 
       {/* Features */}
       <h2>Key Features</h2>
       <ul>
-        <li>Student grade tracking system</li>
-        <li>Teacher dashboard for managing classes</li>
+        <li>Student grade viewing system</li>
+        <li>Teacher class and grade management</li>
         <li>Secure login for students and staff</li>
-        <li>Online school management portal</li>
+        <li>Centralized student information system</li>
       </ul>
 
       {/* Audience */}
       <h2>Who is it for?</h2>
       <p>
-        This platform is built for schools, universities, and educational
-        institutions looking for a reliable student information system and
-        grading solution.
+        This Student Portal is built for Riverside National Senior High School students, teachers, and administrators to manage academic records efficiently.
       </p>
 
     </main>

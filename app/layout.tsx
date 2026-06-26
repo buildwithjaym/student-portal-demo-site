@@ -4,16 +4,16 @@ import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://www.qorbanportal.online'),
+  metadataBase: new URL('https://student-portal-demo-site.vercel.app/'),
   title: {
     default: 'Student Portal',
-    template: '%s | Qorban Portal',
+    template: '%s | Student Portal',
   },
   description:
-    'Qorban Portal is an online grade management system for students, teachers, and school administrators.',
+    'Riverside National Senior High School Student Portal is an online grade management system for students, teachers, and school administrators.',
   keywords: [
-    'Qorban Portal',
     'student portal',
+    'Riverside National Senior High School',
     'grade management system',
     'online grading system',
     'school management system',
@@ -21,10 +21,10 @@ export const metadata: Metadata = {
     'teacher portal',
     'academic records',
   ],
-  applicationName: 'Qorban Portal',
-  authors: [{ name: 'Qorban Portal' }],
-  creator: 'Qorban Portal',
-  publisher: 'Qorban Portal',
+  applicationName: 'Student Portal',
+  authors: [{ name: 'Riverside National Senior High School' }],
+  creator: 'Riverside National Senior High School',
+  publisher: 'Riverside National Senior High School',
   alternates: {
     canonical: '/',
   },
@@ -34,11 +34,11 @@ export const metadata: Metadata = {
     apple: '/favicon.ico',
   },
   openGraph: {
-    title: 'Qorban Portal',
+    title: 'Student Portal',
     description:
-      'Online grade management system for students, teachers, and school administrators.',
-    url: 'https://www.qorbanportal.online',
-    siteName: 'Qorban Portal',
+      'Riverside National Senior High School Student Portal - Online grade management system for students, teachers, and school administrators.',
+    url: 'https://student-portal-demo-site.vercel.app/',
+    siteName: 'Student Portal',
     locale: 'en_US',
     type: 'website',
     images: [
@@ -46,15 +46,15 @@ export const metadata: Metadata = {
         url: '/logo.jpg',
         width: 1200,
         height: 630,
-        alt: 'Qorban Portal Logo',
+        alt: 'Student Portal Logo',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Qorban Portal',
+    title: 'Student Portal',
     description:
-      'Online grade management system for students, teachers, and school administrators.',
+      'Riverside National Senior High School Student Portal - Online grade management system.',
     images: ['/logo.jpg'],
   },
   robots: {
@@ -77,7 +77,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}
+      <body>
+        {children}
         <Analytics />
         <SpeedInsights />
       </body>

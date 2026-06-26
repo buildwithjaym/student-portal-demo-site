@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://www.qorbanportal.online/sitemap.xml',
+    sitemap: 'https://student-portal-demo-site.vercel.app/sitemap.xml',
   }
 }
